@@ -9,6 +9,11 @@
 MACHINE ?= "##MACHINE##"
 
 #
+# Machine Build Variant (for OE-Alliance compatibility)
+#
+MACHINEBUILD ?= "##MACHINE##"
+
+#
 # Distribution Selection
 #
 DISTRO ?= "##DISTRO##"

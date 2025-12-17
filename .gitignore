@@ -38,5 +38,9 @@ tmp/
 # Git submodules will be tracked
 !/.gitmodules
 
+# User customization layer (keep structure, ignore user recipes)
+/meta-local/recipes*/
+!/meta-local/recipes-example/
+
 # Misc
 A*T.md

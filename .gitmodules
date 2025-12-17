@@ -13,3 +13,11 @@
 [submodule "meta-neutrino"]
 	path = meta-neutrino
 	url = https://github.com/tuxbox-neutrino/meta-neutrino.git
+[submodule "poky"]
+	path = poky
+	url = https://git.yoctoproject.org/git/poky
+	branch = kirkstone
+[submodule "meta-openembedded"]
+	path = meta-openembedded
+	url = https://git.openembedded.org/meta-openembedded
+	branch = kirkstone

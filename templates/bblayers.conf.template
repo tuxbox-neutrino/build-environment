@@ -5,17 +5,15 @@ LAYER_CONF_VERSION = "7"
 BBPATH = "${TOPDIR}"
 BBFILES ?= ""
 
-# OE-Alliance base layers
+# Poky/OE-Core base layers
 BBLAYERS ?= " \
-  ##OEROOT##/meta \
-  ##OEROOT##/meta-poky \
-  ##TOPDIR##/oe-alliance/openembedded-core/meta \
-  ##TOPDIR##/oe-alliance/meta-openembedded/meta-oe \
-  ##TOPDIR##/oe-alliance/meta-openembedded/meta-python \
-  ##TOPDIR##/oe-alliance/meta-openembedded/meta-networking \
-  ##TOPDIR##/oe-alliance/meta-openembedded/meta-multimedia \
-  ##TOPDIR##/oe-alliance/meta-openembedded/meta-filesystems \
-  ##TOPDIR##/oe-alliance/meta-qt5 \
+  ##TOPDIR##/poky/meta \
+  ##TOPDIR##/poky/meta-poky \
+  ##TOPDIR##/meta-openembedded/meta-oe \
+  ##TOPDIR##/meta-openembedded/meta-python \
+  ##TOPDIR##/meta-openembedded/meta-networking \
+  ##TOPDIR##/meta-openembedded/meta-multimedia \
+  ##TOPDIR##/meta-openembedded/meta-filesystems \
   ##TOPDIR##/oe-alliance/meta-oe \
 "
 

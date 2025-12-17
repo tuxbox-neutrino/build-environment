@@ -337,11 +337,11 @@ class TuxboxBuilder:
 
     def invoke_bitbake(self, target: str, offline: bool = False):
         """Invoke BitBake to build target."""
-        oe_init_script = self.topdir / 'oe-alliance' / 'openembedded-core' / 'oe-init-build-env'
+        oe_init_script = self.topdir / 'poky' / 'oe-init-build-env'
 
         if not oe_init_script.exists():
             self.error(f"OE init script not found: {oe_init_script}")
-            self.error("Please ensure OE-Alliance submodule is properly initialized")
+            self.error("Please ensure Poky submodule is properly initialized")
             sys.exit(1)
 
         # Build BitBake command
@@ -372,7 +372,7 @@ source {oe_init_script} {self.builddir}
 
     def invoke_bitbake_devshell(self, target: str, machine: str):
         """Invoke BitBake devshell."""
-        oe_init_script = self.topdir / 'oe-alliance' / 'openembedded-core' / 'oe-init-build-env'
+        oe_init_script = self.topdir / 'poky' / 'oe-init-build-env'
 
         if not oe_init_script.exists():
             self.error(f"OE init script not found: {oe_init_script}")

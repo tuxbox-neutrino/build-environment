@@ -1,19 +1,15 @@
 # Git Submodules for Tuxbox-OS Builder
 #
-# These submodules should be added manually with appropriate branches/commits:
-#
-# OE-Alliance (pin to stable commit):
-#   git submodule add -b <branch> https://github.com/oe-alliance/oe-alliance-core.git oe-alliance
-#
-# Neutrino meta-layer (Kirkstone branch):
-#   git submodule add -b kirkstone https://github.com/tuxbox-neutrino/meta-neutrino.git meta-neutrino
-#
-# After adding, pin to specific commits for reproducibility:
-#   cd oe-alliance
-#   git checkout <specific-sha>
-#   cd ..
-#   git add oe-alliance
-#   git commit -m "Pin OE-Alliance to <sha>"
-#
-# Then initialize with:
+# To initialize all submodules after cloning:
 #   git submodule update --init --recursive
+#
+# Submodules are pinned to specific commits for reproducibility
+# OE-Alliance: branch 4.0 (Yocto Kirkstone), commit 6b5d3901ecc757e5dadb6d8c95430334532f8960
+# meta-neutrino: master (Gatesgarth - NEEDS KIRKSTONE MIGRATION), commit 9acbffbca63dde5e74d73d61155ae419c92a8ce1
+[submodule "oe-alliance"]
+	path = oe-alliance
+	url = https://github.com/oe-alliance/oe-alliance-core.git
+	branch = 4.0
+[submodule "meta-neutrino"]
+	path = meta-neutrino
+	url = https://github.com/tuxbox-neutrino/meta-neutrino.git

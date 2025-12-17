@@ -5,6 +5,12 @@ LAYER_CONF_VERSION = "7"
 BBPATH = "${TOPDIR}"
 BBFILES ?= ""
 
+# Global masks for Enigma2/Kodi/OE-A distro content (we only build Neutrino)
+BBMASK ?= ".*enigma2.*|.*/oe-alliance/meta-oe/recipes-distros/.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2-plugins/.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2-skins.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2-.*"
+BBMASK .= "|.*/enigma2-plugins/.*"
+BBMASK .= "|.*/enigma2-plugin-.*"
+BBMASK .= "|.*/enigma2-pliplugins.*"
+
 # Poky/OE-Core base layers
 BBLAYERS ?= " \
   ##TOPDIR##/poky/meta \
@@ -14,6 +20,7 @@ BBLAYERS ?= " \
   ##TOPDIR##/meta-openembedded/meta-networking \
   ##TOPDIR##/meta-openembedded/meta-multimedia \
   ##TOPDIR##/meta-openembedded/meta-filesystems \
+  ##TOPDIR##/meta-openembedded/meta-webserver \
   ##TOPDIR##/oe-alliance/meta-oe \
 "
 
@@ -30,7 +37,8 @@ BBLAYERS += " \
 # (automatically added for MACHINE=tank)
 ##TOOLCHAIN_LAYER##
 
-# User customization layer
-BBLAYERS += " \
-  ##TOPDIR##/meta-local \
-"
+# Optional user customization layer (disabled by default)
+# Uncomment to add local overrides/bbappends without touching upstream
+#BBLAYERS += " \
+#  ##TOPDIR##/meta-local \
+#"

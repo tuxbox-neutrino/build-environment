@@ -157,16 +157,120 @@ class TuxboxBuilder:
 
         self.success("Submodules initialized")
 
-    def generate_config(self, machine: str, distro: str):
-        """Generate build configuration files."""
+    def detect_machine_brand(self, machine: str) -> str:
+        """Detect the brand/manufacturer for a given machine."""
+        # Machine to brand mapping (common machines)
+        machine_brands = {
+            'hd51': 'gfutures',
+            'hd60': 'gfutures',
+            'hd61': 'gfutures',
+            'zgemmah7': 'airdigital',
+            'h7s': 'airdigital',
+            'h7c': 'airdigital',
+            'tank': 'coolstream',
+            'ultimo4k': 'vuplus',
+            'uno4k': 'vuplus',
+            'duo4k': 'vuplus',
+        }
+
+        return machine_brands.get(machine, 'unknown')
+
+    def generate_config(self, machine: str, distro: str, distro_type: str = 'release'):
+        """Generate build configuration files from templates."""
         self.log(f"Generating configuration for {machine}...", Colors.BOLD, bold=True)
 
-        # TODO: Generate bblayers.conf and local.conf
-        # This will be implemented based on templates
+        # Detect machine brand for meta-brands layer
+        brand = self.detect_machine_brand(machine)
+        if brand == 'unknown':
+            self.warning(f"Unknown machine '{machine}' - brand layer may need manual configuration")
 
-        self.info(f"Machine: {machine}")
-        self.info(f"Distro: {distro}")
+        # Create build/conf directory
+        conf_dir = self.builddir / 'conf'
+        conf_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate bblayers.conf
+        self.generate_bblayers_conf(conf_dir, machine, brand)
+
+        # Generate local.conf
+        self.generate_local_conf(conf_dir, machine, distro, distro_type)
+
         self.success("Configuration generated")
+
+    def generate_bblayers_conf(self, conf_dir: Path, machine: str, brand: str):
+        """Generate bblayers.conf from template."""
+        template_file = self.topdir / 'templates' / 'bblayers.conf.template'
+        output_file = conf_dir / 'bblayers.conf'
+
+        if not template_file.exists():
+            self.error(f"Template not found: {template_file}")
+            sys.exit(1)
+
+        # Read template
+        with open(template_file) as f:
+            content = f.read()
+
+        # Replace variables
+        content = content.replace('##OEROOT##', str(self.topdir / 'oe-alliance' / 'openembedded-core'))
+        content = content.replace('##TOPDIR##', str(self.topdir))
+
+        # Add brand-specific layer
+        if brand != 'unknown':
+            brand_layer = f'  {self.topdir}/oe-alliance/meta-brands/meta-{brand} \\\n'
+            content = content.replace('##BRAND_LAYERS##', brand_layer)
+        else:
+            content = content.replace('##BRAND_LAYERS##', '  # Add brand layer manually\n')
+
+        # Add toolchain layer for Coolstream
+        if machine == 'tank':
+            toolchain_layer = f'BBLAYERS += " \\\n  {self.topdir}/meta-tuxbox-toolchain \\\n"\n'
+            content = content.replace('##TOOLCHAIN_LAYER##', toolchain_layer)
+        else:
+            content = content.replace('##TOOLCHAIN_LAYER##', '')
+
+        # Write output
+        with open(output_file, 'w') as f:
+            f.write(content)
+
+        self.info(f"Generated: {output_file}")
+
+    def generate_local_conf(self, conf_dir: Path, machine: str, distro: str, distro_type: str):
+        """Generate local.conf from template."""
+        template_file = self.topdir / 'templates' / 'local.conf.template'
+        output_file = conf_dir / 'local.conf'
+
+        if not template_file.exists():
+            self.error(f"Template not found: {template_file}")
+            sys.exit(1)
+
+        # Read template
+        with open(template_file) as f:
+            content = f.read()
+
+        # Calculate optimal thread counts
+        import multiprocessing
+        cpu_count = multiprocessing.cpu_count()
+        bb_threads = max(1, cpu_count - 1)  # Leave 1 core for system
+        parallel_make = max(1, cpu_count)
+
+        # Replace variables
+        content = content.replace('##MACHINE##', machine)
+        content = content.replace('##DISTRO##', distro)
+        content = content.replace('##BB_NUMBER_THREADS##', str(bb_threads))
+        content = content.replace('##PARALLEL_MAKE##', str(parallel_make))
+        content = content.replace('##DL_DIR##', str(self.dl_dir))
+        content = content.replace('##SSTATE_DIR##', str(self.sstate_dir))
+        content = content.replace('##TMPDIR##', str(self.builddir / 'tmp'))
+        content = content.replace('##DISTRO_TYPE##', distro_type)
+
+        # Write output
+        with open(output_file, 'w') as f:
+            f.write(content)
+
+        self.info(f"Generated: {output_file}")
+        self.info(f"  Machine: {machine}")
+        self.info(f"  Distro: {distro}")
+        self.info(f"  Threads: {bb_threads}")
+        self.info(f"  Parallel: {parallel_make}")
 
     def init(self, args):
         """Initialize build environment."""
@@ -200,6 +304,7 @@ class TuxboxBuilder:
         """Build an image."""
         machine = args.machine
         distro = args.distro
+        distro_type = args.distro_type
         target = args.target or 'tuxbox-image'
 
         self.log(f"=== Building {target} for {machine} ===", Colors.BOLD, bold=True)
@@ -210,22 +315,84 @@ class TuxboxBuilder:
             self.warning("Build environment not initialized. Running init...")
             self.init(args)
 
+        # Check if OE-Alliance submodule exists
+        oe_alliance = self.topdir / 'oe-alliance'
+        if not oe_alliance.exists():
+            self.error("OE-Alliance submodule not found!")
+            self.info("Please add submodule:")
+            self.info("  git submodule add https://github.com/oe-alliance/oe-alliance-core.git oe-alliance")
+            self.info("  git submodule update --init --recursive")
+            sys.exit(1)
+
         # Generate configuration
-        self.generate_config(machine, distro)
+        self.generate_config(machine, distro, distro_type)
 
-        # TODO: Invoke BitBake
-        self.info(f"Build target: {target}")
-        self.info(f"Machine: {machine}")
-        self.info(f"Distro: {distro}")
+        # Setup environment and invoke BitBake
+        if args.devshell:
+            self.invoke_bitbake_devshell(target, machine)
+        elif args.offline:
+            self.invoke_bitbake(target, offline=True)
+        else:
+            self.invoke_bitbake(target, offline=False)
 
-        if args.offline:
+    def invoke_bitbake(self, target: str, offline: bool = False):
+        """Invoke BitBake to build target."""
+        oe_init_script = self.topdir / 'oe-alliance' / 'openembedded-core' / 'oe-init-build-env'
+
+        if not oe_init_script.exists():
+            self.error(f"OE init script not found: {oe_init_script}")
+            self.error("Please ensure OE-Alliance submodule is properly initialized")
+            sys.exit(1)
+
+        # Build BitBake command
+        # We need to source oe-init-build-env then run bitbake
+        build_cmd = f"""
+cd {self.topdir}
+source {oe_init_script} {self.builddir}
+"""
+
+        if offline:
+            build_cmd += f"BB_NO_NETWORK='1' bitbake {target}\n"
+        else:
+            build_cmd += f"bitbake {target}\n"
+
+        self.info(f"Building target: {target}")
+        if offline:
             self.info("Offline mode: enabled")
 
-        if args.devshell:
-            self.info("Dropping to devshell...")
-            # TODO: bitbake -c devshell
+        # Execute build
+        result = self.run_cmd(['bash', '-c', build_cmd], check=False)
 
-        self.warning("Build implementation pending...")
+        if result.returncode != 0:
+            self.error(f"Build failed with exit code {result.returncode}")
+            sys.exit(1)
+
+        self.success(f"Build completed: {target}")
+        self.info(f"Images: {self.builddir / 'tmp' / 'deploy' / 'images'}")
+
+    def invoke_bitbake_devshell(self, target: str, machine: str):
+        """Invoke BitBake devshell."""
+        oe_init_script = self.topdir / 'oe-alliance' / 'openembedded-core' / 'oe-init-build-env'
+
+        if not oe_init_script.exists():
+            self.error(f"OE init script not found: {oe_init_script}")
+            sys.exit(1)
+
+        self.info(f"Starting devshell for {target}...")
+
+        # Devshell command
+        devshell_cmd = f"""
+cd {self.topdir}
+source {oe_init_script} {self.builddir}
+bitbake -c devshell {target}
+"""
+
+        # Execute interactively
+        result = self.run_cmd(['bash', '-c', devshell_cmd], check=False)
+
+        if result.returncode != 0:
+            self.error("Devshell failed")
+            sys.exit(1)
 
     def clean(self, args):
         """Clean build artifacts."""

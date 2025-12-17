@@ -6,35 +6,31 @@ Last Updated: 2024-12-17
 
 ## ⚠️ CRITICAL GAPS (Blockers for First Build)
 
-### 1. Missing Submodules ❌ **CRITICAL**
+### 1. Missing Submodules ✅ **RESOLVED**
 
-**Problem**: No git submodules configured
-**Impact**: Cannot build anything
+**Problem**: ~~No git submodules configured~~ FIXED!
+**Impact**: ~~Cannot build anything~~ Can now proceed to migration
 
-**Required Actions**:
+**✅ Completed Actions**:
 ```bash
-# Add OE-Alliance submodule
-git submodule add https://github.com/oe-alliance/oe-alliance-core.git oe-alliance
-cd oe-alliance
-git checkout <stable-commit-sha>  # Pin to tested commit!
-cd ..
-git add oe-alliance .gitmodules
-git commit -m "Add OE-Alliance submodule (pinned to <sha>)"
+# Added OE-Alliance submodule (branch 4.0 - Yocto Kirkstone)
+# Commit: 6b5d3901ecc757e5dadb6d8c95430334532f8960
+# URL: https://github.com/oe-alliance/oe-alliance-core.git
 
-# Add meta-neutrino submodule (Kirkstone branch)
-git submodule add -b kirkstone https://github.com/tuxbox-neutrino/meta-neutrino.git meta-neutrino
-cd meta-neutrino
-git checkout <tested-commit-sha>  # Pin to tested commit!
-cd ..
-git add meta-neutrino .gitmodules
-git commit -m "Add meta-neutrino submodule (Kirkstone, pinned to <sha>)"
+# Added meta-neutrino submodule (master - Gatesgarth)
+# Commit: 9acbffbca63dde5e74d73d61155ae419c92a8ce1
+# URL: https://github.com/tuxbox-neutrino/meta-neutrino.git
+# NOTE: No Kirkstone branch exists - migration required!
 
-# Verify
+# Initialized all nested submodules recursively
 git submodule status
-git submodule update --init --recursive
+# Result:
+#  9acbffbca63dde5e74d73d61155ae419c92a8ce1 meta-neutrino (v3.2.4-56-g9acbffb)
+#  6b5d3901ecc757e5dadb6d8c95430334532f8960 oe-alliance (heads/4.0)
+#  261de472e9c8ee3611452346379000a77cee8d9e oe-alliance/meta-oe/recipes-oe-alliance/enigma2-plugins/e2openplugins
 ```
 
-**Why Critical**: Without these, bblayers.conf points to non-existent directories.
+**Resolution**: Submodules added and pinned. OE-Alliance is on Kirkstone 4.0, meta-neutrino is on Gatesgarth 3.2 (migration needed).
 
 ---
 
@@ -225,10 +221,10 @@ MACHINE=tank DISTRO=tuxbox-uclibc bitbake -c compile some-simple-package
 
 Before calling this "production ready":
 
-### Phase 1: Foundation Verification
-- [ ] **Add OE-Alliance submodule** (with pinned SHA)
-- [ ] **Add meta-neutrino submodule** (Kirkstone branch, pinned SHA)
-- [ ] **Verify git submodule status** (both initialized)
+### Phase 1: Foundation Verification ✅ COMPLETE
+- [x] **Add OE-Alliance submodule** (with pinned SHA: 6b5d3901)
+- [x] **Add meta-neutrino submodule** (master/Gatesgarth, pinned SHA: 9acbffbc)
+- [x] **Verify git submodule status** (both initialized + recursive)
 
 ### Phase 2: Kirkstone Migration
 - [ ] **Run migration scripts** on meta-neutrino
@@ -375,17 +371,17 @@ To call this "ready for beta testing":
 
 ## 🔧 IMMEDIATE ACTION ITEMS
 
-**Priority 1** (This Week):
-1. [ ] Add OE-Alliance submodule (research stable commit first!)
-2. [ ] Add meta-neutrino submodule (check if Kirkstone branch exists!)
-3. [ ] Run `git submodule update --init --recursive`
+**Priority 1** ~~(This Week)~~ ✅ DONE:
+1. [x] Add OE-Alliance submodule (pinned to commit 6b5d3901)
+2. [x] Add meta-neutrino submodule (master/Gatesgarth, commit 9acbffbc)
+3. [x] Run `git submodule update --init --recursive`
 
-**Priority 2** (Next Week):
-1. [ ] Migrate meta-neutrino to Kirkstone
+**Priority 2** (NOW - Current Week):
+1. [ ] Migrate meta-neutrino to Kirkstone (CRITICAL)
 2. [ ] Test config generation (dry-run)
 3. [ ] Attempt `bitbake -p` parse test
 
-**Priority 3** (Week 3):
+**Priority 3** (Next Week):
 1. [ ] First build attempt (HD51)
 2. [ ] Document all issues encountered
 3. [ ] Fix blockers one by one

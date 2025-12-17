@@ -1,0 +1,97 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck --version
+          find scripts/ -name "*.sh" -type f | xargs shellcheck
+
+  python-lint:
+    name: Python Lint (flake8, black)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort
+
+      - name: Run flake8
+        run: |
+          flake8 cli.py --max-line-length=100 --ignore=E203,W503
+        continue-on-error: true
+
+      - name: Check black formatting
+        run: |
+          black --check --line-length=100 cli.py
+        continue-on-error: true
+
+      - name: Check import sorting
+        run: |
+          isort --check-only cli.py
+        continue-on-error: true
+
+  bitbake-lint:
+    name: BitBake Recipe Lint (oelint-adv)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install oelint-adv
+        run: |
+          pip install oelint-adv
+
+      - name: Lint meta-tuxbox recipes
+        if: hashFiles('meta-tuxbox/**/*.bb') != ''
+        run: |
+          oelint-adv meta-tuxbox/
+        continue-on-error: true
+
+      - name: Lint meta-tuxbox-toolchain recipes
+        if: hashFiles('meta-tuxbox-toolchain/**/*.bb') != ''
+        run: |
+          oelint-adv meta-tuxbox-toolchain/
+        continue-on-error: true
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run markdownlint
+        uses: nosborn/github-action-markdown-cli@v3
+        with:
+          files: "docs/*.md *.md"
+          config_file: ".markdownlint.json"
+        continue-on-error: true

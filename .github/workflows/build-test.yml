@@ -1,0 +1,176 @@
+name: Build Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      machine:
+        description: 'Machine to build (hd51, hd60, zgemmah7)'
+        required: true
+        default: 'hd51'
+
+jobs:
+  preflight:
+    name: Preflight Checks
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false  # Don't need submodules for linting
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install linting tools
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install oelint-adv
+
+      - name: Check Python CLI syntax
+        run: |
+          python3 -m py_compile cli.py
+
+      - name: Check shell scripts
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/*.sh || true  # Warning only for now
+
+      - name: Lint BitBake recipes (when meta-layers exist)
+        run: |
+          if [ -d "meta-tuxbox" ]; then
+            oelint-adv meta-tuxbox/ || true
+          fi
+        continue-on-error: true
+
+  parse-test:
+    name: BitBake Parse Test
+    runs-on: ubuntu-22.04
+    needs: preflight
+    strategy:
+      matrix:
+        machine: [hd51, hd60, zgemmah7]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gawk wget git diffstat unzip texinfo \
+            gcc g++ build-essential chrpath socat cpio python3 python3-pip \
+            python3-pexpect xz-utils debianutils iputils-ping python3-git \
+            python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl
+
+      - name: Initialize build environment
+        run: |
+          ./cli.py init
+
+      - name: Parse BitBake recipes
+        run: |
+          # TODO: Implement bitbake -p test
+          echo "BitBake parse test for ${{ matrix.machine }}"
+          # bitbake -p would go here once build system is complete
+
+  smoke-build:
+    name: Smoke Build Test
+    runs-on: ubuntu-22.04
+    needs: preflight
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        machine: [hd51]  # Only one machine for PR smoke tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gawk wget git diffstat unzip texinfo \
+            gcc g++ build-essential chrpath socat cpio python3 python3-pip \
+            python3-pexpect xz-utils debianutils iputils-ping python3-git \
+            python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl
+
+      - name: Configure locale
+        run: |
+          sudo locale-gen en_US.UTF-8
+          sudo update-locale LANG=en_US.UTF-8
+
+      - name: Initialize build environment
+        run: |
+          ./cli.py check
+          ./cli.py init
+
+      - name: Build image (smoke test)
+        run: |
+          # TODO: Implement actual build
+          # ./cli.py build --machine ${{ matrix.machine }} --ci-mode
+          echo "Smoke build for ${{ matrix.machine }}"
+        timeout-minutes: 240  # 4 hours max
+
+      - name: Check build artifacts
+        run: |
+          # TODO: Verify image was created
+          # ls -lh build/tmp/deploy/images/${{ matrix.machine }}/
+          echo "Checking artifacts for ${{ matrix.machine }}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: image-${{ matrix.machine }}
+          path: build/tmp/deploy/images/${{ matrix.machine }}/
+          retention-days: 7
+
+  check-upgrades:
+    name: Check Package Upgrades
+    runs-on: ubuntu-22.04
+    needs: preflight
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip git
+          # pip install devtool requirements if needed
+
+      - name: Check for recipe upgrades
+        run: |
+          # TODO: Implement upgrade check
+          # devtool check-upgrade-status
+          echo "Checking for package upgrades"
+        continue-on-error: true
+
+      - name: Post upgrade report
+        run: |
+          echo "Upgrade check report would be posted here"

@@ -1,0 +1,129 @@
+name: Nightly Build
+
+on:
+  schedule:
+    # Run at 2 AM UTC every night
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      machines:
+        description: 'Comma-separated list of machines to build'
+        required: false
+        default: 'hd51,hd60,zgemmah7'
+
+jobs:
+  build-matrix:
+    name: Build ${{ matrix.machine }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        machine:
+          - hd51
+          - hd60
+          - hd61
+          - zgemmah7
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          sudo docker system prune -af
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gawk wget git diffstat unzip texinfo \
+            gcc g++ build-essential chrpath socat cpio python3 python3-pip \
+            python3-pexpect xz-utils debianutils iputils-ping python3-git \
+            python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl
+
+      - name: Configure system
+        run: |
+          sudo locale-gen en_US.UTF-8
+          sudo update-locale LANG=en_US.UTF-8
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Cache downloads
+        uses: actions/cache@v4
+        with:
+          path: downloads
+          key: downloads-${{ hashFiles('**/recipes-*/**/*.bb') }}
+          restore-keys: |
+            downloads-
+
+      - name: Cache sstate
+        uses: actions/cache@v4
+        with:
+          path: sstate-cache
+          key: sstate-${{ matrix.machine }}-${{ github.sha }}
+          restore-keys: |
+            sstate-${{ matrix.machine }}-
+            sstate-
+
+      - name: Initialize build
+        run: |
+          ./cli.py check
+          ./cli.py init
+
+      - name: Build image
+        run: |
+          # TODO: Implement actual build
+          # ./cli.py build --machine ${{ matrix.machine }}
+          echo "Building for ${{ matrix.machine }}"
+        timeout-minutes: 360  # 6 hours max
+
+      - name: Verify image artifacts
+        run: |
+          # TODO: Check image size, format, completeness
+          # ./scripts/verify-image.sh ${{ matrix.machine }}
+          echo "Verifying artifacts for ${{ matrix.machine }}"
+
+      - name: Generate build report
+        run: |
+          # TODO: Generate detailed build report
+          # - Build time
+          # - Image size
+          # - Package count
+          # - Dependency graph diff from previous build
+          echo "Build report for ${{ matrix.machine }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-${{ matrix.machine }}-${{ github.run_number }}
+          path: |
+            build/tmp/deploy/images/${{ matrix.machine }}/*.zip
+            build/tmp/deploy/images/${{ matrix.machine }}/*.manifest
+          retention-days: 30
+
+      - name: Upload to release (if tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/tmp/deploy/images/${{ matrix.machine }}/*.zip
+
+  post-build:
+    name: Post-Build Report
+    runs-on: ubuntu-22.04
+    needs: build-matrix
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Nightly Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # TODO: Add build matrix results
+          echo "Build results would be summarized here" >> $GITHUB_STEP_SUMMARY

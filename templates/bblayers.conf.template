@@ -1,0 +1,38 @@
+# LAYER_CONF_VERSION is increased each time build/conf/bblayers.conf
+# changes incompatibly
+LAYER_CONF_VERSION = "7"
+
+BBPATH = "${TOPDIR}"
+BBFILES ?= ""
+
+# OE-Alliance base layers
+BBLAYERS ?= " \
+  ##OEROOT##/meta \
+  ##OEROOT##/meta-poky \
+  ##TOPDIR##/oe-alliance/openembedded-core/meta \
+  ##TOPDIR##/oe-alliance/meta-openembedded/meta-oe \
+  ##TOPDIR##/oe-alliance/meta-openembedded/meta-python \
+  ##TOPDIR##/oe-alliance/meta-openembedded/meta-networking \
+  ##TOPDIR##/oe-alliance/meta-openembedded/meta-multimedia \
+  ##TOPDIR##/oe-alliance/meta-openembedded/meta-filesystems \
+  ##TOPDIR##/oe-alliance/meta-qt5 \
+  ##TOPDIR##/oe-alliance/meta-oe \
+"
+
+# Machine-specific brand layers (auto-detected based on MACHINE)
+##BRAND_LAYERS##
+
+# Tuxbox layers
+BBLAYERS += " \
+  ##TOPDIR##/meta-neutrino \
+  ##TOPDIR##/meta-tuxbox \
+"
+
+# Optional: Coolstream external toolchain layer
+# (automatically added for MACHINE=tank)
+##TOOLCHAIN_LAYER##
+
+# User customization layer
+BBLAYERS += " \
+  ##TOPDIR##/meta-local \
+"

@@ -1,0 +1,42 @@
+# Build artifacts
+/build/
+/sstate-cache/
+/downloads/
+
+# Generated configuration
+/.tuxbox/state.json
+/conf/
+/bitbake.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+log/
+
+# Temporary files
+tmp/
+*.tmp
+*.bak
+
+# Git submodules will be tracked
+!/.gitmodules
+
+# Misc
+A*T.md

@@ -215,10 +215,10 @@ class TuxboxBuilder:
 
         # Add brand-specific layer
         if brand != 'unknown':
-            brand_layer = f'  {self.topdir}/oe-alliance/meta-brands/meta-{brand} \\\n'
+            brand_layer = f'BBLAYERS += " \\\n  {self.topdir}/oe-alliance/meta-brands/meta-{brand} \\\n"\n'
             content = content.replace('##BRAND_LAYERS##', brand_layer)
         else:
-            content = content.replace('##BRAND_LAYERS##', '  # Add brand layer manually\n')
+            content = content.replace('##BRAND_LAYERS##', '# Add brand layer manually\n')
 
         # Add toolchain layer for Coolstream
         if machine == 'tank':

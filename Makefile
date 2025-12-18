@@ -25,6 +25,7 @@ COLOR_BLUE := \033[34m
 
 # Configuration
 MACHINE ?= hd51
+MACHINEBUILD ?= $(MACHINE)
 DISTRO ?= tuxbox
 DISTRO_TYPE ?= release
 TOPDIR := $(CURDIR)
@@ -75,6 +76,7 @@ help:
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Variables:$(COLOR_RESET)"
 	@echo -e "  MACHINE      Target hardware (default: hd51)"
+	@echo -e "  MACHINEBUILD OEM variant (default: MACHINE)"
 	@echo -e "  DISTRO       Distribution (default: tuxbox)"
 	@echo -e "  DISTRO_TYPE  Build type: release|development (default: release)"
 	@echo ""
@@ -105,7 +107,7 @@ endif
 image: init
 	@echo -e "$(COLOR_BOLD)Building image for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1
@@ -115,7 +117,7 @@ endif
 feeds: init
 	@echo -e "$(COLOR_BOLD)Building package feeds for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --target feeds
+	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --target feeds
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
@@ -125,7 +127,7 @@ endif
 sdk: init
 	@echo -e "$(COLOR_BOLD)Building SDK for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --target sdk
+	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --target sdk
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
@@ -135,7 +137,7 @@ endif
 devshell: init
 	@echo -e "$(COLOR_BOLD)Starting development shell for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --devshell
+	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --devshell
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
@@ -191,7 +193,7 @@ test:
 # Special target for CI
 .PHONY: ci-build
 ci-build: init
-	@$(CLI) build --machine $(MACHINE) --ci-mode
+	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --ci-mode
 
 .PHONY: version
 version:

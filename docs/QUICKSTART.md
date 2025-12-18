@@ -76,6 +76,14 @@ make init   # Initialize environment
 make image MACHINE=hd51
 ```
 
+### OEM-Varianten (optional)
+
+```bash
+# Beispiel: OEM-Variante fuer inihde2
+make image MACHINE=inihde2 MACHINEBUILD=atemio6000
+MACHINEBUILD=atemio6000 ./cli.py build --machine inihde2
+```
+
 ### For Gigablue HD60/HD61
 
 ```bash

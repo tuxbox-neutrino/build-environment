@@ -11,7 +11,7 @@ MACHINE ?= "##MACHINE##"
 #
 # Machine Build Variant (for OE-Alliance compatibility)
 #
-MACHINEBUILD ?= "##MACHINE##"
+MACHINEBUILD ?= "##MACHINEBUILD##"
 
 #
 # Distribution Selection

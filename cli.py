@@ -175,7 +175,8 @@ class TuxboxBuilder:
 
         return machine_brands.get(machine, 'unknown')
 
-    def generate_config(self, machine: str, distro: str, distro_type: str = 'release'):
+    def generate_config(self, machine: str, distro: str, distro_type: str = 'release',
+                        machinebuild: Optional[str] = None):
         """Generate build configuration files from templates."""
         self.log(f"Generating configuration for {machine}...", Colors.BOLD, bold=True)
 
@@ -192,7 +193,7 @@ class TuxboxBuilder:
         self.generate_bblayers_conf(conf_dir, machine, brand)
 
         # Generate local.conf
-        self.generate_local_conf(conf_dir, machine, distro, distro_type)
+        self.generate_local_conf(conf_dir, machine, distro, distro_type, machinebuild)
 
         self.success("Configuration generated")
 
@@ -233,7 +234,8 @@ class TuxboxBuilder:
 
         self.info(f"Generated: {output_file}")
 
-    def generate_local_conf(self, conf_dir: Path, machine: str, distro: str, distro_type: str):
+    def generate_local_conf(self, conf_dir: Path, machine: str, distro: str, distro_type: str,
+                            machinebuild: Optional[str]):
         """Generate local.conf from template."""
         template_file = self.topdir / 'templates' / 'local.conf.template'
         output_file = conf_dir / 'local.conf'
@@ -252,8 +254,12 @@ class TuxboxBuilder:
         bb_threads = max(1, cpu_count - 1)  # Leave 1 core for system
         parallel_make = max(1, cpu_count)
 
+        # Default MACHINEBUILD to MACHINE if not provided
+        effective_machinebuild = machinebuild or machine
+
         # Replace variables
         content = content.replace('##MACHINE##', machine)
+        content = content.replace('##MACHINEBUILD##', effective_machinebuild)
         content = content.replace('##DISTRO##', distro)
         content = content.replace('##BB_NUMBER_THREADS##', str(bb_threads))
         content = content.replace('##PARALLEL_MAKE##', str(parallel_make))
@@ -268,6 +274,7 @@ class TuxboxBuilder:
 
         self.info(f"Generated: {output_file}")
         self.info(f"  Machine: {machine}")
+        self.info(f"  MachineBuild: {effective_machinebuild}")
         self.info(f"  Distro: {distro}")
         self.info(f"  Threads: {bb_threads}")
         self.info(f"  Parallel: {parallel_make}")
@@ -303,11 +310,14 @@ class TuxboxBuilder:
     def build(self, args):
         """Build an image."""
         machine = args.machine
+        machinebuild = args.machinebuild or os.environ.get('MACHINEBUILD')
         distro = args.distro
         distro_type = args.distro_type
         target = args.target or 'tuxbox-image'
 
         self.log(f"=== Building {target} for {machine} ===", Colors.BOLD, bold=True)
+        if machinebuild:
+            self.info(f"Using MACHINEBUILD={machinebuild}")
 
         # Check if initialized
         state = self.load_state()
@@ -325,7 +335,7 @@ class TuxboxBuilder:
             sys.exit(1)
 
         # Generate configuration
-        self.generate_config(machine, distro, distro_type)
+        self.generate_config(machine, distro, distro_type, machinebuild)
 
         # Setup environment and invoke BitBake
         if args.devshell:
@@ -452,6 +462,7 @@ def main():
     build_parser = subparsers.add_parser('build', help='Build an image')
     build_parser.add_argument('-m', '--machine', required=True, help='Target machine (e.g., hd51)')
     build_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
+    build_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
     build_parser.add_argument('-t', '--target', help='Build target (default: tuxbox-image)')
     build_parser.add_argument('--offline', action='store_true', help='Offline build mode')
     build_parser.add_argument('--no-sstate', action='store_true', help='Disable sstate cache')

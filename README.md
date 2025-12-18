@@ -29,8 +29,12 @@ cd tuxbox-os-builder
 # Build for HD51
 make image MACHINE=hd51
 
+# OEM variants (optional)
+make image MACHINE=inihde2 MACHINEBUILD=atemio6000
+
 # Or using Python CLI
 ./cli.py build --machine hd51
+MACHINEBUILD=atemio6000 ./cli.py build --machine inihde2
 ```
 
 Built images will be in `build/tmp/deploy/images/hd51/`

@@ -23,7 +23,7 @@ echo -e "${BOLD}=== Machine Information: ${CYAN}${MACHINE}${NC} ${BOLD}===${NC}\
 # Known machine details (hardcoded for now, will be read from OE-Alliance later)
 case "$MACHINE" in
     hd51)
-        echo -e "${BOLD}Manufacturer:${NC} Gigablue"
+        echo -e "${BOLD}Manufacturer:${NC} GFutures (Mut@nt/AX)"
         echo -e "${BOLD}Model:${NC} HD51"
         echo -e "${BOLD}CPU:${NC} BCM7251S (ARM Cortex-A15, Dual-core 1.5GHz)"
         echo -e "${BOLD}RAM:${NC} 2GB DDR3"
@@ -33,7 +33,7 @@ case "$MACHINE" in
         echo -e "${BOLD}Status:${NC} ${GREEN}Fully supported${NC}"
         ;;
     hd60|hd61)
-        echo -e "${BOLD}Manufacturer:${NC} Gigablue"
+        echo -e "${BOLD}Manufacturer:${NC} GFutures (Mut@nt/AX)"
         echo -e "${BOLD}Model:${NC} ${MACHINE^^}"
         echo -e "${BOLD}CPU:${NC} BCM7252S (ARM Cortex-A15, Dual-core 1.5GHz)"
         echo -e "${BOLD}RAM:${NC} 2GB DDR4"
@@ -67,7 +67,7 @@ case "$MACHINE" in
         echo "Check: oe-alliance/meta-brands/meta-*/conf/machine/${MACHINE}.conf"
         echo ""
         echo -e "${BOLD}Common machine types:${NC}"
-        echo "  Gigablue: hd51, hd60, hd61, uhd4k"
+        echo "  GFutures: hd51, hd60, hd61, hd66se"
         echo "  AirDigital: zgemmah7, h7s, h7c, i55plus"
         echo "  Vu+: ultimo4k, uno4k, uno4kse, duo4k"
         echo "  Coolstream: tank"

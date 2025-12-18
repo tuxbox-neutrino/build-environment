@@ -173,7 +173,7 @@ list-machines:
 	@echo -e "$(COLOR_BOLD)Supported machines:$(COLOR_RESET)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Priority platforms (tested):$(COLOR_RESET)"
-	@echo -e "  $(COLOR_GREEN)Gigablue:$(COLOR_RESET)   hd51, hd60, hd61"
+	@echo -e "  $(COLOR_GREEN)GFutures:$(COLOR_RESET)   hd51, hd60, hd61"
 	@echo -e "  $(COLOR_GREEN)AirDigital:$(COLOR_RESET) zgemmah7, h7s, h7c"
 	@echo -e "  $(COLOR_GREEN)Coolstream:$(COLOR_RESET) tank (uClibc)"
 	@echo ""

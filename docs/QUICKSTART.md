@@ -66,7 +66,7 @@ make init   # Initialize environment
 
 ## Step 4: Build Your First Image
 
-### For Gigablue HD51
+### For GFutures (Mut@nt/AX) HD51
 
 ```bash
 # Using Python CLI
@@ -84,7 +84,7 @@ make image MACHINE=inihde2 MACHINEBUILD=atemio6000
 MACHINEBUILD=atemio6000 ./cli.py build --machine inihde2
 ```
 
-### For Gigablue HD60/HD61
+### For GFutures (Mut@nt/AX) HD60/HD61
 
 ```bash
 make image MACHINE=hd60

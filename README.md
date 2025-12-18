@@ -42,7 +42,7 @@ Built images will be in `build/tmp/deploy/images/hd51/`
 ## Supported Platforms
 
 ### Priority Platforms (Tested)
-- **Gigablue**: HD51, HD60, HD61
+- **GFutures (Mut@nt/AX)**: HD51, HD60, HD61
 - **AirDigital**: ZgemmaH7, H7S, H7C
 - **Coolstream**: Tank (uClibc toolchain)
 

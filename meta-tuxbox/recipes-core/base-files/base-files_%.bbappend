@@ -12,3 +12,6 @@ do_install:prepend() {
         printf '%s\n' "$*"
     }
 }
+
+# Base-files should follow the MACHINE arch for Tuxbox builds, not MACHINEBUILD.
+PACKAGE_ARCH:tuxbox = "${MACHINE_ARCH}"

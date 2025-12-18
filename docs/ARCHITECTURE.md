@@ -174,6 +174,8 @@ DL_DIR = "${TOPDIR}/downloads"
 SSTATE_DIR = "${TOPDIR}/sstate-cache"
 BB_NUMBER_THREADS = "8"    # CPU cores
 PARALLEL_MAKE = "-j 8"     # Parallel compilation
+# Optional: switch Lua provider if needed
+# PREFERRED_PROVIDER_virtual/lua = "lua"
 ```
 
 Configurations are **hash-tracked** - regenerated only when variables change.

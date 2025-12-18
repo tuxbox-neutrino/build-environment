@@ -1,9 +1,9 @@
 --- a/main.c
 +++ b/main.c
-@@ -606,7 +606,7 @@ int callback(long int inpos, long int outpos){
- 	  if(aheadposition>=0 && aheadposition<graph && !(function==-1))
+@@ -591,10 +591,10 @@
  	    buffer[aheadposition+19]='>';
  	}
+    
 -	fprintf(stderr,buffer);
 +	fprintf(stderr,"%s",buffer);
         

@@ -22,3 +22,15 @@ do_install() {
         echo "# stub SUPPORTED; binary locale stash missing" > ${WORKDIR}/SUPPORTED
     fi
 }
+
+# Skip binary-locale staging cleanly when the stash is absent to avoid tar errors
+do_prep_locale_tree() {
+    if [ ! -d "${LOCALETREESRC}/usr/share" ]; then
+        bbwarn "glibc-locale: skipping prep_locale_tree; ${LOCALETREESRC}/usr/share missing"
+        return 0
+    fi
+
+    rm -rf ${WORKDIR}/locale-tree
+    mkdir -p ${WORKDIR}/locale-tree
+    tar -C ${LOCALETREESRC} -cf - usr/share | tar -C ${WORKDIR}/locale-tree -xf -
+}

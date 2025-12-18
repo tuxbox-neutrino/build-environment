@@ -11,12 +11,8 @@ PV = "${DISTRO_VERSION}"
 PR = "r1"
 
 # Conditional large image packages (excluded on small flash devices)
-BIG_IMAGE_PACKAGES = " \
-    neutrino-plugins-extra \
-    packagegroup-tuxbox-multimedia-extra \
-    packagegroup-tuxbox-tools \
-    packagegroup-tuxbox-dev \
-"
+# Placeholder for optional large-image extras (add real packagegroups later)
+BIG_IMAGE_PACKAGES = ""
 
 # Add big packages only if not small flash
 IMAGE_INSTALL += "${@bb.utils.contains('IMAGESIZE', 'small', '', '${BIG_IMAGE_PACKAGES}', d)}"

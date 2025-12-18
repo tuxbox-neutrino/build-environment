@@ -21,19 +21,12 @@ IMAGE_INSTALL:append = " \
     ${@bb.utils.contains('MACHINE_FEATURES', 'wifi', 'packagegroup-tuxbox-wifi', '', d)} \
 "
 
-# DVB firmware and drivers (conditional on machine features)
-IMAGE_INSTALL:append = " \
-    ${@bb.utils.contains('MACHINE_FEATURES', 'dvb-c', 'firmware-dvb-usb', '', d)} \
-    ${@bb.utils.contains('MACHINE_FEATURES', 'dvb-s', 'firmware-dvb-fe', '', d)} \
-    ${@bb.utils.contains('MACHINE_FEATURES', 'dvb-t', 'firmware-dvb-usb', '', d)} \
-"
-
 # Neutrino core stack
 IMAGE_INSTALL:append = " \
     neutrino \
     libstb-hal \
     neutrino-plugins \
-    neutrino-plugins-lua \
+    neutrino-lua-plugins \
     neutrino-webif \
 "
 

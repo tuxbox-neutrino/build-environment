@@ -11,20 +11,12 @@ RDEPENDS:${PN} = " \
     neutrino \
     libstb-hal \
     neutrino-plugins \
-    neutrino-plugins-lua \
+    neutrino-lua-plugins \
     neutrino-webif \
 "
 
 # Themes
 RRECOMMENDS:${PN} = " \
-    neutrino-theme-neutrino-hd \
-    neutrino-logos-tuxbox \
-"
-
-# Optional plugins
-RRECOMMENDS:${PN} += " \
-    neutrino-plugin-epgscan \
-    neutrino-plugin-imgbackup \
-    neutrino-plugin-tuxcom \
-    neutrino-plugin-tuxwetter \
+    neutrino-themes \
+    neutrino-logos \
 "

@@ -27,6 +27,10 @@ BBMASK:append = "|.*/recipes-qt5.15/qt5/.*|.*/meta-neutrino/recipes-qt/qt5/.*"
 BBMASK:append = "|.*/oe-alliance/meta-oe/recipes-devtools/gcc/.*11.2.*"
 BBMASK:append = "|.*/edid-decode.*"
 
+# Remove Enigma2-only machine extras from OE-Alliance machine configs
+EXTRA_IMAGEDEPENDS:remove = "enigma2-plugin-systemplugins-remotecontrolcode"
+MACHINE_EXTRA_RDEPENDS:remove = "enigma2-plugin-systemplugins-remotecontrolcode"
+
 # Hard filter OE-Alliance BBFILES to drop Enigma2-centric recipes (BBMASK may be ignored during parse)
 BBFILES := "${@' '.join([f for f in (d.getVar('BBFILES') or '').split() if not any(x in f for x in ['recipes-oe-alliance/enigma2', 'recipes-oe-alliance/enigma2-plugins', 'recipes-oe-alliance/enigma2-skins', 'recipes-oe-alliance/enigma2-dvb-drivers'])])}"
 

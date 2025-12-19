@@ -19,3 +19,9 @@ IMAGE_INSTALL += "${@bb.utils.contains('IMAGESIZE', 'small', '', '${BIG_IMAGE_PA
 
 # Image variant
 IMAGE_BASENAME = "tuxbox-image"
+
+# Avoid update-alternatives failure on /etc/resolv.conf during rootfs
+rootfs_preprocess_resolvconf() {
+    rm -f ${IMAGE_ROOTFS}/etc/resolv.conf || true
+}
+ROOTFS_PREPROCESS_COMMAND += " rootfs_preprocess_resolvconf;"

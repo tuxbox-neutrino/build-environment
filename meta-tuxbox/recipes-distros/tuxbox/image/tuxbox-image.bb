@@ -23,6 +23,9 @@ IMAGE_BASENAME = "tuxbox-image"
 # Disable recommends to avoid pulling optional python/charset extras during rootfs
 NO_RECOMMENDATIONS = "1"
 
+# Allow systemd postinst failure to be deferred to first boot
+PACKAGE_INSTALL_ATTEMPTONLY += " systemd "
+
 # Avoid update-alternatives failure on /etc/resolv.conf during rootfs
 rootfs_preprocess_resolvconf() {
     rm -f ${IMAGE_ROOTFS}/etc/resolv.conf || true

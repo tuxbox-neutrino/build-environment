@@ -26,8 +26,6 @@ IMAGE_INSTALL:append = " \
     neutrino \
     libstb-hal \
     neutrino-plugins \
-    neutrino-lua-plugins \
-    neutrino-webif \
 "
 
 # Multimedia stack

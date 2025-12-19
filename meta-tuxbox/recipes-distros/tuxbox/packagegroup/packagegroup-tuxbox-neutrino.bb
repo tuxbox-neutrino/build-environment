@@ -11,8 +11,6 @@ RDEPENDS:${PN} = " \
     neutrino \
     libstb-hal \
     neutrino-plugins \
-    neutrino-lua-plugins \
-    neutrino-webif \
 "
 
 # Themes

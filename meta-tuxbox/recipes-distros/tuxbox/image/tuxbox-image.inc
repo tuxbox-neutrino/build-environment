@@ -60,7 +60,6 @@ IMAGE_INSTALL:append = " \
     e2fsprogs-mke2fs \
     e2fsprogs-tune2fs \
     dosfstools \
-    ntfs-3g \
     ntfs-3g-ntfsprogs \
     exfat-utils \
     parted \

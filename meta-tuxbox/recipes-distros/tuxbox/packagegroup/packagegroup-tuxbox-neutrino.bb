@@ -17,4 +17,5 @@ RDEPENDS:${PN} = " \
 RRECOMMENDS:${PN} = " \
     neutrino-themes \
     neutrino-logos \
+    neutrino-fonts-extra \
 "

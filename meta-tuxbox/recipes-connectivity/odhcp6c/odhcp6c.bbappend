@@ -1,4 +1,8 @@
-# Ensure libubox is available and help CMake find it
+# Ensure libubox is available and help the ad-hoc CMake call find it
 DEPENDS += "libubox"
 
-EXTRA_OECMAKE += "-DUBOX_INCLUDE_DIR=${STAGING_INCDIR}"
+# Recipe calls cmake manually; hint include/lib paths explicitly.
+do_configure:prepend() {
+    export CMAKE_INCLUDE_PATH="${STAGING_DIR_HOST}${includedir}:${CMAKE_INCLUDE_PATH}"
+    export CMAKE_LIBRARY_PATH="${STAGING_DIR_HOST}${libdir}:${CMAKE_LIBRARY_PATH}"
+}

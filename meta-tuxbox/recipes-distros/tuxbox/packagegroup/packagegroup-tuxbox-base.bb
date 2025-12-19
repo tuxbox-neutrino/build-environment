@@ -21,7 +21,6 @@ RDEPENDS:${PN} = " \
     e2fsprogs-mke2fs \
     e2fsprogs-tune2fs \
     dosfstools \
-    ntfs-3g \
     parted \
     openssh \
     openssh-sftp-server \
@@ -31,9 +30,6 @@ RDEPENDS:${PN} = " \
     wget \
     ca-certificates \
     tzdata \
-    glibc-gconv-utf-16 \
-    glibc-gconv-iso8859-1 \
-    glibc-gconv-iso8859-15 \
 "
 
 # Optional recommendations

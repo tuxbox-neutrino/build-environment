@@ -20,6 +20,9 @@ IMAGE_INSTALL += "${@bb.utils.contains('IMAGESIZE', 'small', '', '${BIG_IMAGE_PA
 # Image variant
 IMAGE_BASENAME = "tuxbox-image"
 
+# Disable recommends to avoid pulling optional python/charset extras during rootfs
+NO_RECOMMENDATIONS = "1"
+
 # Avoid update-alternatives failure on /etc/resolv.conf during rootfs
 rootfs_preprocess_resolvconf() {
     rm -f ${IMAGE_ROOTFS}/etc/resolv.conf || true

@@ -6,7 +6,8 @@ SRC_URI = "file://rtl8761b_config.bin \
 "
 
 LICENSE = "CLOSED"
-LIC_FILES_CHKSUM = "file://${LAYERDIR}/files/custom-licenses/LICENSE-CLOSE;md5=2d5b03b35d4612637d67724b35738dd7"
+# Use the bundled license file from SRC_URI to avoid path expansion issues.
+LIC_FILES_CHKSUM = "file://license;md5=17a6b3d5436a55985b200c725761907a"
 
 
 do_install() {

@@ -16,21 +16,17 @@ S = "${WORKDIR}"
 
 inherit systemd
 
-SYSTEMD_SERVICE_${PN} = "bootlogo.service"
+SYSTEMD_SERVICE:${PN} = "bootlogo.service"
 
 
 do_compile() {
-    ${CC} -o showiframe showiframe.c
+    ${CC} ${CFLAGS} ${LDFLAGS} -Wl,--hash-style=gnu -o showiframe showiframe.c
 }
 
 do_install() {
-    install -d ${D}/${bindir} -d ${D}${systemd_unitdir}/system
-    install -m 0755 ${S}/showiframe ${D}/${bindir}/	
-    install -m 644 ${WORKDIR}/bootlogo.service ${D}${systemd_unitdir}/system
+    install -d ${D}${bindir} ${D}${systemd_unitdir}/system
+    install -m 0755 ${S}/showiframe ${D}${bindir}/showiframe
+    install -m 0644 ${WORKDIR}/bootlogo.service ${D}${systemd_unitdir}/system
 }
 
-FILES_${PN}:append = " /usr \
-					   /lib \
-"
-
-INSANE_SKIP_${PN} += "ldflags"
+FILES:${PN} += "${systemd_unitdir}/system/bootlogo.service"

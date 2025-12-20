@@ -4,3 +4,10 @@ do_install:append() {
     ln -sf ${systemd_unitdir}/system/rpcbind.socket ${D}${systemd_unitdir}/system/sockets.target.wants/rpcbind.socket
     ln -sf ${systemd_unitdir}/system/rpcbind.service ${D}${systemd_unitdir}/system/multi-user.target.wants/rpcbind.service
 }
+
+PR:append = ".1"
+
+FILES:${PN} += " \
+    ${systemd_unitdir}/system/sockets.target.wants/rpcbind.socket \
+    ${systemd_unitdir}/system/multi-user.target.wants/rpcbind.service \
+"

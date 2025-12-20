@@ -5,15 +5,14 @@ SRC_URI = "file://rtl8761b_config.bin \
 	   file://license \
 "
 
-LICENSE = "proprietary"
-LIC_FILES_CHKSUM = "file://${WORKDIR}/license;md5=17a6b3d5436a55985b200c725761907a"
+LICENSE = "CLOSED"
+LIC_FILES_CHKSUM = "file://${LAYERDIR}/files/custom-licenses/LICENSE-CLOSE;md5=2d5b03b35d4612637d67724b35738dd7"
 
 
 do_install() {
-	install -d ${D}${base_libdir}/firmware/rtl_bt
-	install -m 644 ${WORKDIR}/rtl8761b_config.bin ${D}${base_libdir}/firmware/rtl_bt
-	install -m 644 ${WORKDIR}/rtl8761b_fw.bin ${D}${base_libdir}/firmware/rtl_bt
+	install -d ${D}${nonarch_base_libdir}/firmware/rtl_bt
+	install -m 644 ${WORKDIR}/rtl8761b_config.bin ${D}${nonarch_base_libdir}/firmware/rtl_bt
+	install -m 644 ${WORKDIR}/rtl8761b_fw.bin ${D}${nonarch_base_libdir}/firmware/rtl_bt
 }
 
-FILES_${PN} = "${base_libdir}"
-
+FILES:${PN} = "${nonarch_base_libdir}/firmware/rtl_bt"

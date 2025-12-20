@@ -4,7 +4,11 @@ Yocto/OpenEmbedded layer for Tuxbox-OS distribution with Neutrino GUI.
 
 ## Description
 
-This layer provides the Tuxbox-OS distribution configuration and image recipes for building Neutrino-based Set-Top-Box images on OE-Alliance hardware platforms.
+This layer provides the Tuxbox-OS distribution configuration and the bulk of
+recipes needed to build Neutrino-based Set-Top-Box images on OE-Alliance
+hardware platforms. Neutrino core recipes remain in `meta-neutrino`; everything
+else (distro, middleware, firmware, toolchain, devtools, Qt/Kodi, etc.) lives
+here.
 
 ## Layer Dependencies
 
@@ -36,6 +40,8 @@ This layer provides the Tuxbox-OS distribution configuration and image recipes f
 
 ### Classes
 - `tuxbox-version.bbclass` - Image version information generation
+- `qmake5*.bbclass`, `waf-samba.bbclass`, `kodi-addon.bbclass`, `gitpkgv.bbclass`,
+  `metaversion.bbclass` - build helpers migrated from meta-neutrino
 
 ## Usage
 
@@ -43,6 +49,8 @@ Add this layer to your `bblayers.conf`:
 
 ```
 BBLAYERS += "/path/to/meta-tuxbox"
+# and neutrino recipes:
+BBLAYERS += "/path/to/meta-neutrino"
 ```
 
 Set distribution in `local.conf`:

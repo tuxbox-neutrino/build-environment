@@ -10,8 +10,9 @@ MACHINE ?= "##MACHINE##"
 
 #
 # Machine Build Variant (for OE-Alliance compatibility)
+# Pflichtfeld: Brand/OEM-Identifier aus meta-brands (z.B. mutant51, vuultimo4k)
 #
-MACHINEBUILD ?= "##MACHINEBUILD##"
+MACHINEBUILD ?= ""
 
 #
 # Distribution Selection

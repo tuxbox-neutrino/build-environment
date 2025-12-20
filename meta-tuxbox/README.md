@@ -33,10 +33,10 @@ here.
 
 ### Package Groups
 - `packagegroup-tuxbox-base` - Essential system packages
-- `packagegroup-tuxbox-neutrino` - Neutrino GUI stack
 - `packagegroup-tuxbox-multimedia` - Multimedia framework
 - `packagegroup-tuxbox-network` - Network services
 - `packagegroup-tuxbox-wifi` - WiFi support
+  *(Neutrino GUI stack lives in `meta-neutrino`: `packagegroup-tuxbox-neutrino`)*
 
 ### Classes
 - `tuxbox-version.bbclass` - Image version information generation

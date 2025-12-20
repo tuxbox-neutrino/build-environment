@@ -19,9 +19,6 @@ MACHINEBUILD ?= ""
 #
 DISTRO ?= "##DISTRO##"
 
-# Enforce presence of MACHINE and MACHINEBUILD
-INHERIT += "machinebuild-check"
-
 # Aggressive mask for Enigma2/Kodi/OE-A distro content we do not use (append to survive MACHINE overrides)
 BBMASK:append = "|.*/oe-alliance/meta-oe/recipes-distros/.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2-plugins/.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2-skins.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2-.*|.*/oe-alliance/meta-oe/.*enigma2.*|.*/enigma2-plugin-skins-.*|.*/enigma2-plugin-extensions-tuxcom.*|.*/hotplug-e2-helper.*|.*/enigma2-plugin-softcams-.*|.*/meta-oe/recipes-oe-alliance/enigma2/.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2/.*|.*/oe-alliance/meta-oe/recipes-oe-alliance/enigma2-skins/.*|.*/aio-grab.*|.*/enigma2-plugin-skins.*|.*/enigma2-plugin-skins-kiddac-1080-slyk-r19.*|.*/enigma2-plugins/.*|.*/enigma2-plugin-.*|.*/enigma2-pliplugins.*|.*/gstreamer1.0-plugin-subsink.*|.*/gstreamer1.0-plugin-dvbmediasink.*|.*/jedimakerxtream.*"
 BBMASK:append = "|.*/recipes-qt5.15/qt5/.*|.*/meta-neutrino/recipes-qt/qt5/.*"

@@ -72,14 +72,14 @@ make init   # Initialize environment
 # Using Python CLI
 ./cli.py build --machine hd51
 
-# Or using Makefile
-make image MACHINE=hd51
+# Or using Makefile (MACHINE and MACHINEBUILD required)
+make image MACHINE=hd51 MACHINEBUILD=mutant51
 ```
 
-### OEM-Varianten (optional)
+### OEM variants (MACHINE + MACHINEBUILD)
 
 ```bash
-# Beispiel: OEM-Variante fuer inihde2
+# Example: OEM variant for inihde2
 make image MACHINE=inihde2 MACHINEBUILD=atemio6000
 MACHINEBUILD=atemio6000 ./cli.py build --machine inihde2
 ```

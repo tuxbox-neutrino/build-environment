@@ -12,7 +12,6 @@ RDEPENDS:${PN} = " \
     openssh-sftp-server \
     nfs-utils \
     nfs-utils-client \
-    samba \
     avahi-daemon \
     avahi-utils \
     ethtool \
@@ -21,6 +20,7 @@ RDEPENDS:${PN} = " \
     iptables \
     tcpdump \
 "
+#    samba \  # Temporarily disabled due to postinst bash syntax issues
 
 RRECOMMENDS:${PN} = " \
     wget \

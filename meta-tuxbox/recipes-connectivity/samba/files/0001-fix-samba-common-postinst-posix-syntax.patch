@@ -1,0 +1,62 @@
+From: Claude Assistant <noreply@anthropic.com>
+Date: Fri, 20 Dec 2024 14:00:00 +0100
+Subject: [PATCH] Fix samba-common postinst for POSIX shell compatibility
+
+The pkg_postinst:${BPN}-common:append() function uses bash-specific [[  ]]
+test syntax which fails when executed with dash shell during rootfs assembly.
+
+This patch converts the bash syntax to POSIX-compliant [ ] syntax and also:
+- Replaces 'echo -e' with plain 'echo' (dash doesn't need -e for tabs)
+- Adds 'mkdir -p $D/tmp' to ensure /tmp exists before use
+
+Signed-off-by: Claude Assistant <noreply@anthropic.com>
+---
+ meta-oe/recipes-connectivity/samba/samba-pkgs.inc | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/meta-oe/recipes-connectivity/samba/samba-pkgs.inc b/meta-oe/recipes-connectivity/samba/samba-pkgs.inc
+index 1111111..2222222 100644
+--- a/meta-oe/recipes-connectivity/samba/samba-pkgs.inc
++++ b/meta-oe/recipes-connectivity/samba/samba-pkgs.inc
+@@ -180,13 +180,15 @@ pkg_postinst:${BPN}-common:append() {
+ #!/bin/sh
+
+ set +e
++mkdir -p $D/tmp
+ grep -v 'pam_smbpass.so' $D/etc/pam.d/common-password > $D/tmp/common-password
+ if [ -e $D/tmp/common-password ]; then
+     mv $D/tmp/common-password $D/etc/pam.d/common-password
+ fi
+-echo -e "password\toptional\t\t\tpam_smbpass.so use_authtok use_first_pass" >> $D/etc/pam.d/common-password
++echo "password\toptional\t\t\tpam_smbpass.so use_authtok use_first_pass" >> $D/etc/pam.d/common-password
+
+ grep -qE '^kids:' $D/etc/passwd
+-if [[ $? -ne 0 ]] ; then
++if [ $? -ne 0 ] ; then
+     echo 'kids:x:500:500:Linux User,,,:/media:/bin/false' >> $D/etc/passwd
+     echo 'kids:!:16560:0:99999:7:::' >> $D/etc/shadow
+ fi
+@@ -204,17 +206,18 @@ if [ -z "$D" ]; then
+     [ -e /etc/samba/private/smbpasswd ] || touch /etc/samba/private/smbpasswd
+
+     grep -qE '^root:' /etc/samba/private/smbpasswd
+-    if [[ $? -ne 0 ]] ; then
++    if [ $? -ne 0 ] ; then
+         smbpasswd -Ln root >/dev/null
+     fi
+
+     grep -qE '^kids:' /etc/passwd
+-    if [[ $? -ne 0 ]] ; then
++    if [ $? -ne 0 ] ; then
+         adduser -h /media -s /bin/false -H -D -u 500 kids 2>/dev/null || adduser -h /media -s /bin/false -H -D kids
+     fi
+
+     grep -qE '^kids:' /etc/samba/private/smbpasswd
+-    if [[ $? -ne 0 ]] ; then
++    if [ $? -ne 0 ] ; then
+         smbpasswd -Ln kids >/dev/null
+     fi
+ fi
+ }
+--
+2.34.1

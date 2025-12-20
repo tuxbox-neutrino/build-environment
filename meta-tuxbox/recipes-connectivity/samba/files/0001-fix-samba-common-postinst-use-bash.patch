@@ -1,0 +1,28 @@
+From: Tuxbox Builder <noreply@tuxbox.org>
+Date: Fri, 20 Dec 2024 14:00:00 +0100
+Subject: [PATCH] samba-common: use bash for postinst script
+
+The pkg_postinst:${BPN}-common:append() function uses bash-specific [[  ]]
+test syntax. Change the shebang from #!/bin/sh to #!/bin/bash since bash
+is already installed in the image.
+
+Signed-off-by: Tuxbox Builder <noreply@tuxbox.org>
+---
+ meta-oe/recipes-connectivity/samba/samba-pkgs.inc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/meta-oe/recipes-connectivity/samba/samba-pkgs.inc b/meta-oe/recipes-connectivity/samba/samba-pkgs.inc
+index 1111111..2222222 100644
+--- a/meta-oe/recipes-connectivity/samba/samba-pkgs.inc
++++ b/meta-oe/recipes-connectivity/samba/samba-pkgs.inc
+@@ -177,7 +177,8 @@ FILES:${PN}-pidl = "${bindir}/pidl ${datadir}/perl5/Parse"
+
+ pkg_postinst:${BPN}-common:append() {
+-#!/bin/sh
++#!/bin/bash
++# Using bash because this script uses bash-specific [[ ]] syntax
+
+ set +e
+ grep -v 'pam_smbpass.so' $D/etc/pam.d/common-password > $D/tmp/common-password
+--
+2.34.1

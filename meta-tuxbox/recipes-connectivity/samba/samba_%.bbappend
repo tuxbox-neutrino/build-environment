@@ -1,11 +1,4 @@
-# Samba waf configure does not support --disable-static
-DISABLE_STATIC = ""
-EXTRA_OECONF:remove = "--disable-static"
-CONFIGUREOPTS:remove = "--disable-static"
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-python __anonymous() {
-    extra = d.getVar("EXTRA_OECONF") or ""
-    if "--disable-static" in extra:
-        extra = " ".join([x for x in extra.split() if x != "--disable-static"])
-        d.setVar("EXTRA_OECONF", extra)
-}
+# Fix samba-common postinst to be POSIX-compatible (dash) and ensure /tmp exists
+SRC_URI += "file://0001-fix-samba-common-postinst-posix-syntax.patch"

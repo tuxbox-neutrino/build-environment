@@ -25,7 +25,6 @@ RDEPENDS:${PN} = " \
     openssh \
     openssh-sftp-server \
     opkg \
-    opkg-utils \
     curl \
     wget \
     ca-certificates \

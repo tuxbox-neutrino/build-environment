@@ -1,0 +1,33 @@
+From 4cc2f879bcf3c1abfab07077e30515d33d800c76 Mon Sep 17 00:00:00 2001
+From: Thilo Graf <dbt@novatux.de>
+Date: Wed, 17 Jan 2024 19:33:51 +0100
+Subject: tvheadend.service: Adjustments for STB environment
+
+
+diff --git a/systemd/tvheadend.service b/systemd/tvheadend.service
+index 1b722df..f0034a8 100644
+--- a/systemd/tvheadend.service
++++ b/systemd/tvheadend.service
+@@ -1,14 +1,18 @@
+ [Unit]
+-Description=tvheadend
++Description=tvheadend streaming server
+ After=network.target
+-Wants=oscam.service
+-After=oscam.service
++#Wants=oscam.service
++#After=oscam.service
++Conflicts=neutrino.service
++After=syslog.target network.target auditd.service
+ 
+ [Service]
+ Type=forking
+ PIDFile=/run/tvheadend.pid
+-ExecStart=/usr/bin/tvheadend -f -p /run/tvheadend.pid -C -u hts -g video
++#ExecStart=/usr/bin/tvheadend -f -p /run/tvheadend.pid -C -u hts -g video
++ExecStart=/usr/bin/tvheadend -p /var/run/tvheadend.pid -C -u root -g root
+ ExecStop=/usr/bin/rm /run/tvheadend.pid
++#Restart=on-failure
+ Restart=always
+ RestartSec=5
+ 

@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# --------------------------------------------------------------------------------
+# WebDAV Mount Script
+# --------------------------------------------------------------------------------
+#
+# Copyright (C) 2023 Thilo Graf
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# --------------------------------------------------------------------------------
+# Script to Mount WebDAV Shares Listed in a Configuration File
+# --------------------------------------------------------------------------------
+#
+# Description:
+# An offical to prevent the error message "We don't trust the certificate" appears,
+# or if davfs queries about an unverified certificate which is not desired,
+# the certificate must be imported. First, it is downloaded and placed in
+# /etc/davfs2/certs (system-wide) or ~/.davfs2/certs (per user) with this command:
+#
+# 	openssl s_client -connect HOSTNAME.at:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > /etc/davfs2/certs/HOSTNAME.pem
+#
+# To tell davfs where the certificate is located, the following must be modified and added to
+# /etc/davfs2/davfs2.conf:
+#
+# modify these entries:
+# 	trust_server_cert /etc/davfs2/certs/HOSTNAME.pem
+# 
+# The following line is sufficient too, as the paths /etc/davfs2/certs/ and ~/.davfs2/certs/ are automatically searched:
+#
+# 	trust_server_cert HOSTNAME.pem
+#
+# Alternativley (not official): Mount WebDAV Shares With Optional Certificate Ignoring.
+#  Modify WebDAV URLs and their corresponding mount points to a configuration file named '/etc/davfs2/davfs2.mount.list'.
+#  Use the 'ignore_cert' flag to bypass certificate verification, useful for self-signed certificates.
+#
+# Configuration File Format:
+# - Contains one mount configuration per line: a WebDAV URL, a local mount point,
+#   and optionally, the 'ignore_cert' option. Lines starting with '#' are comments.
+# - Example:
+#       https://webdav.example.com /mnt/webdav1
+#       https://webdav2.example.com /mnt/webdav2 ignore_cert
+#
+# Usage:
+# - Ensure the configuration file '/etc/davfs2/davfs2.mount.list' exists and is
+#   properly formatted. Run the script with sufficient privileges (typically root).
+#
+
+echo "Starting to mount all davfs mounts."
+
+# Path to the file containing mount points
+MOUNT_LIST="/etc/davfs2/davfs2.mount.list"
+
+# Check if the mount list file exists
+if [ ! -f "$MOUNT_LIST" ]; then
+	echo "Mount list file not found: $MOUNT_LIST"
+	exit 1
+fi
+
+# Loop through all lines in the mount list file
+while IFS= read -r line; do
+	# Skip commented lines
+	[[ "$line" =~ ^#.*$ ]] && continue
+
+	# Extract the WebDAV URL, mount point, and option
+	read -r dav_url mount_point options <<< $(echo $line)
+
+	# Skip the loop iteration if dav_url or mount_point is empty
+	if [ -z "$dav_url" ] || [ -z "$mount_point" ]; then
+		continue
+	fi
+
+	# Create mount point directory if it does not exist
+	if [ ! -d "$mount_point" ]; then
+		mkdir -pv "$mount_point"
+	fi
+
+	# Mount with or without ignore_cert option
+	if [[ $options == *"ignore_cert"* ]]; then
+		error_message=$(yes | mount.davfs $dav_url $mount_point 2>&1)
+	else
+		error_message=$(mount.davfs $dav_url $mount_point 2>&1)
+	fi
+
+	# Check for errors
+	if [ $? -ne 0 ]; then
+		echo "Error mounting $dav_url at $mount_point: $error_message"
+		continue # Skip to the next mount
+	else
+		echo "Mounted $dav_url at $mount_point."
+	fi
+done < "$MOUNT_LIST"

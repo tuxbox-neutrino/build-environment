@@ -1,0 +1,13 @@
+ 
+[Unit]
+Description=Mount and Unmount WebDAV filesystems
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=@SBINPATH@/mount.all.davfs
+ExecStop=@SBINPATH@/umount.all.davfs
+
+[Install]
+WantedBy=multi-user.target

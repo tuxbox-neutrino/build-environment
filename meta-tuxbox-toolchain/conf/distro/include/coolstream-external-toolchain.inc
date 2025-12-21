@@ -20,7 +20,28 @@ ASSUME_PROVIDED += " \
     virtual/${TARGET_PREFIX}binutils \
     virtual/${TARGET_PREFIX}libc-for-gcc \
     virtual/${TARGET_PREFIX}compilerlibs \
+    linux-libc-headers \
+    virtual/${TARGET_PREFIX}linux-libc-headers \
+    gcc-runtime \
+    libssp-nonshared \
+    nativesdk-gcc-runtime \
+    nativesdk-libgcc \
+    nativesdk-glibc \
+    nativesdk-linux-libc-headers \
+    gcc-cross-canadian-${TRANSLATED_TARGET_ARCH} \
+    binutils-cross-canadian-${TRANSLATED_TARGET_ARCH} \
+    gcc-crosssdk-${SDK_SYS} \
+    binutils-crosssdk-${SDK_SYS} \
 "
 
 # Toolchain features
 TOOLCHAIN_FEATURES = "toolchain-uClibc"
+
+# Prefer the external toolchain for all compiler/libc virtuals
+PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}binutils = "external-toolchain-coolstream"
+PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}gcc = "external-toolchain-coolstream"
+PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}g++ = "external-toolchain-coolstream"
+PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}compilerlibs = "external-toolchain-coolstream"
+PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}linux-libc-headers = "external-toolchain-coolstream"
+PREFERRED_PROVIDER_virtual/libc = "external-toolchain-coolstream"
+PREFERRED_PROVIDER_linux-libc-headers = "external-toolchain-coolstream"

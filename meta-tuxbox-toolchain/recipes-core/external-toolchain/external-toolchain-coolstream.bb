@@ -50,3 +50,19 @@ INSANE_SKIP:${PN} = "already-stripped staticdev ldflags"
 
 # Architecture-independent
 PACKAGE_ARCH = "all"
+
+# Provide all toolchain virtuals so BitBake does not try to build them
+PROVIDES += " \
+    virtual/${TARGET_PREFIX}gcc \
+    virtual/${TARGET_PREFIX}g++ \
+    virtual/${TARGET_PREFIX}binutils \
+    virtual/${TARGET_PREFIX}linux-libc-headers \
+    virtual/${TARGET_PREFIX}compilerlibs \
+    virtual/libc \
+    linux-libc-headers \
+"
+
+# Do not pull any default dependencies; the toolchain is self contained
+DEPENDS = ""
+RDEPENDS:${PN} = ""
+RRECOMMENDS:${PN} = ""

@@ -2,8 +2,8 @@
 #
 # Sets up environment for cross-compilation with external uClibc toolchain
 
-# Toolchain location
-EXTERNAL_TOOLCHAIN_ROOT ?= "${TMPDIR}/work-shared/external-toolchain-coolstream"
+# Toolchain location (staged into native sysroot by the recipe)
+EXTERNAL_TOOLCHAIN_ROOT ?= "${STAGING_DIR_NATIVE}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7"
 EXTERNAL_TOOLCHAIN_BIN = "${EXTERNAL_TOOLCHAIN_ROOT}/cross/arm-linux-3.10.93/bin"
 EXTERNAL_TOOLCHAIN_SYSROOT = "${EXTERNAL_TOOLCHAIN_ROOT}/cross/arm-linux-3.10.93/arm-cortex-linux-uclibcgnueabi/sys-root"
 

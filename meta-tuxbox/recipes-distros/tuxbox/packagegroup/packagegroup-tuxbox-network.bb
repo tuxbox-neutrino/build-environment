@@ -10,6 +10,7 @@ inherit packagegroup
 RDEPENDS:${PN} = " \
     openssh \
     openssh-sftp-server \
+    samba \
     nfs-utils \
     nfs-utils-client \
     avahi-daemon \

@@ -48,6 +48,9 @@ export NM
 # Add toolchain bin to PATH
 export PATH := "${EXTERNAL_TOOLCHAIN_BIN}:${PATH}"
 
+# Ensure strip and friends from the external toolchain are used
+export STRIP = "${EXTERNAL_TOOLCHAIN_BIN}/arm-cortex-linux-uclibcgnueabi-strip"
+
 # The external toolchain recipe already stages the sysroot; no additional
 # task dependencies are required here.
 

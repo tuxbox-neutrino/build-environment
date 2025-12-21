@@ -5,12 +5,11 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=d7810fab7487fb0aad327b76f1be7cd7"
 
 PV = "2.6.34.15"
 
-# Branch to be created/pinned in tuxbox-neutrino/linux-kernel-cst
+# Branch pinned in tuxbox-neutrino/linux-kernel-cst
 SRC_URI = "git://github.com/tuxbox-neutrino/linux-kernel-cst.git;protocol=https;branch=2.6.34.15-cnxt \
            file://kernel-nevis.defconfig"
 
-# Placeholder SRCREV: update to the actual commit after branch push
-SRCREV = "946a1153cdf14b00476427b56487e0aac4321e77"
+SRCREV = "5a714bd8440e62f6a367d0fe569fe4ae9a21912e"
 
 S = "${WORKDIR}/git"
 

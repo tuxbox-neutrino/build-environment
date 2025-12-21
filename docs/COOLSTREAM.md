@@ -13,6 +13,8 @@ Coolstream HD2-Geräte benötigen eine uClibc-Toolchain. Wir kapseln das in
 - `meta-coolstream` enthält jetzt den Binär-Puller `libcoolstream-bin`.  
   `meta-libcoolstream` bleibt optional für künftige Source-Builds, aber enthält
   kein binäres Rezept mehr.
+- Binäre Treiber/Firmware: `cst-drivers` (Module + FW für HD1/HD2), optional
+  `cst-drivers-extra` (rt5572sta für nevis).
 - `meta-tuxbox-toolchain`: Externe uClibc-Toolchain.
 - **Quellen (aus ni-buildsystem ableitbar, müssen geklont/angepasst werden):**
   - `ni-linux-kernel` (2.6.34.15 HD1 / 3.10.108 HD2, inkl. defconfigs)

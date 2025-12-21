@@ -269,6 +269,12 @@ class TuxboxBuilder:
         content = content.replace('##TMPDIR##', str(target_builddir / 'tmp'))
         content = content.replace('##DISTRO_TYPE##', distro_type)
 
+        # Coolstream-specific toolchain defaults
+        if machine.startswith('coolstream'):
+            content += '\n# Coolstream external uClibc toolchain\n'
+            content += 'TCMODE ?= "external-coolstream"\n'
+            content += 'TCLIBC ?= "uclibc"\n'
+
         # Write output
         with open(output_file, 'w') as f:
             f.write(content)
@@ -321,9 +327,9 @@ class TuxboxBuilder:
             self.info(f"Using MACHINEBUILD={machinebuild}")
 
         # Select per-machine build directory (isolate Coolstream builds)
-        target_builddir = self.builddir
-        if machine.startswith('coolstream'):
-            target_builddir = self.topdir / f"build-{machine}"
+        target_builddir = Path(args.builddir) if args.builddir else (
+            self.topdir / f"build-{machine}" if machine.startswith('coolstream') else self.builddir
+        )
         self.builddir = target_builddir
 
         # Check if initialized
@@ -470,11 +476,21 @@ def main():
     build_parser.add_argument('-m', '--machine', required=True, help='Target machine (e.g., hd51)')
     build_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
     build_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
+    build_parser.add_argument('--builddir', help='Custom build directory (default: build or build-<machine> for coolstream)')
     build_parser.add_argument('-t', '--target', help='Build target (default: tuxbox-image)')
     build_parser.add_argument('--offline', action='store_true', help='Offline build mode')
     build_parser.add_argument('--no-sstate', action='store_true', help='Disable sstate cache')
     build_parser.add_argument('--devshell', action='store_true', help='Drop to development shell')
     build_parser.add_argument('--distro-type', choices=['release', 'development'],
+                            default='release', help='Build type')
+    
+    # config-only command
+    config_parser = subparsers.add_parser('config', help='Generate configs only (no build)')
+    config_parser.add_argument('-m', '--machine', required=True, help='Target machine')
+    config_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
+    config_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
+    config_parser.add_argument('--builddir', help='Custom build directory (default: build or build-<machine> for coolstream)')
+    config_parser.add_argument('--distro-type', choices=['release', 'development'],
                             default='release', help='Build type')
 
     # clean command
@@ -506,6 +522,12 @@ def main():
         builder.init(args)
     elif args.command == 'build':
         builder.build(args)
+    elif args.command == 'config':
+        target_builddir = Path(args.builddir) if args.builddir else (
+            builder.topdir / f"build-{args.machine}" if args.machine.startswith('coolstream') else builder.builddir
+        )
+        builder.generate_config(args.machine, args.distro, args.distro_type, args.machinebuild, target_builddir)
+        builder.success(f"Config generated at {target_builddir}/conf")
     elif args.command == 'clean':
         builder.clean(args)
     elif args.command == 'fetch-only':

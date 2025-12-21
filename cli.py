@@ -269,8 +269,8 @@ class TuxboxBuilder:
         content = content.replace('##TMPDIR##', str(target_builddir / 'tmp'))
         content = content.replace('##DISTRO_TYPE##', distro_type)
 
-        # Coolstream-specific toolchain defaults
-        if machine.startswith('coolstream'):
+        # Coolstream-specific toolchain defaults (HD2 uClibc, HD1 glibc)
+        if machine.startswith('coolstream') and machine != 'coolstream-nevis':
             content += '\n# Coolstream external uClibc toolchain\n'
             content += 'TCMODE ?= "external-coolstream"\n'
             content += 'TCLIBC ?= "uclibc"\n'

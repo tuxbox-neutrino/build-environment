@@ -1,82 +1,51 @@
-# Coolstream Tank Builds with uClibc Toolchain
+# Coolstream (uClibc) Builds
 
-Building Neutrino for Coolstream Tank requires an **external uClibc toolchain** due to different C library requirements.
+Coolstream HD2-Geräte benötigen eine uClibc-Toolchain. Wir kapseln das in
+`meta-coolstream` (Maschinen/BSP) plus `meta-tuxbox-toolchain`
+(TCMODE `external-coolstream`).
 
-## Overview
+## Layer
+- `meta-coolstream`: Maschinenbeschreibungen, Flash/Layout, BSP-Anpassungen.
+  In `bblayers.conf` hinzufügen:
+  ```
+  BBLAYERS += "${TOPDIR}/../meta-coolstream"
+  ```
+- `meta-tuxbox-toolchain`: Externe uClibc-Toolchain.
 
-**Problem**: Coolstream Tank uses **uClibc** instead of **glibc**.
-- Different ABI (Application Binary Interface)
-- Different system calls and library functions
-- Cannot mix glibc and uClibc binaries
-
-**Solution**: External toolchain integration via `meta-tuxbox-toolchain` layer.
-
-## Toolchain Details
-
-### Toolchain Source
-
-**URL**: https://sourceforge.net/projects/n4k/files/toolchains/
-**File**: `toolchain-coolstream-uclibc-armv7.tar.bz2`
+## Toolchain
+**URL**: https://sourceforge.net/projects/n4k/files/toolchains/  
+**File**: `toolchain-coolstream-uclibc-armv7.tar.bz2`  
 **SHA256**: `b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6`
 
-### Toolchain Layout
-
+Layout (gekürzt):
 ```
 toolchain-coolstream-uclibc-armv7/
-└── cross/
-    └── arm-linux-3.10.93/
-        ├── bin/                                    # Cross-compiler binaries
-        │   ├── arm-cortex-linux-uclibcgnueabi-gcc
-        │   ├── arm-cortex-linux-uclibcgnueabi-g++
-        │   ├── arm-cortex-linux-uclibcgnueabi-ld
-        │   └── ... (other tools)
-        └── arm-cortex-linux-uclibcgnueabi/
-            └── sys-root/                           # Target sysroot
-                ├── lib/                            # uClibc libraries
-                ├── usr/
-                │   ├── include/                    # Headers
-                │   └── lib/                        # Additional libs
-                └── etc/
+└── cross/arm-linux-3.10.93/
+    ├── bin/arm-cortex-linux-uclibcgnueabi-gcc ...
+    └── arm-cortex-linux-uclibcgnueabi/sys-root/...
 ```
 
-### Compiler Prefix
-
+## Build (Beispiel Tank)
 ```
-CROSS_COMPILE = "arm-cortex-linux-uclibcgnueabi-"
-```
+# lokale/conf
+MACHINE = "coolstream-tank"
+MACHINEBUILD = "coolstream-tank"
+TCMODE = "external-coolstream"
+TCLIBC = "uclibc"
 
-## Building for Coolstream Tank
+# Layer hinzufügen (bblayers.conf)
+BBLAYERS += "${TOPDIR}/../meta-coolstream"
 
-### Quick Start
-
-```bash
-# Build with Coolstream-specific distro
-make image MACHINE=tank DISTRO=tuxbox-uclibc
-
-# Or using Python CLI
-./cli.py build --machine tank --distro tuxbox-uclibc
+# Bauen
+bitbake tuxbox-image
 ```
 
-### What Happens Differently
-
-1. **Different distro config** loaded: `conf/distro/tuxbox-uclibc.conf`
-   - Sets `TCLIBC = "uclibc"`
-   - Sets `TCMODE = "external-coolstream"`
-   - Disables incompatible packages
-
-2. **meta-tuxbox-toolchain layer** activated
-   - Provides external toolchain recipe
-   - Configures cross-compilation environment
-
-3. **Separate build directory**: `build/tank-uclibc/`
-   - Prevents cross-contamination with glibc builds
-   - Separate sstate cache namespace
-
-4. **Toolchain automatically downloaded and extracted** (first build only)
-   - Cached in `downloads/`
-   - SHA256 verified
-
-## Configuration Details
+## Hinweise
+- DISTRO bleibt `tuxbox`; libc/TCMODE für Coolstream-Maschinen explizit setzen.
+- Kernel/Bootloader/Driver müssen noch aus dem ni-buildsystem migriert werden.
+- HD1/Nevis-Geräte (arm1176, glibc) laufen weiter über glibc-Toolchain;
+  uClibc gilt für HD2 (apollo/shiner/kronos/kronos_v2: tank, trinity, zee2,
+  link, trinity duo).
 
 ### Distribution Config
 

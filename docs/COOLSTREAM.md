@@ -28,8 +28,8 @@ toolchain-coolstream-uclibc-armv7/
 ## Build (Beispiel Tank)
 ```
 # lokale/conf
-MACHINE = "coolstream-tank"
-MACHINEBUILD = "coolstream-tank"
+MACHINE = "coolstream-apollo"
+MACHINEBUILD = "coolstream-apollo"
 TCMODE = "external-coolstream"
 TCLIBC = "uclibc"
 
@@ -43,9 +43,13 @@ bitbake tuxbox-image
 ## Hinweise
 - DISTRO bleibt `tuxbox`; libc/TCMODE für Coolstream-Maschinen explizit setzen.
 - Kernel/Bootloader/Driver müssen noch aus dem ni-buildsystem migriert werden.
-- HD1/Nevis-Geräte (arm1176, glibc) laufen weiter über glibc-Toolchain;
-  uClibc gilt für HD2 (apollo/shiner/kronos/kronos_v2: tank, trinity, zee2,
-  link, trinity duo).
+- MACHINE-Namen (Mapping zu NI BOXMODEL):
+  - `coolstream-nevis` (HD1 glibc): HD1/BSE/NEO/NEO2/NEO2 Twin/ZEE
+  - `coolstream-apollo` (HD2 uClibc): Tank
+  - `coolstream-shiner` (HD2 uClibc): Trinity V1
+  - `coolstream-kronos` (HD2 uClibc): Zee² / Trinity V2
+  - `coolstream-kronos-v2` (HD2 uClibc): Link / Trinity Duo
+- HD1/Nevis-Geräte (arm1176) glibc; uClibc gilt für HD2 (apollo/shiner/kronos/kronos_v2).
 
 ### Distribution Config
 

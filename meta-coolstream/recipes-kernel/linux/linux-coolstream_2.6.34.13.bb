@@ -3,9 +3,7 @@ DESCRIPTION = "Coolstream kernel for nevis-based boxes (legacy default)"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://COPYING;md5=d7810fab7487fb0aad327b76f1be7cd7"
 
-PV = "2.6.34.13"
-
-SRC_URI = "git://github.com/tuxbox-neutrino/linux-kernel-cst.git;protocol=https;branch=2.6.34.13-cnxt \
+SRC_URI = "git://github.com/tuxbox-neutrino/linux-kernel-cst.git;protocol=https;branch=${PV}-cnxt \
            file://kernel-nevis.defconfig"
 
 SRCREV = "d3aee8fbb41ab3c94539e9482d1bbd7ff43a45f2"

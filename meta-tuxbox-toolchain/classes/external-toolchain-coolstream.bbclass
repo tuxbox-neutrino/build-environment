@@ -48,8 +48,14 @@ export NM
 # Add toolchain bin to PATH
 export PATH := "${EXTERNAL_TOOLCHAIN_BIN}:${PATH}"
 
-# Ensure strip and friends from the external toolchain are used
-export STRIP = "${EXTERNAL_TOOLCHAIN_BIN}/arm-cortex-linux-uclibcgnueabi-strip"
+# Ensure binutils from the external toolchain are used
+export STRIP   = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}strip"
+export OBJCOPY = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}objcopy"
+export OBJDUMP = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}objdump"
+export NM      = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}nm"
+export AR      = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}ar"
+export RANLIB  = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}ranlib"
+export STRINGS = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}strings"
 
 # The external toolchain recipe already stages the sysroot; no additional
 # task dependencies are required here.

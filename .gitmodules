@@ -23,3 +23,9 @@
 	path = meta-openembedded
 	url = https://git.openembedded.org/meta-openembedded
 	branch = kirkstone
+[submodule "drivers-bin-cst"]
+	path = drivers-bin-cst
+	url = https://github.com/tuxbox-neutrino/drivers-bin-cst.git
+[submodule "drivers-third-party-cst"]
+	path = drivers-third-party-cst
+	url = https://github.com/tuxbox-neutrino/drivers-third-party-cst.git

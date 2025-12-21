@@ -205,11 +205,16 @@ MACHINE=tank DISTRO=tuxbox-uclibc bitbake -c compile some-simple-package
 - UClibc-Toolchain tarball: siehe AGENT.md (SourceForge, SHA256 b7f18dfa…52e6)
 
 **Required Actions (konkret):**
-1. Repos klonen + SHAs definieren: `ni-linux-kernel`, `ni-drivers-bin`, `ni-libcoolstream` (und ggf. ffmpeg/openthreads/logo/ofgwrite, falls benötigt).
-2. Kernel-/Treiber-/Firmware-/Bootloader-/DTB-Rezepte in `meta-coolstream` anlegen und auf die oben genannten Repos/SRCREV pinnen.
-3. Defconfigs/DTBs aus `ni-drivers-bin` referenzieren (hd849x.dtb, en75x1.dtb) + Bootloader-Images einbinden.
-4. libcoolstream/libnxp aus `ni-libcoolstream` als eigene Rezepte bereitstellen.
-5. Toolchain-Pfad/Doku für uClibc (HD2) und glibc (HD1) in COOLSTREAM.md/README ergänzen.
+1. Repos klonen + SHAs definieren:  
+   - ✅ `drivers-bin-cst` (tuxbox-neutrino) als Submodule hinzugefügt (HEAD 146403d8).  
+   - ✅ `drivers-third-party-cst` (tuxbox-neutrino) als Submodule hinzugefügt (HEAD 4151410e).  
+   - ☐ Kernel-Repo (äquivalent zu `ni-linux-kernel`) fehlt noch.  
+   - ☐ libcoolstream-Repo fehlt (kein öffentliches Repo gefunden).  
+   - ☐ Optional: ffmpeg/openthreads/logo/ofgwrite, falls benötigt.
+2. Kernel-/Treiber-/Firmware-/Bootloader-/DTB-Rezepte in `meta-coolstream` anlegen und auf die oben genannten Repos/SRCREV pinnen (Treiber/Firmware/DTB/Bootloader jetzt aus `drivers-bin-cst`/`drivers-third-party-cst` möglich).
+3. Defconfigs/DTBs aus Treiber-Repo referenzieren (hd849x.dtb, en75x1.dtb) + Bootloader-Images einbinden.
+4. libcoolstream/libnxp: Quelle fehlt noch → Blocker bis Repo verfügbar.
+5. Toolchain-Pfad/Doku für uClibc (HD2) und glibc (HD1) in COOLSTREAM.md/README ergänzen (Toolchain liegt vor).
 
 **Why Critical**: Without these sources, Coolstream MACHINEs are non-buildable.
 

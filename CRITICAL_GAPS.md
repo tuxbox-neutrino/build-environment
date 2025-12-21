@@ -182,6 +182,27 @@ MACHINE=tank DISTRO=tuxbox-uclibc bitbake -c compile some-simple-package
 
 ---
 
+### 11. Coolstream BSP sources missing ❌ **HIGH**
+
+**Problem**: Coolstream-specific NI repositories (e.g. `ni-drivers-bin`,
+`ni-linux-kernel`, `ni-ofgwrite`, `ni-logo-stuff`, `ni-ffmpeg`,
+`ni-openthreads`, `ni-libstb-hal`, …) are not cloned; only the ni-buildsystem
+scripts exist.
+
+**Impact**: No kernel/bootloader/driver/firmware blobs for Coolstream; the new
+`meta-coolstream` MACHINEs cannot build beyond parse.
+
+**Required Actions**:
+1. Clone/pin the NI repos listed in `make/environment-build.mk` (neutrino-images
+   org) and decide commit SHAs.
+2. Import defconfigs/DTBs/bootloader images (from `ni-drivers-bin`) into
+   `meta-coolstream` recipes.
+3. Add kernel/bootloader/driver recipes (or bbappends) once sources are present.
+
+**Why Critical**: Without these sources, Coolstream MACHINEs are non-buildable.
+
+---
+
 ## ⚠️ MEDIUM PRIORITY GAPS
 
 ### 7. Templates Not Verified ⚠️

@@ -281,7 +281,7 @@ class TuxboxBuilder:
 
         # Mask cross-canadian rust/go for external/uclibc targets
         if machine.startswith('coolstream'):
-            content += 'BBMASK:append = "|.*/rust-tools-cross-canadian.*|.*/go-cross-canadian.*|.*/packagegroup-cross-canadian.*"\n'
+            content += 'BBMASK:append = "|.*/rust-tools-cross-canadian.*|.*/rust-cross-canadian.*|.*/go-cross-canadian.*|.*/packagegroup-cross-canadian.*"\n'
 
         # Write output
         with open(output_file, 'w') as f:

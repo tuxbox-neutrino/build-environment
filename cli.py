@@ -176,7 +176,7 @@ class TuxboxBuilder:
         return machine_brands.get(machine, 'unknown')
 
     def generate_config(self, machine: str, distro: str, distro_type: str = 'release',
-                        machinebuild: Optional[str] = None):
+                        machinebuild: Optional[str] = None, builddir: Optional[Path] = None):
         """Generate build configuration files from templates."""
         self.log(f"Generating configuration for {machine}...", Colors.BOLD, bold=True)
 
@@ -186,14 +186,15 @@ class TuxboxBuilder:
             self.warning(f"Unknown machine '{machine}' - brand layer may need manual configuration")
 
         # Create build/conf directory
-        conf_dir = self.builddir / 'conf'
+        target_builddir = Path(builddir) if builddir else self.builddir
+        conf_dir = target_builddir / 'conf'
         conf_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate bblayers.conf
         self.generate_bblayers_conf(conf_dir, machine, brand)
 
         # Generate local.conf
-        self.generate_local_conf(conf_dir, machine, distro, distro_type, machinebuild)
+        self.generate_local_conf(conf_dir, machine, distro, distro_type, machinebuild, target_builddir)
 
         self.success("Configuration generated")
 
@@ -221,9 +222,9 @@ class TuxboxBuilder:
         else:
             content = content.replace('##BRAND_LAYERS##', '# Add brand layer manually\n')
 
-        # Add toolchain layer for Coolstream
-        if machine == 'tank':
-            toolchain_layer = f'BBLAYERS += " \\\n  {self.topdir}/meta-tuxbox-toolchain \\\n"\n'
+        # Add toolchain/coolstream layers when MACHINE startswith coolstream
+        if machine.startswith('coolstream'):
+            toolchain_layer = f'BBLAYERS += " \\\n  {self.topdir}/meta-tuxbox-toolchain \\\n  {self.topdir}/meta-coolstream \\\n"\n'
             content = content.replace('##TOOLCHAIN_LAYER##', toolchain_layer)
         else:
             content = content.replace('##TOOLCHAIN_LAYER##', '')
@@ -235,7 +236,7 @@ class TuxboxBuilder:
         self.info(f"Generated: {output_file}")
 
     def generate_local_conf(self, conf_dir: Path, machine: str, distro: str, distro_type: str,
-                            machinebuild: Optional[str]):
+                            machinebuild: Optional[str], target_builddir: Path):
         """Generate local.conf from template."""
         template_file = self.topdir / 'templates' / 'local.conf.template'
         output_file = conf_dir / 'local.conf'
@@ -265,7 +266,7 @@ class TuxboxBuilder:
         content = content.replace('##PARALLEL_MAKE##', str(parallel_make))
         content = content.replace('##DL_DIR##', str(self.dl_dir))
         content = content.replace('##SSTATE_DIR##', str(self.sstate_dir))
-        content = content.replace('##TMPDIR##', str(self.builddir / 'tmp'))
+        content = content.replace('##TMPDIR##', str(target_builddir / 'tmp'))
         content = content.replace('##DISTRO_TYPE##', distro_type)
 
         # Write output
@@ -319,6 +320,12 @@ class TuxboxBuilder:
         if machinebuild:
             self.info(f"Using MACHINEBUILD={machinebuild}")
 
+        # Select per-machine build directory (isolate Coolstream builds)
+        target_builddir = self.builddir
+        if machine.startswith('coolstream'):
+            target_builddir = self.topdir / f"build-{machine}"
+        self.builddir = target_builddir
+
         # Check if initialized
         state = self.load_state()
         if not state.get('initialized'):
@@ -335,7 +342,7 @@ class TuxboxBuilder:
             sys.exit(1)
 
         # Generate configuration
-        self.generate_config(machine, distro, distro_type, machinebuild)
+        self.generate_config(machine, distro, distro_type, machinebuild, target_builddir)
 
         # Setup environment and invoke BitBake
         if args.devshell:

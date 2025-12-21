@@ -274,10 +274,10 @@ class TuxboxBuilder:
             content += '\n# Coolstream external uClibc toolchain\n'
             content += 'TCMODE ?= "external-coolstream"\n'
             content += 'TCLIBC ?= "uclibc"\n'
-            content += 'BBMASK:append = "|.*/meta-tuxbox/recipes-kodi/.*|.*/recipes-mediacenter/kodi/.*"\n'
+            content += 'BBMASK:append = "|.*/meta-tuxbox/recipes-kodi/.*|.*/meta-tuxbox/recipes-multimedia/kodi/.*|.*/recipes-mediacenter/kodi/.*"\n'
         elif machine == 'coolstream-nevis':
             # Mask Kodi bbappends not used on coolstream
-            content += 'BBMASK:append = "|.*/meta-tuxbox/recipes-kodi/.*|.*/recipes-mediacenter/kodi/.*"\n'
+            content += 'BBMASK:append = "|.*/meta-tuxbox/recipes-kodi/.*|.*/meta-tuxbox/recipes-multimedia/kodi/.*|.*/recipes-mediacenter/kodi/.*"\n'
 
         # Mask cross-canadian rust/go for external/uclibc targets
         if machine.startswith('coolstream'):

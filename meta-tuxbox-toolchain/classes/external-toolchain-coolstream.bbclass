@@ -48,9 +48,8 @@ export NM
 # Add toolchain bin to PATH
 export PATH := "${EXTERNAL_TOOLCHAIN_BIN}:${PATH}"
 
-# Ensure toolchain is available before build
-do_configure[depends] += "external-toolchain-coolstream:do_populate_sysroot"
-do_compile[depends] += "external-toolchain-coolstream:do_populate_sysroot"
+# The external toolchain recipe already stages the sysroot; no additional
+# task dependencies are required here.
 
 # Disable QA checks that fail with external toolchain
 INSANE_SKIP:append = " ldflags textrel"

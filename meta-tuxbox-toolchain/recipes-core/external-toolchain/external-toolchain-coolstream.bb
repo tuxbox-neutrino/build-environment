@@ -21,6 +21,7 @@ S = "${WORKDIR}"
 
 # No compilation needed
 do_compile[noexec] = "1"
+do_configure[noexec] = "1"
 
 do_install() {
     # Install toolchain to shared work directory

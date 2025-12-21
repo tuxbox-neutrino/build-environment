@@ -25,14 +25,20 @@ do_configure[noexec] = "1"
 
 do_install() {
     # Install toolchain to shared work directory
-    install -d ${D}${datadir}/coolstream-toolchain
+    install -d ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7
 
-    # Copy entire toolchain
-    cp -a ${S}/toolchain-coolstream-uclibc-armv7 ${D}${datadir}/coolstream-toolchain/
+    # Tarball may be flat (cross/...) or wrapped in a top-level dir
+    if [ -d ${S}/toolchain-coolstream-uclibc-armv7 ]; then
+        cp -a ${S}/toolchain-coolstream-uclibc-armv7/* ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/
+    else
+        cp -a ${S}/cross ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/
+    fi
 
     # Create version file
     echo "Coolstream uClibc Toolchain" > ${D}${datadir}/coolstream-toolchain/version
-    echo "GCC: $(${S}/toolchain-coolstream-uclibc-armv7/cross/arm-linux-3.10.93/bin/arm-cortex-linux-uclibcgnueabi-gcc --version | head -1)" >> ${D}${datadir}/coolstream-toolchain/version || true
+    if [ -x ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/cross/arm-linux-3.10.93/bin/arm-cortex-linux-uclibcgnueabi-gcc ]; then
+        ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/cross/arm-linux-3.10.93/bin/arm-cortex-linux-uclibcgnueabi-gcc --version | head -1 >> ${D}${datadir}/coolstream-toolchain/version || true
+    fi
 }
 
 # Package files

@@ -274,6 +274,10 @@ class TuxboxBuilder:
             content += '\n# Coolstream external uClibc toolchain\n'
             content += 'TCMODE ?= "external-coolstream"\n'
             content += 'TCLIBC ?= "uclibc"\n'
+            content += 'BBMASK:append = "|.*/meta-tuxbox/recipes-kodi/.*"\n'
+        elif machine == 'coolstream-nevis':
+            # Mask Kodi bbappends not used on coolstream
+            content += 'BBMASK:append = "|.*/meta-tuxbox/recipes-kodi/.*"\n'
 
         # Write output
         with open(output_file, 'w') as f:

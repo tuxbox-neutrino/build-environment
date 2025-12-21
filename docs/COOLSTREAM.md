@@ -11,6 +11,12 @@ Coolstream HD2-Geräte benötigen eine uClibc-Toolchain. Wir kapseln das in
   BBLAYERS += "${TOPDIR}/../meta-coolstream"
   ```
 - `meta-tuxbox-toolchain`: Externe uClibc-Toolchain.
+- **Quellen (aus ni-buildsystem ableitbar, müssen geklont/angepasst werden):**
+  - `ni-linux-kernel` (2.6.34.15 HD1 / 3.10.108 HD2, inkl. defconfigs)
+  - `ni-drivers-bin` (Kernel-Module, DTBs hd849x/en75x1, Firmware, Bootloader/uldr)
+  - `ni-libcoolstream` (libcoolstream, libnxp für HD1)
+  - Toolchain: fertiges uClibc-Tarball (s. unten) bzw. CT-NG-Configs (hd1/hd2)
+  - **Kein** libstb-hal auf Coolstream-Geräten erforderlich.
 
 ## Toolchain
 **URL**: https://sourceforge.net/projects/n4k/files/toolchains/  
@@ -174,7 +180,6 @@ RDEPENDS_${PN} = " \
     firmware-coolstream \
     kernel-module-coolstream-dvb \
     coolstream-drivers \
-    libstb-hal-coolstream \
 "
 
 # Optional

@@ -184,20 +184,32 @@ MACHINE=tank DISTRO=tuxbox-uclibc bitbake -c compile some-simple-package
 
 ### 11. Coolstream BSP sources missing ❌ **HIGH**
 
-**Problem**: Coolstream-specific NI repositories (e.g. `ni-drivers-bin`,
-`ni-linux-kernel`, `ni-ofgwrite`, `ni-logo-stuff`, `ni-ffmpeg`,
-`ni-openthreads`, `ni-libstb-hal`, …) are not cloned; only the ni-buildsystem
-scripts exist.
+**Problem**: Coolstream-spezifische NI-Repos nicht geclont; nur ni-buildsystem liegt vor.
 
-**Impact**: No kernel/bootloader/driver/firmware blobs for Coolstream; the new
-`meta-coolstream` MACHINEs cannot build beyond parse.
+**Impact**: Keine Kernel/Bootloader/DTB/Driver/Firmware für Coolstream → meta-coolstream kann nicht bauen.
 
-**Required Actions**:
-1. Clone/pin the NI repos listed in `make/environment-build.mk` (neutrino-images
-   org) and decide commit SHAs.
-2. Import defconfigs/DTBs/bootloader images (from `ni-drivers-bin`) into
-   `meta-coolstream` recipes.
-3. Add kernel/bootloader/driver recipes (or bbappends) once sources are present.
+**Benötigte Repos (alle aus neutrino-images):**
+- `ni-linux-kernel`  
+  - Branches: 2.6.34.15 (HD1/nevis), 3.10.108 (HD2 apollo/shiner/kronos/kronos_v2)  
+  - Defconfigs: `kernel-apollo.defconfig`, `kernel-kronos.defconfig` (HD2)  
+  - DTBs liegen **nicht** hier, sondern in ni-drivers-bin.
+- `ni-drivers-bin`  
+  - Kernel-Module (alle Boxen), DTBs (HD2: hd849x.dtb für apollo/shiner, en75x1.dtb für kronos/kronos_v2)  
+  - Firmware (lib-firmware, lib-firmware-dvb, firmware-wireless), Bootloader/uldr (u-boot.bin, u-boot.bin.kronos_v2, uldr.bin)
+- `ni-libcoolstream`  
+  - libcoolstream (alle Boxen), libnxp (nur nevis/HD1)
+- Optional falls gebraucht: `ni-ffmpeg`, `ni-openthreads`, `ni-logo-stuff`, `ni-ofgwrite` (werden im NI-Setup referenziert; prüfen Bedarf)
+
+**Toolchain (extern, schon vorhanden):**
+- Crosstool-NG Configs: `crosstool-ng-coolstream-hd1.config` (glibc/eglibc-artig), `crosstool-ng-coolstream-hd2.config` (uClibc-ng 1.0.24)
+- UClibc-Toolchain tarball: siehe AGENT.md (SourceForge, SHA256 b7f18dfa…52e6)
+
+**Required Actions (konkret):**
+1. Repos klonen + SHAs definieren: `ni-linux-kernel`, `ni-drivers-bin`, `ni-libcoolstream` (und ggf. ffmpeg/openthreads/logo/ofgwrite, falls benötigt).
+2. Kernel-/Treiber-/Firmware-/Bootloader-/DTB-Rezepte in `meta-coolstream` anlegen und auf die oben genannten Repos/SRCREV pinnen.
+3. Defconfigs/DTBs aus `ni-drivers-bin` referenzieren (hd849x.dtb, en75x1.dtb) + Bootloader-Images einbinden.
+4. libcoolstream/libnxp aus `ni-libcoolstream` als eigene Rezepte bereitstellen.
+5. Toolchain-Pfad/Doku für uClibc (HD2) und glibc (HD1) in COOLSTREAM.md/README ergänzen.
 
 **Why Critical**: Without these sources, Coolstream MACHINEs are non-buildable.
 

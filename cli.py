@@ -279,6 +279,10 @@ class TuxboxBuilder:
             # Mask Kodi bbappends not used on coolstream
             content += 'BBMASK:append = "|.*/meta-tuxbox/recipes-kodi/.*"\n'
 
+        # Mask cross-canadian rust/go for external/uclibc targets
+        if machine.startswith('coolstream'):
+            content += 'BBMASK:append = "|.*/rust-tools-cross-canadian.*|.*/go-cross-canadian.*"\n'
+
         # Write output
         with open(output_file, 'w') as f:
             f.write(content)

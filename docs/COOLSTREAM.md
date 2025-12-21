@@ -10,8 +10,9 @@ Coolstream HD2-Geräte benötigen eine uClibc-Toolchain. Wir kapseln das in
   ```
   BBLAYERS += "${TOPDIR}/../meta-coolstream"
   ```
-- Optional: `meta-libcoolstream` (Binär-Layer für libcoolstream/libnxp, CLOSED),
-  falls private Tarballs/Repo genutzt werden.
+- `meta-coolstream` enthält jetzt den Binär-Puller `libcoolstream-bin`.  
+  `meta-libcoolstream` bleibt optional für künftige Source-Builds, aber enthält
+  kein binäres Rezept mehr.
 - `meta-tuxbox-toolchain`: Externe uClibc-Toolchain.
 - **Quellen (aus ni-buildsystem ableitbar, müssen geklont/angepasst werden):**
   - `ni-linux-kernel` (2.6.34.15 HD1 / 3.10.108 HD2, inkl. defconfigs)

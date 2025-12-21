@@ -12,7 +12,7 @@ TOOLCHAIN_URL = "https://sourceforge.net/projects/n4k/files/toolchains"
 TOOLCHAIN_FILE = "toolchain-coolstream-uclibc-armv7.tar.bz2"
 
 SRC_URI = "${TOOLCHAIN_URL}/${TOOLCHAIN_FILE};name=toolchain"
-SRC_URI[toolchain.sha256sum] = "b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6"
+SRC_URI[toolchain.sha256sum] = "c3017d17ce442fce4fcb3cf9c77d574617bd8db1f8ea741b0d2960c2b2acdeab"
 
 # Alternative mirror (SourceForge backup)
 SRC_URI += "https://downloads.sourceforge.net/project/n4k/toolchains/${TOOLCHAIN_FILE};name=toolchain"

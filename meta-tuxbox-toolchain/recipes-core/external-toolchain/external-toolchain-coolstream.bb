@@ -2,7 +2,7 @@
 #
 # Downloads and extracts the pre-built Coolstream toolchain
 
-DESCRIPTION = "External uClibc toolchain for Coolstream Tank"
+DESCRIPTION = "External uClibc toolchain for Coolstream HD2 devices"
 LICENSE = "GPL-2.0-only & LGPL-2.1-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6 \
                     file://${COMMON_LICENSE_DIR}/LGPL-2.1-only;md5=1a6d268fd218675ffea8be556788b780"
@@ -29,9 +29,9 @@ do_install() {
 
     # Tarball may be flat (cross/...) or wrapped in a top-level dir
     if [ -d ${S}/toolchain-coolstream-uclibc-armv7 ]; then
-        cp -a ${S}/toolchain-coolstream-uclibc-armv7/* ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/
+        cp -a --no-preserve=ownership ${S}/toolchain-coolstream-uclibc-armv7/* ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/
     else
-        cp -a ${S}/cross ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/
+        cp -a --no-preserve=ownership ${S}/cross ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/
     fi
 
     # Create version file
@@ -46,6 +46,10 @@ FILES:${PN} = "${datadir}/coolstream-toolchain"
 
 # Don't try to strip binaries from external toolchain
 INHIBIT_PACKAGE_STRIP = "1"
+
+# Prebuilt toolchain contains mixed/unknown ELF metadata for QA checks.
+INSANE_SKIP:${PN} += "arch"
+INSANE_SKIP:${PN}-native += "arch"
 INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
 INHIBIT_SYSROOT_STRIP = "1"
 
@@ -55,8 +59,11 @@ INHIBIT_DEFAULT_DEPS = "1"
 # Don't check for already-stripped binaries
 INSANE_SKIP:${PN} = "already-stripped staticdev ldflags"
 
-# Architecture-independent
-PACKAGE_ARCH = "all"
+# Toolchain content is target-specific
+PACKAGE_ARCH = "${MACHINE_ARCH}"
+
+# Also provide a native variant so target recipes can stage the toolchain
+BBCLASSEXTEND = "native"
 
 # Provide all toolchain virtuals so BitBake does not try to build them
 PROVIDES += " \
@@ -66,6 +73,7 @@ PROVIDES += " \
     virtual/${TARGET_PREFIX}linux-libc-headers \
     virtual/${TARGET_PREFIX}compilerlibs \
     virtual/libc \
+    virtual/crypt \
     linux-libc-headers \
 "
 

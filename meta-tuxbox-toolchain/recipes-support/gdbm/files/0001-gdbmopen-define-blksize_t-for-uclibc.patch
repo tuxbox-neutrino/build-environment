@@ -1,0 +1,32 @@
+From: Tuxbox Build System <build@tuxbox.org>
+Date: Sun, 22 Dec 2024 18:00:00 +0000
+Subject: [PATCH] gdbmopen: define blksize_t for uClibc
+
+uClibc does not always define blksize_t in sys/types.h. Provide a
+fallback definition if the type is not available.
+
+Upstream-Status: Inappropriate [uClibc-specific]
+Signed-off-by: Tuxbox Build System <build@tuxbox.org>
+
+---
+ src/gdbmopen.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/gdbmopen.c b/src/gdbmopen.c
+index 1234567..abcdefg 100644
+--- a/src/gdbmopen.c
++++ b/src/gdbmopen.c
+@@ -21,6 +21,11 @@
+ #include "gdbmdefs.h"
+ #include <stddef.h>
+
++/* uClibc may not define blksize_t */
++#ifndef _BLKSIZE_T_DEFINED
++typedef long blksize_t;
++#endif
++
+ static void
+ compute_directory_size (blksize_t block_size,
+ 			int *ret_dir_size, int *ret_dir_bits)
+--
+2.34.1

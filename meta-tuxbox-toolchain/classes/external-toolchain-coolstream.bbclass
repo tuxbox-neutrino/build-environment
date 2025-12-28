@@ -79,3 +79,7 @@ STRINGS:class-target = "${EXTERNAL_TOOLCHAIN_BIN}/${TARGET_PREFIX}strings"
 
 # Disable QA checks that fail with external toolchain
 INSANE_SKIP:append = " ldflags textrel"
+
+# Disable qemu-usermode exe_wrapper for uClibc builds
+# qemu-arm cannot find uClibc dynamic linker during cross-compilation tests
+EXEWRAPPER_ENABLED = "False"

@@ -34,6 +34,13 @@ do_install() {
         cp -a --no-preserve=ownership ${S}/cross ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/
     fi
 
+    # Remove problematic files that conflict with OE-native tools
+    # These would interfere with BitBake's libtool-native, autotools, etc.
+    find ${D}${datadir}/coolstream-toolchain -name "libtool.m4" -delete || true
+    find ${D}${datadir}/coolstream-toolchain -name "ltmain.sh" -delete || true
+    rm -rf ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/cross/arm-linux-3.10.93/arm-cortex-linux-uclibcgnueabi/sys-root/usr/share/libtool || true
+    rm -rf ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/cross/arm-linux-3.10.93/arm-cortex-linux-uclibcgnueabi/sys-root/usr/share/aclocal || true
+
     # Create version file
     echo "Coolstream uClibc Toolchain" > ${D}${datadir}/coolstream-toolchain/version
     if [ -x ${D}${datadir}/coolstream-toolchain/toolchain-coolstream-uclibc-armv7/cross/arm-linux-3.10.93/bin/arm-cortex-linux-uclibcgnueabi-gcc ]; then
@@ -48,16 +55,16 @@ FILES:${PN} = "${datadir}/coolstream-toolchain"
 INHIBIT_PACKAGE_STRIP = "1"
 
 # Prebuilt toolchain contains mixed/unknown ELF metadata for QA checks.
-INSANE_SKIP:${PN} += "arch"
-INSANE_SKIP:${PN}-native += "arch"
 INHIBIT_PACKAGE_DEBUG_SPLIT = "1"
 INHIBIT_SYSROOT_STRIP = "1"
 
 # No default dependencies
 INHIBIT_DEFAULT_DEPS = "1"
 
-# Don't check for already-stripped binaries
-INSANE_SKIP:${PN} = "already-stripped staticdev ldflags"
+# Skip all QA checks for external toolchain
+INSANE_SKIP:${PN} = "already-stripped staticdev ldflags arch dev-so file-rdeps libdir"
+INSANE_SKIP:${PN}-native = "arch"
+SKIP_RECIPE[libdir] = "External toolchain contains libs in non-standard locations"
 
 # Toolchain content is target-specific
 PACKAGE_ARCH = "${MACHINE_ARCH}"

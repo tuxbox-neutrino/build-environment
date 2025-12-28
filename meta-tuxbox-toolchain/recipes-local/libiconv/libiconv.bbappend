@@ -1,7 +1,17 @@
-PR:append:linux-uclibcgnueabi = ".2"
+# Fix obsolete LICENSE identifier (upstream already uses SPDX format)
 
-PROVIDES:append:linux-uclibcgnueabi = " virtual/libiconv"
+PR:append = ".4"
 
-do_configure:prepend:linux-uclibcgnueabi() {
-    find ${S} -type f \( -name 'libtool.m4' -o -name 'lt*.m4' \) -delete
-}
+LICENSE = "LGPL-2.1-only"
+
+# Ensure virtual/libiconv is provided
+PROVIDES += "virtual/libiconv"
+
+# Need gettext-native for AM_LANGINFO_CODESET macro during autoreconf
+DEPENDS:append = " gettext-native"
+
+# Regenerate build files with current libtool to fix version mismatch
+# External toolchain has libtool 2.4.6, OE native has 2.4.7
+inherit autotools-brokensep
+
+EXTRA_AUTORECONF = "-I ${STAGING_DATADIR_NATIVE}/aclocal"

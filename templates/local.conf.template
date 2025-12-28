@@ -226,8 +226,10 @@ SSTATE_DIR ?= "##SSTATE_DIR##"
 # Build directory
 #
 # Where to place the build output
-#
-TMPDIR = "##TMPDIR##"
+# Note: Yocto/OE automatically appends ${TCLIBCAPPEND} (e.g., tmpuclibc with uClibc).
+# Only set TMPDIR if you really must isolate outputs; overriding it can create
+# duplicate tmp dirs and break HOSTTOOLS resolution for external toolchains.
+#TMPDIR = "##TMPDIR##"
 
 #
 # Distro type

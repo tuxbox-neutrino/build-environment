@@ -9,8 +9,7 @@ inherit packagegroup
 
 RDEPENDS:${PN} = " \
     busybox \
-    systemd \
-    systemd-analyze \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'systemd', 'systemd systemd-analyze', 'sysvinit initscripts', d)} \
     util-linux \
     util-linux-blkid \
     util-linux-fdisk \

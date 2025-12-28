@@ -25,7 +25,7 @@ NO_RECOMMENDATIONS = "1"
 
 # Allow systemd and other postinst failures to be deferred to first boot
 # Packages with useradd in postinst may warn about missing /bin/false during rootfs build
-PACKAGE_INSTALL_ATTEMPTONLY += " systemd busybox nfs-utils avahi-daemon "
+PACKAGE_INSTALL_ATTEMPTONLY += " ${@bb.utils.contains('DISTRO_FEATURES', 'systemd', 'systemd', '', d)} busybox nfs-utils avahi-daemon "
 
 # Avoid update-alternatives failure on /etc/resolv.conf during rootfs
 rootfs_preprocess_resolvconf() {

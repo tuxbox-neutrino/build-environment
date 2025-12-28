@@ -1,0 +1,9 @@
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index 02d7e0d..b60a89b 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -133,2 +133,2 @@ ifeq ($(shell [ $(subst .,,$(shell $(CC) -dumpversion)) -lt 452 ] || echo "1"),1)
+-KBUILD_CFLAGS	+=$(CFLAGS_ABI) $(CFLAGS_ISA) $(arch-y) $(tune-y) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -mhard-float -Uarm
+-KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) $(arch-y) $(tune-y) -include asm/unified.h -mhard-float
++KBUILD_CFLAGS	+=$(CFLAGS_ABI) $(CFLAGS_ISA) $(arch-y) $(tune-y) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -mfloat-abi=softfp -Uarm
++KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) $(arch-y) $(tune-y) -include asm/unified.h -mfloat-abi=softfp

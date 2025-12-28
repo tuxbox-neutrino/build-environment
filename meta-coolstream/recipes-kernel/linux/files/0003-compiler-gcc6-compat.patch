@@ -1,0 +1,12 @@
+diff --git a/include/linux/compiler-gcc6.h b/include/linux/compiler-gcc6.h
+new file mode 100644
+index 0000000..1d0bce0
+--- /dev/null
++++ b/include/linux/compiler-gcc6.h
+@@ -0,0 +1,6 @@
++#ifndef __LINUX_COMPILER_GCC6_H
++#define __LINUX_COMPILER_GCC6_H
++
++#include "compiler-gcc5.h"
++
++#endif

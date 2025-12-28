@@ -1,0 +1,19 @@
+diff --git a/arch/arm/kernel/armksyms.c b/arch/arm/kernel/armksyms.c
+index 0efc0b3..69cda8e 100644
+--- a/arch/arm/kernel/armksyms.c
++++ b/arch/arm/kernel/armksyms.c
+@@ -55,6 +55,8 @@ extern void fpundefinstr(void);
+ 
+ #define LONG_LONG_MAX	__LONG_LONG_MAX__
+ #define LONG_LONG_MIN	(-LONG_LONG_MAX - 1LL)
++#if 0
++/* Floating point helpers are not supported in kernel context. */
+ #define INT64_MIN	(-0x7fffffffffffffffLL-1)
+ 
+ uint64_t llrint( double x )
+@@ -107,4 +109,5 @@
+ EXPORT_SYMBOL(__aeabi_ul2d);
+ EXPORT_SYMBOL(__aeabi_d2ulz);
++#endif
+ 
+ 	/* platform dependent support */

@@ -18,6 +18,9 @@ RRECOMMENDS:${PN} += "${PN}-firmware"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 COMPATIBLE_MACHINE = "(coolstream-nevis|coolstream-apollo|coolstream-shiner|coolstream-kronos|coolstream-kronos-v2)"
 
+INSANE_SKIP:${PN} += "arch"
+INSANE_SKIP:${PN}-firmware += "arch"
+
 do_configure[noexec] = "1"
 do_compile[noexec] = "1"
 
@@ -40,12 +43,12 @@ do_install() {
     # Kernel modules
     if [ -d ${S}/${CST_SUBDIR}/drivers/${CST_MODDIR} ]; then
         install -d ${D}/lib/modules/${CST_MODDIR}
-        cp -a ${S}/${CST_SUBDIR}/drivers/${CST_MODDIR}/* ${D}/lib/modules/${CST_MODDIR}/
+        cp -a --no-preserve=ownership ${S}/${CST_SUBDIR}/drivers/${CST_MODDIR}/* ${D}/lib/modules/${CST_MODDIR}/
     fi
 
     # Firmware
     if [ -d ${S}/${CST_SUBDIR}/firmware ]; then
         install -d ${D}/lib/firmware
-        cp -a ${S}/${CST_SUBDIR}/firmware/* ${D}/lib/firmware/
+        cp -a --no-preserve=ownership ${S}/${CST_SUBDIR}/firmware/* ${D}/lib/firmware/
     fi
 }

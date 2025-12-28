@@ -1,0 +1,35 @@
+From: Tuxbox Build System <build@tuxbox.org>
+Date: Sun, 22 Dec 2024 12:00:00 +0000
+Subject: [PATCH] pam_namespace: add missing includes for uClibc
+
+uClibc requires explicit inclusion of locale.h for setlocale/LC_COLLATE
+and libgen.h for dirname. glibc may provide these transitively, but
+uClibc does not.
+
+Fixes compilation errors:
+- 'LC_COLLATE' undeclared
+- implicit declaration of function 'dirname'
+- implicit declaration of function 'setlocale'
+
+Upstream-Status: Inappropriate [uClibc-specific]
+Signed-off-by: Tuxbox Build System <build@tuxbox.org>
+
+---
+ modules/pam_namespace/pam_namespace.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/modules/pam_namespace/pam_namespace.h b/modules/pam_namespace/pam_namespace.h
+index 1234567..abcdefg 100644
+--- a/modules/pam_namespace/pam_namespace.h
++++ b/modules/pam_namespace/pam_namespace.h
+@@ -54,6 +54,8 @@
+ #include <fcntl.h>
+ #include <sched.h>
+ #include <glob.h>
++#include <locale.h>
++#include <libgen.h>
+ #include "security/pam_modules.h"
+ #include "security/pam_modutil.h"
+ #include "security/pam_ext.h"
+--
+2.34.1

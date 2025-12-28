@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@local>
+Date: Thu, 1 Jan 1970 00:00:00 +0000
+Subject: [PATCH] libgpg-error: add lock-obj for arm-unknown uclibc
+
+Add a lock-obj header for the arm-unknown-linux-uclibcgnueabi triplet
+used by the external Coolstream toolchain so mkheader can generate
+gpg-error.h without truncation.
+
+---
+ src/syscfg/lock-obj-pub.arm-unknown-linux-uclibcgnueabi.h | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+ create mode 100644 src/syscfg/lock-obj-pub.arm-unknown-linux-uclibcgnueabi.h
+
+diff --git a/src/syscfg/lock-obj-pub.arm-unknown-linux-uclibcgnueabi.h b/src/syscfg/lock-obj-pub.arm-unknown-linux-uclibcgnueabi.h
+new file mode 100644
+index 0000000..a3f6cb6
+--- /dev/null
++++ b/src/syscfg/lock-obj-pub.arm-unknown-linux-uclibcgnueabi.h
+@@ -0,0 +1,23 @@
++## lock-obj-pub.arm-unknown-linux-uclibcgnueabi.h
++## File created by gen-posix-lock-obj - DO NOT EDIT
++## To be included by mkheader into gpg-error.h
++
++typedef struct
++{
++  long _vers;
++  union {
++    volatile char _priv[24];
++    long _x_align;
++    long *_xp_align;
++  } u;
++} gpgrt_lock_t;
++
++#define GPGRT_LOCK_INITIALIZER {1,{{0,0,0,0,0,0,0,0, \
++                                    0,0,0,0,0,0,0,0, \
++                                    0,0,0,0,0,0,0,0}}}
++##
++## Local Variables:
++## mode: c
++## buffer-read-only: t
++## End:
++##

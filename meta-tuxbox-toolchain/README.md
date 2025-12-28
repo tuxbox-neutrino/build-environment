@@ -55,6 +55,10 @@ Machine configurations, kernels, drivers, and image composition live in
 - uClibc builds use the `proxy-libintl` stub library for `virtual/libintl`.
 - Architecture QA checks are skipped for uClibc builds because
   `linux-uclibcgnueabi` is not recognized by the upstream ELF map.
+- For external Coolstream uClibc builds, GLib is forced to use GNU libiconv
+  to match the libiconv headers in the sysroot.
+- libgpg-error includes a lock-obj header for the canonicalized
+  `arm-unknown-linux-uclibcgnueabi` triplet used by the external toolchain.
 
 ## Usage
 

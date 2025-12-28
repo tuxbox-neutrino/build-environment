@@ -1,0 +1,38 @@
+Upstream-Status: Inappropriate [uClibc-specific]
+
+Rename getrandom to sh_getrandom to avoid conflict with uClibc
+
+uClibc provides getrandom() in sys/random.h, which conflicts with bash's
+internal static getrandom() function. Rename bash's function to sh_getrandom
+to avoid the naming conflict.
+
+Signed-off-by: TuxBox Build System
+---
+ lib/sh/random.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/sh/random.c b/lib/sh/random.c
+index 1234567..abcdefg 100644
+--- a/lib/sh/random.c
++++ b/lib/sh/random.c
+@@ -185,7 +185,7 @@ seedrand ()
+ #endif
+
+ static ssize_t
+-getrandom (buf, len, flags)
++sh_getrandom (buf, len, flags)
+      void *buf;
+      size_t len;
+      unsigned int flags;
+@@ -224,7 +224,7 @@ get_urandom32 ()
+ {
+   u_bits32_t ret;
+
+-  if (getrandom ((void *)&ret, sizeof (ret), GRND_NONBLOCK) == sizeof (ret))
++  if (sh_getrandom ((void *)&ret, sizeof (ret), GRND_NONBLOCK) == sizeof (ret))
+     return (last_rand32 = ret);
+
+ #if defined (HAVE_ARC4RANDOM)
+--
+2.25.1
+

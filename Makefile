@@ -31,6 +31,13 @@ MACHINEBUILD ?= $(MACHINE)
 DISTRO ?= tuxbox
 DISTRO_TYPE ?= release
 TOPDIR := $(CURDIR)
+MACHINEBUILD_ORIGIN := $(origin MACHINEBUILD)
+MACHINEBUILD_EXPLICIT := $(filter command line environment override,$(MACHINEBUILD_ORIGIN))
+ifeq ($(MACHINEBUILD_EXPLICIT),)
+  MACHINEBUILD_ARG :=
+else
+  MACHINEBUILD_ARG := --machinebuild $(MACHINEBUILD)
+endif
 
 # Build directories
 BUILDDIR := $(TOPDIR)/build
@@ -132,7 +139,7 @@ endif
 show-config:
 	@echo -e "$(COLOR_BOLD)Showing config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) show-config --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+	@$(CLI) show-config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1

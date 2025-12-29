@@ -521,7 +521,7 @@ class TuxboxBuilder:
     def show_config(self, args):
         """Show current configuration and highlight issues."""
         machine = args.machine
-        machinebuild = args.machinebuild or os.environ.get('MACHINEBUILD') or machine
+        requested_machinebuild = args.machinebuild or os.environ.get('MACHINEBUILD')
         distro = args.distro
         distro_type = args.distro_type
 
@@ -556,6 +556,8 @@ class TuxboxBuilder:
                 value = values.get(key)
                 if value:
                     self.info(f"  {key}: {value}")
+                elif key == 'TMPDIR':
+                    self.info(f"  {key}: default ({target_builddir}/tmp)")
                 else:
                     self.warning(f"  {key}: not set")
 
@@ -582,14 +584,17 @@ class TuxboxBuilder:
             if not path.exists():
                 errors.append(f"Missing layer: {path}")
 
-        if values.get('MACHINE') and values['MACHINE'] != machine:
-            warnings.append(f"local.conf MACHINE={values['MACHINE']} (expected {machine})")
-        if values.get('MACHINEBUILD') and values['MACHINEBUILD'] != machinebuild:
-            warnings.append(f"local.conf MACHINEBUILD={values['MACHINEBUILD']} (expected {machinebuild})")
-        if values.get('DISTRO') and values['DISTRO'] != distro:
-            warnings.append(f"local.conf DISTRO={values['DISTRO']} (expected {distro})")
-        if values.get('DISTRO_TYPE') and values['DISTRO_TYPE'] != distro_type:
-            warnings.append(f"local.conf DISTRO_TYPE={values['DISTRO_TYPE']} (expected {distro_type})")
+        configured_machine = values.get('MACHINE')
+        configured_machinebuild = values.get('MACHINEBUILD')
+        configured_distro = values.get('DISTRO')
+        configured_distro_type = values.get('DISTRO_TYPE')
+
+        if configured_machine and configured_machine != machine:
+            warnings.append(f"local.conf MACHINE={configured_machine} (requested {machine})")
+        if requested_machinebuild and configured_machinebuild and configured_machinebuild != requested_machinebuild:
+            warnings.append(
+                f"local.conf MACHINEBUILD={configured_machinebuild} (requested {requested_machinebuild})"
+            )
 
         brand = self.detect_machine_brand(machine)
         if brand == 'unknown':
@@ -601,6 +606,7 @@ class TuxboxBuilder:
                 errors.append(f"Machine config not found: {machine_conf}")
             else:
                 builds = self._collect_machinebuilds_from_conf(machine_conf, layer_root)
+                machinebuild = configured_machinebuild or requested_machinebuild or machine
                 if builds and machinebuild not in builds:
                     warnings.append(
                         f"MACHINEBUILD '{machinebuild}' not listed for {machine} "

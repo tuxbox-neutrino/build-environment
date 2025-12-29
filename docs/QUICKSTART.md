@@ -132,6 +132,12 @@ make show-config MACHINE=hd51
 make edit-conf MACHINE=hd51
 ```
 
+If configs already exist, `make image` reuses them. To force regeneration:
+
+```bash
+make image MACHINE=hd51 FORCE_CONFIG=1
+```
+
 **Build time**: 2-4 hours on first build (downloads ~10GB sources)
 
 **Subsequent builds**: 20-40 minutes (using cache)

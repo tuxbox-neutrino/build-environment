@@ -697,8 +697,32 @@ class TuxboxBuilder:
             self.info("  git submodule update --init --recursive")
             sys.exit(1)
 
-        # Generate configuration
-        self.generate_config(machine, distro, distro_type, machinebuild, target_builddir)
+        # Generate configuration (only if missing or forced)
+        conf_dir = target_builddir / 'conf'
+        local_conf = conf_dir / 'local.conf'
+        bblayers_conf = conf_dir / 'bblayers.conf'
+        config_exists = local_conf.exists() and bblayers_conf.exists()
+        if config_exists and not args.force_config:
+            configured_machine = self._read_conf_value(local_conf, 'MACHINE')
+            configured_machinebuild = self._read_conf_value(local_conf, 'MACHINEBUILD')
+            mismatches = []
+            if configured_machine and configured_machine != machine:
+                mismatches.append(f"local.conf MACHINE={configured_machine} (requested {machine})")
+            if args.machinebuild and configured_machinebuild and configured_machinebuild != args.machinebuild:
+                mismatches.append(
+                    f"local.conf MACHINEBUILD={configured_machinebuild} (requested {args.machinebuild})"
+                )
+            if mismatches:
+                self.error("Config already exists and does not match requested values:")
+                for item in mismatches:
+                    self.error(f"  {item}")
+                self.info("Run 'make config' to regenerate, or pass --force-config to overwrite.")
+                sys.exit(1)
+            if not machinebuild and configured_machinebuild:
+                machinebuild = configured_machinebuild
+            self.info("Using existing configuration (not regenerating)")
+        else:
+            self.generate_config(machine, distro, distro_type, machinebuild, target_builddir)
 
         # Setup environment and invoke BitBake
         if args.devshell:
@@ -831,6 +855,8 @@ def main():
     build_parser.add_argument('--offline', action='store_true', help='Offline build mode')
     build_parser.add_argument('--no-sstate', action='store_true', help='Disable sstate cache')
     build_parser.add_argument('--devshell', action='store_true', help='Drop to development shell')
+    build_parser.add_argument('--force-config', action='store_true',
+                             help='Regenerate local.conf/bblayers.conf even if they exist')
     build_parser.add_argument('--distro-type', choices=['release', 'development'],
                             default='release', help='Build type')
     

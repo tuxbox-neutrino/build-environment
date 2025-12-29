@@ -52,6 +52,10 @@ make config MACHINE=hd51
 make show-config MACHINE=hd51
 make edit-conf MACHINE=hd51
 
+# If configs already exist, make image reuses them.
+# Force regeneration when needed:
+make image MACHINE=hd51 FORCE_CONFIG=1
+
 # OEM/brand variants (both MACHINE and MACHINEBUILD required)
 make image MACHINE=inihde2 MACHINEBUILD=atemio6000
 
@@ -86,6 +90,7 @@ See `make list-machines` for complete list.
 ### Makefile (Simple)
 ```bash
 make image MACHINE=hd51           # Build image
+make image MACHINE=hd51 FORCE_CONFIG=1  # Re-generate config
 make config MACHINE=hd51          # Generate config only
 make show-config MACHINE=hd51     # Show config + checks
 make edit-conf MACHINE=hd51       # Edit config files

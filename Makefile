@@ -39,6 +39,8 @@ ifeq ($(MACHINEBUILD_EXPLICIT),)
 else
   MACHINEBUILD_ARG := --machinebuild $(MACHINEBUILD)
 endif
+FORCE_CONFIG ?=
+FORCE_CONFIG_ARG := $(if $(filter 1 yes true,$(FORCE_CONFIG)),--force-config,)
 
 # Build directories
 BUILDDIR := $(TOPDIR)/build
@@ -122,7 +124,7 @@ endif
 image: init
 	@echo -e "$(COLOR_BOLD)Building image for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1
@@ -173,7 +175,7 @@ edit-conf:
 feeds: init
 	@echo -e "$(COLOR_BOLD)Building package feeds for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --target feeds
+	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --target feeds $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
@@ -183,7 +185,7 @@ endif
 sdk: init
 	@echo -e "$(COLOR_BOLD)Building SDK for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --target sdk
+	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --target sdk $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
@@ -193,7 +195,7 @@ endif
 devshell: init
 	@echo -e "$(COLOR_BOLD)Starting development shell for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --devshell
+	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --devshell $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1

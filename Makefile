@@ -5,6 +5,7 @@
 #   make image MACHINE=hd51              # Build image
 #   make config MACHINE=hd51             # Generate config only
 #   make show-config MACHINE=hd51        # Show configured values
+#   make edit-conf MACHINE=hd51          # Edit build config files
 #   make feeds MACHINE=hd51              # Build package feeds
 #   make clean                           # Clean build (keeps sstate)
 #   make list-machines                   # Show all supported machines
@@ -43,6 +44,7 @@ endif
 BUILDDIR := $(TOPDIR)/build
 DL_DIR := $(TOPDIR)/downloads
 SSTATE_DIR := $(TOPDIR)/sstate-cache
+CONF_BUILDDIR = $(if $(filter coolstream%,$(MACHINE)),$(TOPDIR)/build-$(MACHINE),$(BUILDDIR))
 
 # State tracking
 STATE_FILE := $(TOPDIR)/.tuxbox/state.json
@@ -65,6 +67,7 @@ help:
 	@echo -e "  $(COLOR_GREEN)make image MACHINE=hd51$(COLOR_RESET)              Build complete image"
 	@echo -e "  $(COLOR_GREEN)make config MACHINE=hd51$(COLOR_RESET)             Generate config only"
 	@echo -e "  $(COLOR_GREEN)make show-config MACHINE=hd51$(COLOR_RESET)        Show config + checks"
+	@echo -e "  $(COLOR_GREEN)make edit-conf MACHINE=hd51$(COLOR_RESET)          Edit config files"
 	@echo -e "  $(COLOR_GREEN)make feeds MACHINE=hd51$(COLOR_RESET)              Build package feeds"
 	@echo -e "  $(COLOR_GREEN)make sdk MACHINE=hd51$(COLOR_RESET)                Build SDK for development"
 	@echo ""
@@ -144,6 +147,27 @@ else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
 endif
+
+.PHONY: edit-conf
+edit-conf:
+	@echo -e "$(COLOR_BOLD)Editing config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
+	@conf_dir="$(CONF_BUILDDIR)/conf"; \
+	local_conf="$$conf_dir/local.conf"; \
+	bblayers_conf="$$conf_dir/bblayers.conf"; \
+	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
+		echo -e "$(COLOR_RED)Config missing. Run 'make config MACHINE=$(MACHINE)' first.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	editor="$${EDITOR:-$${VISUAL:-}}"; \
+	if [[ -z "$$editor" ]]; then \
+		if command -v nano >/dev/null 2>&1; then editor="nano"; \
+		elif command -v vi >/dev/null 2>&1; then editor="vi"; \
+		else \
+			echo -e "$(COLOR_RED)No editor found. Set EDITOR or VISUAL.$(COLOR_RESET)"; \
+			exit 1; \
+		fi; \
+	fi; \
+	"$$editor" "$$local_conf" "$$bblayers_conf"
 
 .PHONY: feeds
 feeds: init

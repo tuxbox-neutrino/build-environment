@@ -50,6 +50,7 @@ make image MACHINE=hd51
 # Prepare config only (no build)
 make config MACHINE=hd51
 make show-config MACHINE=hd51
+make edit-conf MACHINE=hd51
 
 # OEM/brand variants (both MACHINE and MACHINEBUILD required)
 make image MACHINE=inihde2 MACHINEBUILD=atemio6000
@@ -87,6 +88,7 @@ See `make list-machines` for complete list.
 make image MACHINE=hd51           # Build image
 make config MACHINE=hd51          # Generate config only
 make show-config MACHINE=hd51     # Show config + checks
+make edit-conf MACHINE=hd51       # Edit config files
 make feeds MACHINE=hd51           # Build package feeds
 make clean                        # Clean build (keeps sstate)
 make distclean                    # Clean everything

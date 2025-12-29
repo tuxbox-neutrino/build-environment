@@ -60,6 +60,12 @@ If you have access to private GitHub submodules, use SSH instead of HTTPS:
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
 
+If you get repeated passphrase prompts, load your SSH key once:
+
+```bash
+ssh-add ~/.ssh/id_rsa
+```
+
 ### What are submodules (in simple terms)?
 
 This project keeps the build layers in their own Git repositories.

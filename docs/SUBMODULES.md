@@ -26,6 +26,12 @@ If you have access to private GitHub submodules, use SSH instead of HTTPS:
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
 
+If you get repeated passphrase prompts, load your SSH key once:
+
+```bash
+ssh-add ~/.ssh/id_rsa
+```
+
 ## 3. Fix empty layer folders
 
 If a layer folder is empty after clone:

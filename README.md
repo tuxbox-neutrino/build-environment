@@ -47,6 +47,10 @@ ssh-add ~/.ssh/id_rsa
 # Build for HD51
 make image MACHINE=hd51
 
+# Prepare config only (no build)
+make config MACHINE=hd51
+make show-config MACHINE=hd51
+
 # OEM/brand variants (both MACHINE and MACHINEBUILD required)
 make image MACHINE=inihde2 MACHINEBUILD=atemio6000
 
@@ -81,6 +85,8 @@ See `make list-machines` for complete list.
 ### Makefile (Simple)
 ```bash
 make image MACHINE=hd51           # Build image
+make config MACHINE=hd51          # Generate config only
+make show-config MACHINE=hd51     # Show config + checks
 make feeds MACHINE=hd51           # Build package feeds
 make clean                        # Clean build (keeps sstate)
 make distclean                    # Clean everything
@@ -93,6 +99,8 @@ make help                         # Show all commands
 ```bash
 ./cli.py init                     # Initialize build environment
 ./cli.py build -m hd51            # Build image
+./cli.py config -m hd51           # Generate config only
+./cli.py show-config -m hd51      # Show config + checks
 ./cli.py build -m hd51 --offline  # Offline build
 ./cli.py build -m hd51 --devshell # Drop to development shell
 ./cli.py fetch-only -m hd51       # Download sources only

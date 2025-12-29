@@ -306,6 +306,38 @@ class TuxboxBuilder:
 
         return {machine: sorted(values) for machine, values in build_map.items()}
 
+    def _read_conf_value(self, conf_path: Path, key: str) -> Optional[str]:
+        if not conf_path.exists():
+            return None
+        pattern = re.compile(rf"^\s*{re.escape(key)}\s*(?:\?\?=|\?=|=)\s*['\"]([^'\"]+)['\"]")
+        try:
+            text = conf_path.read_text(errors='ignore')
+        except OSError:
+            return None
+        for line in text.splitlines():
+            if line.strip().startswith('#'):
+                continue
+            match = pattern.match(line)
+            if match:
+                return match.group(1).strip()
+        return None
+
+    def _extract_layer_paths(self, conf_path: Path) -> List[str]:
+        if not conf_path.exists():
+            return []
+        try:
+            text = conf_path.read_text(errors='ignore')
+        except OSError:
+            return []
+        layers = []
+        topdir_str = str(self.topdir)
+        for match in re.findall(r'(/[^\\s"\']+)', text):
+            if not match.startswith(topdir_str):
+                continue
+            if match not in layers:
+                layers.append(match)
+        return layers
+
     def detect_machine_brand(self, machine: str) -> str:
         """Detect the brand/manufacturer for a given machine."""
         self._load_brand_machines()
@@ -485,6 +517,110 @@ class TuxboxBuilder:
         self.info(f"  Distro: {distro}")
         self.info(f"  Threads: {bb_threads}")
         self.info(f"  Parallel: {parallel_make}")
+
+    def show_config(self, args):
+        """Show current configuration and highlight issues."""
+        machine = args.machine
+        machinebuild = args.machinebuild or os.environ.get('MACHINEBUILD') or machine
+        distro = args.distro
+        distro_type = args.distro_type
+
+        target_builddir = Path(args.builddir) if args.builddir else (
+            self.topdir / f"build-{machine}" if machine.startswith('coolstream') else self.builddir
+        )
+        conf_dir = target_builddir / 'conf'
+        local_conf = conf_dir / 'local.conf'
+        bblayers_conf = conf_dir / 'bblayers.conf'
+
+        self.log("=== Configuration Summary ===", Colors.BOLD, bold=True)
+        self.info(f"Build dir: {target_builddir}")
+        self.info("Config files:")
+        if local_conf.exists():
+            self.success(f"local.conf: {local_conf}")
+        else:
+            self.warning(f"local.conf: missing ({local_conf})")
+        if bblayers_conf.exists():
+            self.success(f"bblayers.conf: {bblayers_conf}")
+        else:
+            self.warning(f"bblayers.conf: missing ({bblayers_conf})")
+
+        values = {}
+        keys = ['MACHINE', 'MACHINEBUILD', 'DISTRO', 'DISTRO_TYPE', 'DL_DIR', 'SSTATE_DIR', 'TMPDIR']
+        if local_conf.exists():
+            for key in keys:
+                values[key] = self._read_conf_value(local_conf, key)
+
+            self.info("")
+            self.info("Values (from local.conf):")
+            for key in keys:
+                value = values.get(key)
+                if value:
+                    self.info(f"  {key}: {value}")
+                else:
+                    self.warning(f"  {key}: not set")
+
+        layers = self._extract_layer_paths(bblayers_conf)
+        if layers:
+            self.info("")
+            self.info("Layers (from bblayers.conf):")
+            for layer in layers:
+                if Path(layer).exists():
+                    self.info(f"  {layer}")
+                else:
+                    self.warning(f"  {layer} (missing)")
+
+        errors = []
+        warnings = []
+        if not local_conf.exists():
+            errors.append("local.conf missing (run make config)")
+        if not bblayers_conf.exists():
+            errors.append("bblayers.conf missing (run make config)")
+
+        required_layers = ['poky', 'oe-alliance', 'meta-openembedded', 'meta-neutrino', 'meta-tuxbox']
+        for layer in required_layers:
+            path = self.topdir / layer
+            if not path.exists():
+                errors.append(f"Missing layer: {path}")
+
+        if values.get('MACHINE') and values['MACHINE'] != machine:
+            warnings.append(f"local.conf MACHINE={values['MACHINE']} (expected {machine})")
+        if values.get('MACHINEBUILD') and values['MACHINEBUILD'] != machinebuild:
+            warnings.append(f"local.conf MACHINEBUILD={values['MACHINEBUILD']} (expected {machinebuild})")
+        if values.get('DISTRO') and values['DISTRO'] != distro:
+            warnings.append(f"local.conf DISTRO={values['DISTRO']} (expected {distro})")
+        if values.get('DISTRO_TYPE') and values['DISTRO_TYPE'] != distro_type:
+            warnings.append(f"local.conf DISTRO_TYPE={values['DISTRO_TYPE']} (expected {distro_type})")
+
+        brand = self.detect_machine_brand(machine)
+        if brand == 'unknown':
+            warnings.append(f"Unknown brand for machine '{machine}'")
+        else:
+            layer_root = self.topdir / 'oe-alliance' / 'meta-brands' / f"meta-{brand}"
+            machine_conf = layer_root / 'conf' / 'machine' / f"{machine}.conf"
+            if not machine_conf.exists():
+                errors.append(f"Machine config not found: {machine_conf}")
+            else:
+                builds = self._collect_machinebuilds_from_conf(machine_conf, layer_root)
+                if builds and machinebuild not in builds:
+                    warnings.append(
+                        f"MACHINEBUILD '{machinebuild}' not listed for {machine} "
+                        f"(available: {', '.join(builds)})"
+                    )
+
+        if warnings:
+            self.info("")
+            self.warning("Warnings:")
+            for item in warnings:
+                self.warning(f"  {item}")
+
+        if errors:
+            self.info("")
+            self.error("Errors:")
+            for item in errors:
+                self.error(f"  {item}")
+            sys.exit(1)
+
+        self.success("Configuration looks OK")
 
     def init(self, args):
         """Initialize build environment."""
@@ -701,6 +837,15 @@ def main():
     config_parser.add_argument('--distro-type', choices=['release', 'development'],
                             default='release', help='Build type')
 
+    # show-config command
+    show_config_parser = subparsers.add_parser('show-config', help='Show current configuration')
+    show_config_parser.add_argument('-m', '--machine', required=True, help='Target machine')
+    show_config_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
+    show_config_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
+    show_config_parser.add_argument('--builddir', help='Custom build directory (default: build or build-<machine> for coolstream)')
+    show_config_parser.add_argument('--distro-type', choices=['release', 'development'],
+                                    default='release', help='Build type')
+
     # machines command
     machines_parser = subparsers.add_parser('machines', help='List machines by brand')
     machines_parser.add_argument('--brand', help='Filter by brand (e.g., gfutures)')
@@ -742,6 +887,8 @@ def main():
         )
         builder.generate_config(args.machine, args.distro, args.distro_type, args.machinebuild, target_builddir)
         builder.success(f"Config generated at {target_builddir}/conf")
+    elif args.command == 'show-config':
+        builder.show_config(args)
     elif args.command == 'machines':
         builder.machines(args)
     elif args.command == 'clean':

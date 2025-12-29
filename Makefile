@@ -3,6 +3,8 @@
 #
 # Usage:
 #   make image MACHINE=hd51              # Build image
+#   make config MACHINE=hd51             # Generate config only
+#   make show-config MACHINE=hd51        # Show configured values
 #   make feeds MACHINE=hd51              # Build package feeds
 #   make clean                           # Clean build (keeps sstate)
 #   make list-machines                   # Show all supported machines
@@ -54,6 +56,8 @@ help:
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Basic Commands:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make image MACHINE=hd51$(COLOR_RESET)              Build complete image"
+	@echo -e "  $(COLOR_GREEN)make config MACHINE=hd51$(COLOR_RESET)             Generate config only"
+	@echo -e "  $(COLOR_GREEN)make show-config MACHINE=hd51$(COLOR_RESET)        Show config + checks"
 	@echo -e "  $(COLOR_GREEN)make feeds MACHINE=hd51$(COLOR_RESET)              Build package feeds"
 	@echo -e "  $(COLOR_GREEN)make sdk MACHINE=hd51$(COLOR_RESET)                Build SDK for development"
 	@echo ""
@@ -111,6 +115,26 @@ ifeq ($(USE_CLI),1)
 	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
+	@exit 1
+endif
+
+.PHONY: config
+config: init
+	@echo -e "$(COLOR_BOLD)Generating config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
+ifeq ($(USE_CLI),1)
+	@$(CLI) config --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+else
+	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
+	@exit 1
+endif
+
+.PHONY: show-config
+show-config:
+	@echo -e "$(COLOR_BOLD)Showing config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
+ifeq ($(USE_CLI),1)
+	@$(CLI) show-config --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+else
+	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
 endif
 

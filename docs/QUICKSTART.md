@@ -122,6 +122,15 @@ make image MACHINE=hd61
 make image MACHINE=zgemmah7
 ```
 
+### Prepare Configuration Only
+
+Use the same parameters as `make image`, but it will only generate config files:
+
+```bash
+make config MACHINE=hd51
+make show-config MACHINE=hd51
+```
+
 **Build time**: 2-4 hours on first build (downloads ~10GB sources)
 
 **Subsequent builds**: 20-40 minutes (using cache)

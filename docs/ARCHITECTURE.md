@@ -46,7 +46,7 @@ Tuxbox-OS Builder is a **parasitic integration** system that leverages OE-Allian
 │  └────────────────────────────────────────────────┘      │
 │                                                            │
 │  ┌────────────────────────────────────────────────┐      │
-│  │ meta-tuxbox (Tuxbox-specific layer)            │      │
+│  │ meta-tuxbox (Submodule - Tuxbox layer)         │      │
 │  │  • conf/distro/tuxbox.conf                     │      │
 │  │  • recipes-distros/tuxbox/                     │      │
 │  │    ├── image/tuxbox-image.bb                   │      │

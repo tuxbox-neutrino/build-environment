@@ -29,3 +29,6 @@
 [submodule "drivers-third-party-cst"]
 	path = drivers-third-party-cst
 	url = https://github.com/tuxbox-neutrino/drivers-third-party-cst.git
+[submodule "meta-tuxbox"]
+	path = meta-tuxbox
+	url = https://github.com/tuxbox-neutrino/meta-tuxbox.git

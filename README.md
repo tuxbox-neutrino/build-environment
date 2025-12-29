@@ -18,9 +18,15 @@ sudo apt install -y gawk wget git diffstat unzip texinfo \
 ### 2. Clone & Initialize
 
 ```bash
-git clone --recursive https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
+git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
 cd tuxbox-os-builder
 ./cli.py init
+```
+
+If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
 ```
 
 ### 3. Build an Image
@@ -85,10 +91,9 @@ make help                         # Show all commands
 ## Documentation
 
 - [QUICKSTART.md](docs/QUICKSTART.md) - 5-minute quick start guide
+- [SUBMODULES.md](docs/SUBMODULES.md) - Beginner guide to layers and submodules
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
-- [DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) - Development workflows
 - [COOLSTREAM.md](docs/COOLSTREAM.md) - Coolstream Tank uClibc builds
-- [FAQ.md](docs/FAQ.md) - Frequently asked questions
 
 ## Project Structure
 

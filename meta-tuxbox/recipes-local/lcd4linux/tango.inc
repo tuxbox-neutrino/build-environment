@@ -1,2 +1,0 @@
-S =  "${WORKDIR}/git/tango"
-

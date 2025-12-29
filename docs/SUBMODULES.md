@@ -1,0 +1,58 @@
+# Layers and Submodules (Beginner Guide)
+
+This project keeps the build layers in their own Git repositories:
+
+- `meta-neutrino`
+- `meta-tuxbox`
+- `oe-alliance`
+- `poky`
+- `meta-openembedded`
+
+The `tuxbox-os-builder` repo only orchestrates the build.
+Submodules let us pin exact versions while keeping each layer independent.
+
+## 1. Clone with submodules
+
+```bash
+git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
+cd tuxbox-os-builder
+```
+
+## 2. Fix empty layer folders
+
+If a layer folder is empty after clone:
+
+```bash
+git submodule update --init --recursive
+```
+
+## 3. Update to the recorded (safe) versions
+
+This will update all submodules to the exact commits recorded by the builder:
+
+```bash
+git submodule update --init --recursive
+```
+
+## 4. Update a layer to the latest upstream (advanced)
+
+Only do this if you know why you need newer layer commits.
+
+```bash
+cd meta-tuxbox
+git checkout master
+git pull
+cd ..
+git add meta-tuxbox
+git commit -m "Update meta-tuxbox"
+```
+
+Repeat for `meta-neutrino` if needed.
+
+## 5. Branch and tag policy
+
+- Default branch: `master` (current Yocto line)
+- Maintenance branches: `gatesgarth`, `kirkstone`, etc.
+- Tags: `<codename>-<yocto_version>` (example: `kirkstone-4.0.12`)
+
+This makes it easy to see which layer version matches a specific Yocto release.

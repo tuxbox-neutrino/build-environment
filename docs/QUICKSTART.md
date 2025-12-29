@@ -44,9 +44,21 @@ git config --global user.email "you@example.com"
 ## Step 2: Clone Repository
 
 ```bash
-git clone https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
+git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
 cd tuxbox-os-builder
 ```
+
+If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+### What are submodules (in simple terms)?
+
+This project keeps the build layers in their own Git repositories.
+Those repositories are linked as "submodules" so we can pin exact versions
+and still keep the layers clean and independent.
 
 ## Step 3: Initialize Build Environment
 
@@ -141,6 +153,12 @@ build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
 ./cli.py sync
 # Or
 make update
+```
+
+### Update Layers (Submodules)
+
+```bash
+git submodule update --init --recursive
 ```
 
 ### Clean Build

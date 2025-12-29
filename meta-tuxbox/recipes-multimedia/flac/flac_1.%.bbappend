@@ -1,3 +1,0 @@
-DEPENDS:append = " virtual/libiconv"
-
-

@@ -29,6 +29,12 @@ If you already cloned without submodules:
 git submodule update --init --recursive
 ```
 
+If you have access to private GitHub submodules, use SSH instead of HTTPS:
+
+```bash
+git config --global url."git@github.com:".insteadOf "https://github.com/"
+```
+
 ### 3. Build an Image
 
 ```bash

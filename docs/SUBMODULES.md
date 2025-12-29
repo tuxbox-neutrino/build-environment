@@ -18,7 +18,15 @@ git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-buil
 cd tuxbox-os-builder
 ```
 
-## 2. Fix empty layer folders
+## 2. SSH for private submodules
+
+If you have access to private GitHub submodules, use SSH instead of HTTPS:
+
+```bash
+git config --global url."git@github.com:".insteadOf "https://github.com/"
+```
+
+## 3. Fix empty layer folders
 
 If a layer folder is empty after clone:
 
@@ -26,7 +34,7 @@ If a layer folder is empty after clone:
 git submodule update --init --recursive
 ```
 
-## 3. Update to the recorded (safe) versions
+## 4. Update to the recorded (safe) versions
 
 This will update all submodules to the exact commits recorded by the builder:
 
@@ -34,7 +42,7 @@ This will update all submodules to the exact commits recorded by the builder:
 git submodule update --init --recursive
 ```
 
-## 4. Update a layer to the latest upstream (advanced)
+## 5. Update a layer to the latest upstream (advanced)
 
 Only do this if you know why you need newer layer commits.
 
@@ -49,7 +57,7 @@ git commit -m "Update meta-tuxbox"
 
 Repeat for `meta-neutrino` if needed.
 
-## 5. Branch and tag policy
+## 6. Branch and tag policy
 
 - Default branch: `master` (current Yocto line)
 - Maintenance branches: `gatesgarth`, `kirkstone`, etc.

@@ -54,6 +54,12 @@ If you already cloned without submodules:
 git submodule update --init --recursive
 ```
 
+If you have access to private GitHub submodules, use SSH instead of HTTPS:
+
+```bash
+git config --global url."git@github.com:".insteadOf "https://github.com/"
+```
+
 ### What are submodules (in simple terms)?
 
 This project keeps the build layers in their own Git repositories.

@@ -34,6 +34,8 @@ class TuxboxBuilder:
         self.builddir = self.topdir / 'build'
         self.dl_dir = self.topdir / 'downloads'
         self.sstate_dir = self.topdir / 'sstate-cache'
+        self._brand_machine_cache: Optional[Dict[str, List[str]]] = None
+        self._machine_brand_cache: Optional[Dict[str, str]] = None
 
         # Ensure state directory exists
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -157,9 +159,81 @@ class TuxboxBuilder:
 
         self.success("Submodules initialized")
 
+    def _load_brand_machines(self) -> Dict[str, List[str]]:
+        """Load machine lists from OE-Alliance meta-brands (cached)."""
+        if self._brand_machine_cache is not None:
+            return self._brand_machine_cache
+
+        brand_map: Dict[str, List[str]] = {}
+        machine_map: Dict[str, str] = {}
+        brands_dir = self.topdir / 'oe-alliance' / 'meta-brands'
+        if brands_dir.exists():
+            for meta_dir in sorted(brands_dir.iterdir()):
+                if not meta_dir.is_dir():
+                    continue
+                if not meta_dir.name.startswith('meta-'):
+                    continue
+                conf_dir = meta_dir / 'conf' / 'machine'
+                if not conf_dir.is_dir():
+                    continue
+                machines = sorted(
+                    p.stem for p in conf_dir.glob('*.conf') if p.is_file()
+                )
+                if not machines:
+                    continue
+                brand = meta_dir.name[len('meta-'):]
+                brand_map[brand] = machines
+                for machine in machines:
+                    machine_map.setdefault(machine, brand)
+
+        self._brand_machine_cache = brand_map
+        self._machine_brand_cache = machine_map
+        return brand_map
+
+    def _brand_summary_lines(self, max_brands: int = 5, max_machines: int = 6) -> List[str]:
+        """Return a short, readable list of brands and example machines."""
+        brand_map = self._load_brand_machines()
+        if not brand_map:
+            return []
+
+        preferred = [
+            'gfutures',
+            'airdigital',
+            'vuplus',
+            'coolstream',
+            'ini',
+            'edision',
+        ]
+        lines: List[str] = []
+        seen = set()
+
+        for brand in preferred + sorted(brand_map.keys()):
+            if brand in seen or brand not in brand_map:
+                continue
+            machines = brand_map[brand]
+            if not machines:
+                continue
+            sample = ", ".join(machines[:max_machines])
+            extra = len(machines) - max_machines
+            if extra > 0:
+                sample = f"{sample}, ... (+{extra} more)"
+            lines.append(f"{brand}: {sample}")
+            seen.add(brand)
+            if len(lines) >= max_brands:
+                break
+
+        remaining = len(brand_map) - len(seen)
+        if remaining > 0:
+            lines.append(f"... {remaining} more brands")
+        return lines
+
     def detect_machine_brand(self, machine: str) -> str:
         """Detect the brand/manufacturer for a given machine."""
-        # Machine to brand mapping (common machines)
+        self._load_brand_machines()
+        if self._machine_brand_cache and machine in self._machine_brand_cache:
+            return self._machine_brand_cache[machine]
+
+        # Fallback mapping for common machines (when submodules are not ready)
         machine_brands = {
             'hd51': 'gfutures',
             'hd60': 'gfutures',
@@ -174,6 +248,28 @@ class TuxboxBuilder:
         }
 
         return machine_brands.get(machine, 'unknown')
+
+    def machines(self, args):
+        """List machines by brand using OE-Alliance meta-brands."""
+        brand_map = self._load_brand_machines()
+        if not brand_map:
+            self.error("OE-Alliance meta-brands not found. Run init or check submodules.")
+            sys.exit(1)
+
+        if args.brand:
+            brand = args.brand
+            if brand not in brand_map:
+                self.error(f"Unknown brand: {brand}")
+                available = ", ".join(sorted(brand_map.keys()))
+                self.info(f"Available brands: {available}")
+                sys.exit(1)
+            brands = [brand]
+        else:
+            brands = sorted(brand_map.keys())
+
+        for brand in brands:
+            machines = brand_map[brand]
+            self.info(f"{brand}: {', '.join(machines)}")
 
     def generate_config(self, machine: str, distro: str, distro_type: str = 'release',
                         machinebuild: Optional[str] = None, builddir: Optional[Path] = None):
@@ -318,9 +414,17 @@ class TuxboxBuilder:
         self.save_state(state)
 
         self.success("Build environment initialized successfully!")
+        examples = self._brand_summary_lines()
+        if examples:
+            self.info("")
+            self.info("Machine examples by brand (from OE-Alliance):")
+            for line in examples:
+                self.info(f"  {line}")
+            self.info("Full list: make list-machines")
+
         self.info("\nNext steps:")
         self.info("  ./cli.py build --machine hd51")
-        self.info("  make image MACHINE=hd51")
+        self.info("  make image MACHINE=hd51 (MACHINEBUILD defaults to MACHINE)")
 
     def build(self, args):
         """Build an image."""
@@ -501,6 +605,10 @@ def main():
     config_parser.add_argument('--distro-type', choices=['release', 'development'],
                             default='release', help='Build type')
 
+    # machines command
+    machines_parser = subparsers.add_parser('machines', help='List machines by brand')
+    machines_parser.add_argument('--brand', help='Filter by brand (e.g., gfutures)')
+
     # clean command
     clean_parser = subparsers.add_parser('clean', help='Clean build artifacts')
     clean_parser.add_argument('-m', '--machine', help='Machine to clean (all if not specified)')
@@ -536,6 +644,8 @@ def main():
         )
         builder.generate_config(args.machine, args.distro, args.distro_type, args.machinebuild, target_builddir)
         builder.success(f"Config generated at {target_builddir}/conf")
+    elif args.command == 'machines':
+        builder.machines(args)
     elif args.command == 'clean':
         builder.clean(args)
     elif args.command == 'fetch-only':

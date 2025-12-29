@@ -181,7 +181,7 @@ sync:
 list-machines:
 	@echo -e "$(COLOR_BOLD)Supported machines (from OE-Alliance):$(COLOR_RESET)"
 ifeq ($(USE_CLI),1)
-	@$(CLI) machines
+	@$(CLI) machines --with-builds
 else
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Priority platforms (tested):$(COLOR_RESET)"

@@ -9,8 +9,10 @@ Manages OE-Alliance integration, submodules, configuration, and builds.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -227,6 +229,83 @@ class TuxboxBuilder:
             lines.append(f"... {remaining} more brands")
         return lines
 
+    def _extract_includes(self, text: str) -> List[str]:
+        includes: List[str] = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith('#'):
+                continue
+            if not (stripped.startswith('include ') or stripped.startswith('require ')):
+                continue
+            parts = stripped.split()
+            if len(parts) < 2:
+                continue
+            includes.append(parts[1])
+        return includes
+
+    def _resolve_include(self, include_path: str, layer_root: Path, current_file: Path) -> Optional[Path]:
+        candidate = None
+        if include_path.startswith('conf/'):
+            candidate = layer_root / include_path
+        else:
+            candidate = (current_file.parent / include_path)
+            if not candidate.exists():
+                candidate = layer_root / include_path
+        if candidate.exists():
+            return candidate
+        return None
+
+    def _extract_machinebuild_values(self, text: str) -> List[str]:
+        pattern = re.compile(r"['\"]MACHINEBUILD['\"]\s*,\s*['\"]([^'\"]+)['\"]")
+        return [match for match in pattern.findall(text) if match]
+
+    def _collect_machinebuilds_from_conf(self, conf_path: Path, layer_root: Path) -> List[str]:
+        builds = set()
+        queue = [conf_path]
+        seen = set()
+
+        while queue:
+            path = queue.pop()
+            if path in seen:
+                continue
+            seen.add(path)
+
+            if path.name.endswith('oem.inc'):
+                continue
+
+            try:
+                text = path.read_text(errors='ignore')
+            except OSError:
+                continue
+
+            for value in self._extract_machinebuild_values(text):
+                builds.add(value)
+
+            for include in self._extract_includes(text):
+                if include.endswith('oem.inc'):
+                    continue
+                resolved = self._resolve_include(include, layer_root, path)
+                if resolved:
+                    queue.append(resolved)
+
+        return sorted(builds)
+
+    def _machinebuilds_for_brand(self, brand: str, machines: List[str]) -> Dict[str, List[str]]:
+        layer_root = self.topdir / 'oe-alliance' / 'meta-brands' / f"meta-{brand}"
+        conf_dir = layer_root / 'conf' / 'machine'
+        if not conf_dir.is_dir():
+            return {machine: [] for machine in machines}
+
+        build_map: Dict[str, set] = {machine: set() for machine in machines}
+        for machine in machines:
+            conf_path = conf_dir / f"{machine}.conf"
+            if not conf_path.exists():
+                continue
+            for value in self._collect_machinebuilds_from_conf(conf_path, layer_root):
+                build_map[machine].add(value)
+
+        return {machine: sorted(values) for machine, values in build_map.items()}
+
     def detect_machine_brand(self, machine: str) -> str:
         """Detect the brand/manufacturer for a given machine."""
         self._load_brand_machines()
@@ -269,7 +348,24 @@ class TuxboxBuilder:
 
         for brand in brands:
             machines = brand_map[brand]
-            self.info(f"{brand}: {', '.join(machines)}")
+            if not args.with_builds:
+                self.info(f"{brand}: {', '.join(machines)}")
+                continue
+
+            builds_map = self._machinebuilds_for_brand(brand, machines)
+            self.info(f"{brand}:")
+            pad = max((len(m) for m in machines), default=0)
+            for machine in machines:
+                builds = builds_map.get(machine, [])
+                build_text = ", ".join(builds) if builds else "-"
+                prefix = f"  {machine.ljust(pad)}  builds: "
+                width = max(60, 100 - len(prefix))
+                wrapped = textwrap.wrap(build_text, width=width) or ["-"]
+                for idx, chunk in enumerate(wrapped):
+                    if idx == 0:
+                        self.info(f"{prefix}{chunk}")
+                    else:
+                        self.info(f"{' ' * len(prefix)}{chunk}")
 
     def generate_config(self, machine: str, distro: str, distro_type: str = 'release',
                         machinebuild: Optional[str] = None, builddir: Optional[Path] = None):
@@ -608,6 +704,8 @@ def main():
     # machines command
     machines_parser = subparsers.add_parser('machines', help='List machines by brand')
     machines_parser.add_argument('--brand', help='Filter by brand (e.g., gfutures)')
+    machines_parser.add_argument('--with-builds', action='store_true',
+                                 help='Include MACHINEBUILD variants per machine')
 
     # clean command
     clean_parser = subparsers.add_parser('clean', help='Clean build artifacts')

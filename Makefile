@@ -61,6 +61,7 @@ help:
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
 	@echo -e "  $(COLOR_GREEN)make distclean$(COLOR_RESET)                       Clean everything"
 	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules"
+	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + submodules (pinned)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make list-machines$(COLOR_RESET)                   List all supported machines"
@@ -167,6 +168,14 @@ update:
 	@echo -e "$(COLOR_BOLD)Updating submodules...$(COLOR_RESET)"
 	@git submodule update --remote --recursive
 	@echo -e "$(COLOR_GREEN)Submodules updated.$(COLOR_RESET)"
+
+.PHONY: sync
+sync:
+	@echo -e "$(COLOR_BOLD)Updating repository...$(COLOR_RESET)"
+	@git pull --ff-only
+	@echo -e "$(COLOR_BOLD)Updating submodules (pinned)...$(COLOR_RESET)"
+	@git submodule update --init --recursive
+	@echo -e "$(COLOR_GREEN)Repository and submodules updated.$(COLOR_RESET)"
 
 .PHONY: list-machines
 list-machines:

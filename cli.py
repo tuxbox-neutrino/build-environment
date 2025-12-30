@@ -552,6 +552,10 @@ class TuxboxBuilder:
 
     def ensure_user_overrides(self, conf_dir: Path, machine: str):
         """Create optional local override files if missing."""
+        if machine.startswith('coolstream'):
+            tmpdir = f"build-{machine}/tmp"
+        else:
+            tmpdir = f"build/tmp-{machine}"
         overrides = {
             conf_dir / 'local.conf.user.inc': (
                 "# Local overrides (not tracked)\n"
@@ -563,6 +567,8 @@ class TuxboxBuilder:
             conf_dir / f'local.conf.{machine}.inc': (
                 f"# Local overrides for MACHINE={machine} (not tracked)\n"
                 "# Use this file for machine-specific tweaks.\n"
+                "# Default TMPDIR uses per-machine subdirs for safer multi-machine builds.\n"
+                f"TMPDIR = \"${{TOPDIR}}/{tmpdir}\"\n"
             ),
             conf_dir / 'bblayers.conf.user.inc': (
                 "# Local layer overrides (not tracked)\n"

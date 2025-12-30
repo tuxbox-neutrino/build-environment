@@ -155,6 +155,14 @@ Avoid editing `build/conf/local.conf` directly. Use the include files instead:
 
 These files are created automatically by `make config` and are safe from regeneration.
 
+By default, `local.conf.<machine>.inc` includes a per-machine TMPDIR:
+
+```
+TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
+```
+
+(Coolstream defaults to `build-${MACHINE}/tmp`.) Edit as needed.
+
 **Build time**: 2-4 hours on first build (downloads ~10GB sources)
 
 **Subsequent builds**: 20-40 minutes (using cache)

@@ -84,6 +84,15 @@ across updates, edit these files instead:
 
 These files are created automatically and are never overwritten by regeneration.
 
+By default, `local.conf.<machine>.inc` sets a per-machine TMPDIR:
+
+```
+TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
+```
+
+(Coolstream defaults to `build-${MACHINE}/tmp`.) Edit the file if you want a
+single shared TMPDIR.
+
 ## Supported Platforms
 
 ### Priority Platforms (Tested)

@@ -11,6 +11,13 @@ if [ -z "$MACHINE" ]; then
     exit 1
 fi
 
+TOPDIR="$(cd "$(dirname "$0")/.." && pwd)"
+CLI="$TOPDIR/cli.py"
+if [ -x "$CLI" ]; then
+    "$CLI" machine-info --machine "$MACHINE"
+    exit $?
+fi
+
 # Colors
 BOLD='\033[1m'
 GREEN='\033[0;32m'

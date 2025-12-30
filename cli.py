@@ -14,7 +14,7 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 # ANSI Colors
 class Colors:
@@ -259,6 +259,79 @@ class TuxboxBuilder:
         pattern = re.compile(r"['\"]MACHINEBUILD['\"]\s*,\s*['\"]([^'\"]+)['\"]")
         return [match for match in pattern.findall(text) if match]
 
+    def _extract_machinebuild_pairs(self, text: str) -> List[Tuple[str, str]]:
+        pattern = re.compile(
+            r"contains\(\s*['\"]MACHINEBUILD['\"]\s*,\s*['\"]([^'\"]+)['\"]\s*,\s*['\"]([^'\"]*)['\"]"
+        )
+        return [(build.strip(), value.strip()) for build, value in pattern.findall(text) if build]
+
+    def _normalize_machine_value(self, value: str) -> Optional[str]:
+        cleaned = value.strip()
+        if not cleaned or '$' in cleaned:
+            return None
+        if '/' in cleaned:
+            cleaned = cleaned.split('/')[-1]
+        cleaned = cleaned.strip().lower()
+        return cleaned or None
+
+    def _collect_machinebuilds_from_oem(self, oem_path: Path) -> Dict[str, List[Tuple[str, str]]]:
+        mapping = {'imagedir': [], 'driver': []}
+        if not oem_path.exists():
+            return mapping
+        try:
+            text = oem_path.read_text(errors='ignore')
+        except OSError:
+            return mapping
+
+        current = None
+        in_block = False
+        start_block = re.compile(r'^(IMAGEDIR|MACHINE_DRIVER)\s*(?:\?=|=)\s*\"\\\s*$')
+        single_line = re.compile(r'^(IMAGEDIR|MACHINE_DRIVER)\s*(?:\?=|=)\s*\".*\"$')
+
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith('#'):
+                continue
+            if start_block.match(stripped):
+                current = 'imagedir' if stripped.startswith('IMAGEDIR') else 'driver'
+                in_block = True
+                continue
+            if single_line.match(stripped):
+                current = None
+                in_block = False
+                continue
+            if in_block and current:
+                for build, value in self._extract_machinebuild_pairs(stripped):
+                    mapping[current].append((build, value))
+                if stripped == '"' or (stripped.endswith('"') and not stripped.endswith('\\"')):
+                    in_block = False
+                    current = None
+
+        return mapping
+
+    def _machinebuilds_from_oem(self, brand: str, machines: List[str]) -> Dict[str, Dict[str, Set[str]]]:
+        layer_root = self.topdir / 'oe-alliance' / 'meta-brands' / f"meta-{brand}"
+        include_dir = layer_root / 'conf' / 'machine' / 'include'
+        machine_lookup = {m.lower(): m for m in machines}
+        oem_map: Dict[str, Dict[str, Set[str]]] = {
+            machine: {'imagedir': set(), 'driver': set()} for machine in machines
+        }
+        if not include_dir.is_dir():
+            return oem_map
+
+        for oem_file in include_dir.glob('*oem.inc'):
+            mapping = self._collect_machinebuilds_from_oem(oem_file)
+            for source_key, pairs in mapping.items():
+                for build, value in pairs:
+                    target = self._normalize_machine_value(value)
+                    if not target:
+                        continue
+                    machine = machine_lookup.get(target)
+                    if machine:
+                        oem_map[machine][source_key].add(build)
+
+        return oem_map
+
     def _collect_machinebuilds_from_conf(self, conf_path: Path, layer_root: Path) -> List[str]:
         builds = set()
         queue = [conf_path]
@@ -290,11 +363,14 @@ class TuxboxBuilder:
 
         return sorted(builds)
 
-    def _machinebuilds_for_brand(self, brand: str, machines: List[str]) -> Dict[str, List[str]]:
+    def _machinebuilds_for_brand(self, brand: str, machines: List[str]) -> Dict[str, Dict[str, Set[str]]]:
         layer_root = self.topdir / 'oe-alliance' / 'meta-brands' / f"meta-{brand}"
         conf_dir = layer_root / 'conf' / 'machine'
         if not conf_dir.is_dir():
-            return {machine: [] for machine in machines}
+            return {
+                machine: {'explicit': set(), 'oem_imagedir': set(), 'oem_driver': set()}
+                for machine in machines
+            }
 
         build_map: Dict[str, set] = {machine: set() for machine in machines}
         for machine in machines:
@@ -304,7 +380,31 @@ class TuxboxBuilder:
             for value in self._collect_machinebuilds_from_conf(conf_path, layer_root):
                 build_map[machine].add(value)
 
-        return {machine: sorted(values) for machine, values in build_map.items()}
+        oem_map = self._machinebuilds_from_oem(brand, machines)
+        result: Dict[str, Dict[str, Set[str]]] = {}
+        for machine in machines:
+            result[machine] = {
+                'explicit': set(build_map.get(machine, set())),
+                'oem_imagedir': set(oem_map.get(machine, {}).get('imagedir', set())),
+                'oem_driver': set(oem_map.get(machine, {}).get('driver', set())),
+            }
+        return result
+
+    def _format_machinebuild_list(self, build_info: Dict[str, Set[str]]) -> List[str]:
+        explicit = sorted(build_info.get('explicit', set()))
+        oem_imagedir = set(build_info.get('oem_imagedir', set()))
+        oem_driver = set(build_info.get('oem_driver', set()))
+        builds = list(explicit)
+        inferred = sorted((oem_imagedir | oem_driver) - set(explicit))
+        for build in inferred:
+            labels = []
+            if build in oem_imagedir:
+                labels.append('imagedir')
+            if build in oem_driver:
+                labels.append('driver')
+            label = f"oem:{'+'.join(labels)}" if labels else "oem"
+            builds.append(f"{build} ({label})")
+        return builds
 
     def _read_conf_value(self, conf_path: Path, key: str) -> Optional[str]:
         if not conf_path.exists():
@@ -417,7 +517,10 @@ class TuxboxBuilder:
             self.info(f"{brand}:")
             pad = max((len(m) for m in machines), default=0)
             for machine in machines:
-                builds = builds_map.get(machine, [])
+                build_info = builds_map.get(
+                    machine, {'explicit': set(), 'oem_imagedir': set(), 'oem_driver': set()}
+                )
+                builds = self._format_machinebuild_list(build_info)
                 build_text = ", ".join(builds) if builds else "-"
                 prefix = f"  {machine.ljust(pad)}  builds: "
                 width = max(60, 100 - len(prefix))
@@ -427,6 +530,50 @@ class TuxboxBuilder:
                         self.info(f"{prefix}{chunk}")
                     else:
                         self.info(f"{' ' * len(prefix)}{chunk}")
+
+    def machine_info(self, args):
+        """Show build variants and config path for a specific machine."""
+        machine = args.machine
+        if not machine:
+            self.error("Machine is required (e.g., --machine hd51)")
+            sys.exit(1)
+
+        brand_map = self._load_brand_machines()
+        if not brand_map:
+            self.error("OE-Alliance meta-brands not found. Run init or check submodules.")
+            sys.exit(1)
+
+        brand = self._machine_brand_cache.get(machine) if self._machine_brand_cache else None
+        if not brand:
+            self.error(f"Unknown machine: {machine}")
+            available = ", ".join(sorted(brand_map.keys()))
+            self.info(f"Available brands: {available}")
+            sys.exit(1)
+
+        self.info(f"Machine: {machine}")
+        self.info(f"Brand: {brand}")
+
+        layer_root = self.topdir / 'oe-alliance' / 'meta-brands' / f"meta-{brand}"
+        machine_conf = layer_root / 'conf' / 'machine' / f"{machine}.conf"
+        if machine_conf.exists():
+            self.info(f"Config: {machine_conf}")
+        else:
+            self.warning(f"Config: missing ({machine_conf})")
+
+        builds_map = self._machinebuilds_for_brand(brand, brand_map.get(brand, []))
+        build_info = builds_map.get(
+            machine, {'explicit': set(), 'oem_imagedir': set(), 'oem_driver': set()}
+        )
+
+        explicit = sorted(build_info.get('explicit', set()))
+        oem_imagedir = sorted(build_info.get('oem_imagedir', set()))
+        oem_driver = sorted(build_info.get('oem_driver', set()))
+
+        self.info("")
+        self.info("Build variants:")
+        self.info(f"  explicit: {', '.join(explicit) if explicit else '-'}")
+        self.info(f"  oem:imagedir: {', '.join(oem_imagedir) if oem_imagedir else '-'}")
+        self.info(f"  oem:driver: {', '.join(oem_driver) if oem_driver else '-'}")
 
     def generate_config(self, machine: str, distro: str, distro_type: str = 'release',
                         machinebuild: Optional[str] = None, builddir: Optional[Path] = None):
@@ -723,12 +870,23 @@ class TuxboxBuilder:
             if not machine_conf.exists():
                 errors.append(f"Machine config not found: {machine_conf}")
             else:
-                builds = self._collect_machinebuilds_from_conf(machine_conf, layer_root)
+                brand_map = self._load_brand_machines()
+                machines = brand_map.get(brand, [])
+                builds_map = self._machinebuilds_for_brand(brand, machines)
+                build_info = builds_map.get(
+                    machine, {'explicit': set(), 'oem_imagedir': set(), 'oem_driver': set()}
+                )
+                build_names = (
+                    set(build_info.get('explicit', set()))
+                    | set(build_info.get('oem_imagedir', set()))
+                    | set(build_info.get('oem_driver', set()))
+                )
+                builds_display = self._format_machinebuild_list(build_info)
                 machinebuild = configured_machinebuild or requested_machinebuild or machine
-                if builds and machinebuild not in builds:
+                if build_names and machinebuild not in build_names:
                     warnings.append(
                         f"MACHINEBUILD '{machinebuild}' not listed for {machine} "
-                        f"(available: {', '.join(builds)})"
+                        f"(available: {', '.join(builds_display)})"
                     )
 
         if warnings:
@@ -1002,6 +1160,10 @@ def main():
     machines_parser.add_argument('--with-builds', action='store_true',
                                  help='Include MACHINEBUILD variants per machine')
 
+    # machine-info command
+    machine_info_parser = subparsers.add_parser('machine-info', help='Show details for a machine')
+    machine_info_parser.add_argument('-m', '--machine', required=True, help='Target machine')
+
     # clean command
     clean_parser = subparsers.add_parser('clean', help='Clean build artifacts')
     clean_parser.add_argument('-m', '--machine', help='Machine to clean (all if not specified)')
@@ -1041,6 +1203,8 @@ def main():
         builder.show_config(args)
     elif args.command == 'machines':
         builder.machines(args)
+    elif args.command == 'machine-info':
+        builder.machine_info(args)
     elif args.command == 'clean':
         builder.clean(args)
     elif args.command == 'fetch-only':

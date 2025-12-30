@@ -47,6 +47,9 @@ ssh-add ~/.ssh/id_rsa
 # Build for HD51
 make image MACHINE=hd51
 
+# If a config already exists, you can just run:
+make image
+
 # Prepare config only (no build)
 make config MACHINE=hd51
 make show-config MACHINE=hd51   # shows values + source file

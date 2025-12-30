@@ -32,6 +32,13 @@ MACHINEBUILD ?= $(MACHINE)
 DISTRO ?= tuxbox
 DISTRO_TYPE ?= release
 TOPDIR := $(CURDIR)
+MACHINE_ORIGIN := $(origin MACHINE)
+MACHINE_EXPLICIT := $(filter command line environment override,$(MACHINE_ORIGIN))
+ifeq ($(MACHINE_EXPLICIT),)
+  MACHINE_ARG :=
+else
+  MACHINE_ARG := --machine $(MACHINE)
+endif
 MACHINEBUILD_ORIGIN := $(origin MACHINEBUILD)
 MACHINEBUILD_EXPLICIT := $(filter command line environment override,$(MACHINEBUILD_ORIGIN))
 ifeq ($(MACHINEBUILD_EXPLICIT),)
@@ -122,9 +129,13 @@ endif
 
 .PHONY: image
 image: init
+ifeq ($(MACHINE_EXPLICIT),)
+	@echo -e "$(COLOR_BOLD)Building image using existing config...$(COLOR_RESET)"
+else
 	@echo -e "$(COLOR_BOLD)Building image for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
+endif
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
+	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1

@@ -120,6 +120,14 @@ make image MACHINE=hd60
 make image MACHINE=hd61
 ```
 
+If `build/conf/local.conf` already exists, you can also run just:
+
+```bash
+make image
+```
+
+It will reuse the existing config (and prompt if multiple build dirs exist).
+
 ### For Zgemma H7
 
 ```bash

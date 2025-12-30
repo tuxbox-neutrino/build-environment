@@ -422,6 +422,90 @@ class TuxboxBuilder:
                 return match.group(1).strip()
         return None
 
+    def _read_machine_values_from_conf(self, conf_dir: Path) -> Tuple[Optional[str], Optional[str]]:
+        local_conf = conf_dir / 'local.conf'
+        if not local_conf.exists():
+            return None, None
+
+        machine = self._read_conf_value(local_conf, 'MACHINE')
+        machinebuild = self._read_conf_value(local_conf, 'MACHINEBUILD')
+
+        user_conf = conf_dir / 'local.conf.user.inc'
+        if user_conf.exists():
+            machine_override = self._read_conf_value(user_conf, 'MACHINE')
+            machinebuild_override = self._read_conf_value(user_conf, 'MACHINEBUILD')
+            if machine_override:
+                machine = machine_override
+            if machinebuild_override:
+                machinebuild = machinebuild_override
+
+        if machine:
+            machine_conf = conf_dir / f'local.conf.{machine}.inc'
+            if machine_conf.exists():
+                machine_override = self._read_conf_value(machine_conf, 'MACHINE')
+                machinebuild_override = self._read_conf_value(machine_conf, 'MACHINEBUILD')
+                if machine_override:
+                    machine = machine_override
+                if machinebuild_override:
+                    machinebuild = machinebuild_override
+
+        return machine, machinebuild
+
+    def _discover_build_configs(self, builddir_hint: Optional[Path] = None) -> List[Dict[str, Optional[str]]]:
+        builddirs: List[Path]
+        if builddir_hint:
+            builddirs = [builddir_hint]
+        else:
+            builddirs = [self.topdir / 'build'] + sorted(
+                path for path in self.topdir.glob('build-*') if path.is_dir()
+            )
+
+        configs = []
+        for builddir in builddirs:
+            conf_dir = builddir / 'conf'
+            local_conf = conf_dir / 'local.conf'
+            if not local_conf.exists():
+                continue
+            machine, machinebuild = self._read_machine_values_from_conf(conf_dir)
+            configs.append({
+                'builddir': str(builddir),
+                'machine': machine,
+                'machinebuild': machinebuild,
+            })
+        return configs
+
+    def _select_build_config(self, builddir_hint: Optional[Path] = None) -> Optional[Dict[str, Optional[str]]]:
+        configs = self._discover_build_configs(builddir_hint)
+        if not configs:
+            return None
+        if len(configs) == 1:
+            return configs[0]
+        if not sys.stdin.isatty():
+            self.error("Multiple build configs found. Specify --machine or --builddir.")
+            for idx, item in enumerate(configs, start=1):
+                builddir = item.get('builddir') or '?'
+                machine = item.get('machine') or '?'
+                machinebuild = item.get('machinebuild') or '-'
+                self.info(f"  {idx}) {builddir} (MACHINE={machine}, MACHINEBUILD={machinebuild})")
+            sys.exit(1)
+
+        self.info("Multiple build configs found:")
+        for idx, item in enumerate(configs, start=1):
+            builddir = item.get('builddir') or '?'
+            machine = item.get('machine') or '?'
+            machinebuild = item.get('machinebuild') or '-'
+            self.info(f"  {idx}) {builddir} (MACHINE={machine}, MACHINEBUILD={machinebuild})")
+
+        while True:
+            choice = input("Select config [1-{}]: ".format(len(configs))).strip()
+            if not choice:
+                continue
+            if choice.isdigit():
+                index = int(choice)
+                if 1 <= index <= len(configs):
+                    return configs[index - 1]
+            self.warning("Invalid selection. Try again.")
+
     def _read_conf_values_with_sources(self, conf_paths: List[Path], keys: List[str]) -> Dict[str, Tuple[Optional[str], Optional[Path]]]:
         values: Dict[str, Tuple[Optional[str], Optional[Path]]] = {key: (None, None) for key in keys}
         key_pattern = "|".join(re.escape(key) for key in keys)
@@ -954,26 +1038,43 @@ class TuxboxBuilder:
 
     def build(self, args):
         """Build an image."""
-        machine = args.machine
+        machine = args.machine or os.environ.get('MACHINE')
         machinebuild = args.machinebuild or os.environ.get('MACHINEBUILD')
         distro = args.distro
         distro_type = args.distro_type
         target = args.target or 'tuxbox-image'
+
+        target_builddir = Path(args.builddir) if args.builddir else None
+        if not machine:
+            selected = self._select_build_config(target_builddir)
+            if not selected:
+                self.error("No existing build config found. Specify --machine or run make config.")
+                sys.exit(1)
+            machine = selected.get('machine')
+            if not machine:
+                self.error("Selected config does not define MACHINE. Edit local.conf and try again.")
+                sys.exit(1)
+            if not machinebuild:
+                machinebuild = selected.get('machinebuild')
+            target_builddir = Path(selected['builddir']) if selected.get('builddir') else self.builddir
 
         self.log(f"=== Building {target} for {machine} ===", Colors.BOLD, bold=True)
         if machinebuild:
             self.info(f"Using MACHINEBUILD={machinebuild}")
 
         # Select per-machine build directory (isolate Coolstream builds)
-        target_builddir = Path(args.builddir) if args.builddir else (
-            self.topdir / f"build-{machine}" if machine.startswith('coolstream') else self.builddir
-        )
+        if not target_builddir:
+            target_builddir = (
+                self.topdir / f"build-{machine}" if machine.startswith('coolstream') else self.builddir
+            )
         self.builddir = target_builddir
 
         # Check if initialized
         state = self.load_state()
         if not state.get('initialized'):
             self.warning("Build environment not initialized. Running init...")
+            args.machine = machine
+            args.machinebuild = machinebuild
             self.init(args)
 
         # Check if OE-Alliance submodule exists
@@ -1137,7 +1238,7 @@ def main():
 
     # build command
     build_parser = subparsers.add_parser('build', help='Build an image')
-    build_parser.add_argument('-m', '--machine', required=True, help='Target machine (e.g., hd51)')
+    build_parser.add_argument('-m', '--machine', help='Target machine (auto-detect from config if omitted)')
     build_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
     build_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
     build_parser.add_argument('--builddir', help='Custom build directory (default: build or build-<machine> for coolstream)')

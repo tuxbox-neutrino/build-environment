@@ -115,7 +115,7 @@ endif
 init: check
 	@echo -e "$(COLOR_BOLD)Initializing Tuxbox-OS build environment...$(COLOR_RESET)"
 ifeq ($(USE_CLI),1)
-	@$(CLI) init
+	@$(CLI) init --machine $(MACHINE) $(MACHINEBUILD_ARG)
 else
 	@$(TOPDIR)/scripts/init.sh
 endif

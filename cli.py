@@ -936,9 +936,21 @@ class TuxboxBuilder:
                 self.info(f"  {line}")
             self.info("Full list: make list-machines")
 
+        hint_machine = getattr(args, 'machine', None) or os.environ.get('MACHINE')
+        hint_machinebuild = getattr(args, 'machinebuild', None) or os.environ.get('MACHINEBUILD')
+        example_machine = hint_machine or "hd51"
+        example_machinebuild = hint_machinebuild if hint_machinebuild and hint_machinebuild != example_machine else None
+
         self.info("\nNext steps:")
-        self.info("  ./cli.py build --machine hd51")
-        self.info("  make image MACHINE=hd51 (MACHINEBUILD defaults to MACHINE)")
+        if hint_machine:
+            self.info(f"  ./cli.py build --machine {example_machine}" +
+                      (f" --machinebuild {example_machinebuild}" if example_machinebuild else ""))
+            self.info(f"  make image MACHINE={example_machine}" +
+                      (f" MACHINEBUILD={example_machinebuild}" if example_machinebuild else "") +
+                      " (MACHINEBUILD defaults to MACHINE)")
+        else:
+            self.info(f"  ./cli.py build --machine {example_machine}  # example")
+            self.info(f"  make image MACHINE={example_machine}  # example")
 
     def build(self, args):
         """Build an image."""
@@ -1120,6 +1132,8 @@ def main():
 
     # init command
     init_parser = subparsers.add_parser('init', help='Initialize build environment')
+    init_parser.add_argument('-m', '--machine', help='Preferred machine for next-step hints')
+    init_parser.add_argument('--machinebuild', help='OEM machine variant for hints')
 
     # build command
     build_parser = subparsers.add_parser('build', help='Build an image')

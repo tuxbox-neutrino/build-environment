@@ -66,6 +66,13 @@ echo ""
 echo -e "${GREEN}✓ Build environment initialized successfully!${NC}"
 echo ""
 echo "Next steps:"
-echo "  ./cli.py build --machine hd51"
-echo "  make image MACHINE=hd51 (MACHINEBUILD defaults to MACHINE)"
+EXAMPLE_MACHINE="${MACHINE:-hd51}"
+EXAMPLE_MACHINEBUILD="${MACHINEBUILD:-}"
+if [ -n "$EXAMPLE_MACHINEBUILD" ] && [ "$EXAMPLE_MACHINEBUILD" != "$EXAMPLE_MACHINE" ]; then
+  echo "  ./cli.py build --machine ${EXAMPLE_MACHINE} --machinebuild ${EXAMPLE_MACHINEBUILD}"
+  echo "  make image MACHINE=${EXAMPLE_MACHINE} MACHINEBUILD=${EXAMPLE_MACHINEBUILD} (MACHINEBUILD defaults to MACHINE)"
+else
+  echo "  ./cli.py build --machine ${EXAMPLE_MACHINE}"
+  echo "  make image MACHINE=${EXAMPLE_MACHINE} (MACHINEBUILD defaults to MACHINE)"
+fi
 echo "  make list-machines"

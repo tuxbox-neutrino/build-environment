@@ -255,5 +255,30 @@ DEFAULT_TIMEZONE = "Europe/Berlin"
 # Put your custom settings in these files instead of editing local.conf directly.
 # These files are created automatically by `make config`.
 #
+# Image naming examples (copy to local.conf.user.inc and uncomment):
+#
+# A) Timestamped (unique per build)
+# IMAGE_NAME = "${IMAGE_BASENAME}-${MACHINE}-${DATETIME}"
+# IMAGE_NAME[vardepsexclude] = "DATETIME"
+# IMAGE_VERSION ?= "${DISTRO_VERSION}"
+# IMAGE_NAME_SUFFIX = ".tuxbox"
+# IMAGE_VER_STRING = "${DISTRO_NAME}-${IMAGE_VERSION}-${MACHINEBUILD}-${DATE}"
+# IMAGE_VER_STRING[vardepsexclude] += "DATE"
+#
+# B) Deterministic (stable names, CI-friendly)
+# IMAGE_NAME = "${IMAGE_BASENAME}-${MACHINE}"
+# IMAGE_VERSION ?= "${DISTRO_VERSION}"
+# IMAGE_NAME_SUFFIX = ".tuxbox"
+# IMAGE_VER_STRING = "${DISTRO_NAME}-${IMAGE_VERSION}-${MACHINEBUILD}"
+#
+# C) Include MACHINEBUILD in filename
+# IMAGE_NAME = "${IMAGE_BASENAME}-${MACHINE}-${MACHINEBUILD}-${DATETIME}"
+# IMAGE_NAME[vardepsexclude] = "DATETIME"
+#
+# Avoid: spaces in IMAGE_VER_STRING (breaks some OA scripts)
+# Avoid: removing vardepsexclude when DATE/DATETIME is used (rebuild noise)
+# Avoid: slashes in IMAGE_NAME (must be a filename)
+# Avoid: changing IMAGE_NAME_SUFFIX unless your tooling expects it
+#
 include conf/local.conf.user.inc
 include conf/local.conf.${MACHINE}.inc

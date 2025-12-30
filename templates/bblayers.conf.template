@@ -42,3 +42,8 @@ BBLAYERS += " \
 #BBLAYERS += " \
 #  ##TOPDIR##/meta-local \
 #"
+
+# Local overrides (safe from regeneration)
+# Put additional layers or masks in this file instead of editing bblayers.conf.
+# This file is created automatically by `make config`.
+include conf/bblayers.conf.user.inc

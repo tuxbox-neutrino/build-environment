@@ -156,9 +156,21 @@ edit-conf:
 	@conf_dir="$(CONF_BUILDDIR)/conf"; \
 	local_conf="$$conf_dir/local.conf"; \
 	bblayers_conf="$$conf_dir/bblayers.conf"; \
+	local_user_conf="$$conf_dir/local.conf.user.inc"; \
+	machine_conf="$$conf_dir/local.conf.$(MACHINE).inc"; \
+	bblayers_user_conf="$$conf_dir/bblayers.conf.user.inc"; \
 	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
 		echo -e "$(COLOR_RED)Config missing. Run 'make config MACHINE=$(MACHINE)' first.$(COLOR_RESET)"; \
 		exit 1; \
+	fi; \
+	if [[ ! -f "$$local_user_conf" ]]; then \
+		printf "# Local overrides (not tracked)\n" > "$$local_user_conf"; \
+	fi; \
+	if [[ ! -f "$$machine_conf" ]]; then \
+		printf "# Local overrides for MACHINE=$(MACHINE) (not tracked)\n" > "$$machine_conf"; \
+	fi; \
+	if [[ ! -f "$$bblayers_user_conf" ]]; then \
+		printf "# Local layer overrides (not tracked)\n" > "$$bblayers_user_conf"; \
 	fi; \
 	editor="$${EDITOR:-$${VISUAL:-}}"; \
 	if [[ -z "$$editor" ]]; then \
@@ -169,7 +181,7 @@ edit-conf:
 			exit 1; \
 		fi; \
 	fi; \
-	"$$editor" "$$local_conf" "$$bblayers_conf"
+	"$$editor" "$$local_conf" "$$bblayers_conf" "$$local_user_conf" "$$machine_conf" "$$bblayers_user_conf"
 
 .PHONY: feeds
 feeds: init

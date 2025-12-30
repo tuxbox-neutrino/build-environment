@@ -56,15 +56,30 @@ make edit-conf MACHINE=hd51
 # Force regeneration when needed:
 make image MACHINE=hd51 FORCE_CONFIG=1
 
-# OEM/brand variants (both MACHINE and MACHINEBUILD required)
-make image MACHINE=inihde2 MACHINEBUILD=atemio6000
+# OEM/brand variants (use MACHINEBUILD when it differs from MACHINE)
+make image MACHINE=hd51 MACHINEBUILD=mutant51
+
+# Find valid MACHINEBUILD values
+make list-machines
+make machine-info MACHINE=hd51
 
 # Or using Python CLI
 ./cli.py build --machine hd51
-MACHINEBUILD=atemio6000 ./cli.py build --machine inihde2
+MACHINEBUILD=mutant51 ./cli.py build --machine hd51
 ```
 
 Built images will be in `build/tmp/deploy/images/hd51/`
+
+### Persistent Local Overrides (Beginner Friendly)
+
+`make config` generates `local.conf` and `bblayers.conf`. To keep personal changes
+across updates, edit these files instead:
+
+- `build/conf/local.conf.user.inc` (your personal defaults)
+- `build/conf/local.conf.<machine>.inc` (per-machine tweaks)
+- `build/conf/bblayers.conf.user.inc` (extra layers / masks)
+
+These files are created automatically and are never overwritten by regeneration.
 
 ## Supported Platforms
 

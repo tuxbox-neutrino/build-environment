@@ -249,3 +249,11 @@ IMAGESIZE ?= ""
 # Default locale
 #
 DEFAULT_TIMEZONE = "Europe/Berlin"
+
+#
+# Local overrides (safe from regeneration)
+# Put your custom settings in these files instead of editing local.conf directly.
+# These files are created automatically by `make config`.
+#
+include conf/local.conf.user.inc
+include conf/local.conf.${MACHINE}.inc

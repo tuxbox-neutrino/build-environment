@@ -96,16 +96,20 @@ make init   # Initialize environment
 # Using Python CLI
 ./cli.py build --machine hd51
 
-# Or using Makefile (MACHINE and MACHINEBUILD required)
+# Or using Makefile (use MACHINEBUILD when it differs from MACHINE)
 make image MACHINE=hd51 MACHINEBUILD=mutant51
 ```
 
-### OEM variants (MACHINE + MACHINEBUILD)
+### OEM variants (use MACHINEBUILD when it differs)
 
 ```bash
-# Example: OEM variant for inihde2
-make image MACHINE=inihde2 MACHINEBUILD=atemio6000
-MACHINEBUILD=atemio6000 ./cli.py build --machine inihde2
+# Example: OEM variant for hd51
+make image MACHINE=hd51 MACHINEBUILD=mutant51
+MACHINEBUILD=mutant51 ./cli.py build --machine hd51
+
+# Find valid MACHINEBUILD values
+make list-machines
+make machine-info MACHINE=hd51
 ```
 
 ### For GFutures (Mut@nt/AX) HD60/HD61
@@ -137,6 +141,16 @@ If configs already exist, `make image` reuses them. To force regeneration:
 ```bash
 make image MACHINE=hd51 FORCE_CONFIG=1
 ```
+
+### Persistent Local Overrides (Recommended)
+
+Avoid editing `build/conf/local.conf` directly. Use the include files instead:
+
+- `build/conf/local.conf.user.inc` (personal defaults)
+- `build/conf/local.conf.<machine>.inc` (machine-specific tweaks)
+- `build/conf/bblayers.conf.user.inc` (extra layers/masks)
+
+These files are created automatically by `make config` and are safe from regeneration.
 
 **Build time**: 2-4 hours on first build (downloads ~10GB sources)
 

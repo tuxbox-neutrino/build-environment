@@ -420,6 +420,9 @@ class TuxboxBuilder:
         # Generate local.conf
         self.generate_local_conf(conf_dir, machine, distro, distro_type, machinebuild, target_builddir)
 
+        # Ensure user override include files exist
+        self.ensure_user_overrides(conf_dir, machine)
+
         self.success("Configuration generated")
 
     def generate_bblayers_conf(self, conf_dir: Path, machine: str, brand: str):
@@ -517,6 +520,35 @@ class TuxboxBuilder:
         self.info(f"  Distro: {distro}")
         self.info(f"  Threads: {bb_threads}")
         self.info(f"  Parallel: {parallel_make}")
+
+    def ensure_user_overrides(self, conf_dir: Path, machine: str):
+        """Create optional local override files if missing."""
+        overrides = {
+            conf_dir / 'local.conf.user.inc': (
+                "# Local overrides (not tracked)\n"
+                "# Use this file for personal settings to avoid regeneration loss.\n"
+                "# Example:\n"
+                "# DL_DIR = \"/path/to/downloads\"\n"
+                "# SSTATE_DIR = \"/path/to/sstate-cache\"\n"
+            ),
+            conf_dir / f'local.conf.{machine}.inc': (
+                f"# Local overrides for MACHINE={machine} (not tracked)\n"
+                "# Use this file for machine-specific tweaks.\n"
+            ),
+            conf_dir / 'bblayers.conf.user.inc': (
+                "# Local layer overrides (not tracked)\n"
+                "# Example:\n"
+                "# BBLAYERS += \" \\\n"
+                "#   /path/to/your/layer \\\n"
+                "# \"\n"
+            ),
+        }
+
+        for path, content in overrides.items():
+            if not path.exists():
+                with open(path, 'w') as f:
+                    f.write(content)
+                self.info(f"Created: {path}")
 
     def show_config(self, args):
         """Show current configuration and highlight issues."""

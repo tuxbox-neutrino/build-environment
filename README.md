@@ -49,8 +49,8 @@ make image MACHINE=hd51
 
 # Prepare config only (no build)
 make config MACHINE=hd51
-make show-config MACHINE=hd51
-make edit-conf MACHINE=hd51
+make show-config MACHINE=hd51   # shows values + source file
+make edit-conf MACHINE=hd51     # opens the include files
 
 # If configs already exist, make image reuses them.
 # Force regeneration when needed:
@@ -67,6 +67,9 @@ make machine-info MACHINE=hd51
 ./cli.py build --machine hd51
 MACHINEBUILD=mutant51 ./cli.py build --machine hd51
 ```
+
+`make show-config` reports where values come from (local.conf vs include
+files) and lists layers with their source file.
 
 Built images will be in `build/tmp/deploy/images/hd51/`
 

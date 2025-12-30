@@ -14,7 +14,7 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 # ANSI Colors
 class Colors:
@@ -322,6 +322,35 @@ class TuxboxBuilder:
                 return match.group(1).strip()
         return None
 
+    def _read_conf_values_with_sources(self, conf_paths: List[Path], keys: List[str]) -> Dict[str, Tuple[Optional[str], Optional[Path]]]:
+        values: Dict[str, Tuple[Optional[str], Optional[Path]]] = {key: (None, None) for key in keys}
+        key_pattern = "|".join(re.escape(key) for key in keys)
+        pattern = re.compile(rf"^\s*({key_pattern})\s*(?:\?\?=|\?=|=)\s*['\"]([^'\"]+)['\"]")
+
+        for conf_path in conf_paths:
+            if not conf_path.exists():
+                continue
+            try:
+                text = conf_path.read_text(errors='ignore')
+            except OSError:
+                continue
+            for line in text.splitlines():
+                if line.strip().startswith('#'):
+                    continue
+                match = pattern.match(line)
+                if match:
+                    key = match.group(1)
+                    values[key] = (match.group(2).strip(), conf_path)
+        return values
+
+    def _format_conf_source(self, source: Optional[Path], conf_dir: Path) -> str:
+        if not source:
+            return "unknown"
+        try:
+            return str(source.relative_to(conf_dir))
+        except ValueError:
+            return str(source)
+
     def _extract_layer_paths(self, conf_path: Path) -> List[str]:
         if not conf_path.exists():
             return []
@@ -563,6 +592,9 @@ class TuxboxBuilder:
         conf_dir = target_builddir / 'conf'
         local_conf = conf_dir / 'local.conf'
         bblayers_conf = conf_dir / 'bblayers.conf'
+        local_user_conf = conf_dir / 'local.conf.user.inc'
+        local_machine_conf = conf_dir / f'local.conf.{machine}.inc'
+        bblayers_user_conf = conf_dir / 'bblayers.conf.user.inc'
 
         self.log("=== Configuration Summary ===", Colors.BOLD, bold=True)
         self.info(f"Build dir: {target_builddir}")
@@ -575,33 +607,56 @@ class TuxboxBuilder:
             self.success(f"bblayers.conf: {bblayers_conf}")
         else:
             self.warning(f"bblayers.conf: missing ({bblayers_conf})")
+        if local_user_conf.exists():
+            self.success(f"local.conf.user.inc: {local_user_conf}")
+        else:
+            self.info(f"local.conf.user.inc: missing ({local_user_conf})")
+        if local_machine_conf.exists():
+            self.success(f"local.conf.{machine}.inc: {local_machine_conf}")
+        else:
+            self.info(f"local.conf.{machine}.inc: missing ({local_machine_conf})")
+        if bblayers_user_conf.exists():
+            self.success(f"bblayers.conf.user.inc: {bblayers_user_conf}")
+        else:
+            self.info(f"bblayers.conf.user.inc: missing ({bblayers_user_conf})")
 
-        values = {}
         keys = ['MACHINE', 'MACHINEBUILD', 'DISTRO', 'DISTRO_TYPE', 'DL_DIR', 'SSTATE_DIR', 'TMPDIR']
+        values = {}
+        sources = {}
         if local_conf.exists():
+            conf_sources = [local_conf, local_user_conf, local_machine_conf]
+            values_with_sources = self._read_conf_values_with_sources(conf_sources, keys)
             for key in keys:
-                values[key] = self._read_conf_value(local_conf, key)
+                value, source = values_with_sources.get(key, (None, None))
+                values[key] = value
+                sources[key] = source
 
             self.info("")
-            self.info("Values (from local.conf):")
+            self.info("Values (from local.conf + includes):")
             for key in keys:
                 value = values.get(key)
                 if value:
-                    self.info(f"  {key}: {value}")
+                    source_label = self._format_conf_source(sources.get(key), conf_dir)
+                    self.info(f"  {key}: {value} ({source_label})")
                 elif key == 'TMPDIR':
                     self.info(f"  {key}: default ({target_builddir}/tmp)")
                 else:
                     self.warning(f"  {key}: not set")
 
-        layers = self._extract_layer_paths(bblayers_conf)
-        if layers:
+        layer_sources: Dict[str, Path] = {}
+        for layer_file in [bblayers_conf, bblayers_user_conf]:
+            for layer in self._extract_layer_paths(layer_file):
+                if layer not in layer_sources:
+                    layer_sources[layer] = layer_file
+        if layer_sources:
             self.info("")
-            self.info("Layers (from bblayers.conf):")
-            for layer in layers:
+            self.info("Layers (from bblayers.conf + includes):")
+            for layer, source in layer_sources.items():
+                source_label = self._format_conf_source(source, conf_dir)
                 if Path(layer).exists():
-                    self.info(f"  {layer}")
+                    self.info(f"  {layer} ({source_label})")
                 else:
-                    self.warning(f"  {layer} (missing)")
+                    self.warning(f"  {layer} ({source_label}, missing)")
 
         errors = []
         warnings = []

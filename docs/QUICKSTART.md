@@ -132,9 +132,12 @@ Use the same parameters as `make image`, but it will only generate config files:
 
 ```bash
 make config MACHINE=hd51
-make show-config MACHINE=hd51
-make edit-conf MACHINE=hd51
+make show-config MACHINE=hd51   # shows values + source file
+make edit-conf MACHINE=hd51     # opens the include files
 ```
+
+`make show-config` lists where each value comes from (local.conf vs include
+files) and lists layers from `bblayers.conf` plus the user include file.
 
 If configs already exist, `make image` reuses them. To force regeneration:
 

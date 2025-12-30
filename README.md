@@ -93,6 +93,17 @@ TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
 (Coolstream defaults to `build-${MACHINE}/tmp`.) Edit the file if you want a
 single shared TMPDIR.
 
+### Image Naming Overrides (Optional)
+
+`build/conf/local.conf.user.inc` includes a commented template for image naming
+variables and examples. Uncomment what you need.
+
+Avoid these pitfalls:
+- Do not add spaces to `IMAGE_VER_STRING` (some OA scripts break on spaces).
+- Keep `vardepsexclude` when using `DATE`/`DATETIME` to avoid rebuild churn.
+- Do not use slashes in `IMAGE_NAME` (must be a filename).
+- Do not change `IMAGE_NAME_SUFFIX` unless your tooling expects it.
+
 ## Supported Platforms
 
 ### Priority Platforms (Tested)

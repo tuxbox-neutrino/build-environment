@@ -88,6 +88,23 @@ make check  # Verify prerequisites
 make init   # Initialize environment
 ```
 
+### Option C: Manual OE init (workspace style)
+
+If you prefer the classic Yocto workflow inside the build directory:
+
+```bash
+. poky/oe-init-build-env build
+```
+
+Then edit `build/conf/local.conf`:
+
+```bash
+MACHINE = "hd60"
+MACHINEBUILD = "ax60"
+```
+
+You can omit `MACHINEBUILD` when it matches `MACHINE`.
+
 ## Step 4: Build Your First Image
 
 ### For GFutures (Mut@nt/AX) HD51

@@ -75,6 +75,7 @@ SSTATE_RSYNC_OPTS ?= -a
 SSTATE_RSYNC_SSH ?=
 SSTATE_DEPLOY_DRYRUN ?= 1
 SSTATE_DEPLOY_DELETE ?=
+SSTATE_DEPLOY_SRC ?= $(SSTATE_DIR)
 
 # State tracking
 STATE_FILE := $(TOPDIR)/.tuxbox/state.json
@@ -303,8 +304,8 @@ deploy-sstate:
 		echo -e "$(COLOR_RED)rsync not found. Install rsync and try again.$(COLOR_RESET)"; \
 		exit 1; \
 	fi
-	@if [[ ! -d "$(SSTATE_DIR)" ]]; then \
-		echo -e "$(COLOR_RED)SSTATE_DIR not found: $(SSTATE_DIR)$(COLOR_RESET)"; \
+	@if [[ ! -d "$(SSTATE_DEPLOY_SRC)" ]]; then \
+		echo -e "$(COLOR_RED)Sstate source not found: $(SSTATE_DEPLOY_SRC)$(COLOR_RESET)"; \
 		exit 1; \
 	fi
 	@rsync_opts=($(SSTATE_RSYNC_OPTS)); \
@@ -313,8 +314,8 @@ deploy-sstate:
 	if [[ -n "$(SSTATE_RSYNC_SSH)" ]]; then rsync_opts+=("-e" "$(SSTATE_RSYNC_SSH)"); fi; \
 	dest="$(SSTATE_RSYNC_DEST)"; \
 	dest="$${dest%/}/"; \
-	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) rsync $${rsync_opts[*]} \"$(SSTATE_DIR)/\" \"$$dest\""; \
-	rsync "$${rsync_opts[@]}" "$(SSTATE_DIR)/" "$$dest"
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) rsync $${rsync_opts[*]} \"$(SSTATE_DEPLOY_SRC)/\" \"$$dest\""; \
+	rsync "$${rsync_opts[@]}" "$(SSTATE_DEPLOY_SRC)/" "$$dest"
 
 .PHONY: clean
 clean:

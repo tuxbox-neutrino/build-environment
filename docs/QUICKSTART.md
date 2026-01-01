@@ -235,6 +235,8 @@ SSTATE_RSYNC_SSH = ssh -i $${HOME}/.ssh/id_rsa
 SSTATE_RSYNC_OPTS = -a --info=stats2
 SSTATE_DEPLOY_DRYRUN = 1
 SSTATE_DEPLOY_DELETE = 0
+# Optional: if your sstate cache lives elsewhere
+# SSTATE_DEPLOY_SRC = /path/to/sstate-cache
 ```
 
 2) Run the deploy command (defaults to dry-run for safety):

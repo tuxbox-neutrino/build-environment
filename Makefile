@@ -132,6 +132,7 @@ help:
 	@echo -e "  MACHINEBUILD OEM variant (default: MACHINE)"
 	@echo -e "  DISTRO       Distribution (default: tuxbox)"
 	@echo -e "  DISTRO_TYPE  Build type: release|development (default: release)"
+	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"

@@ -241,6 +241,9 @@ BB_HASHSERVE_UPSTREAM = "hashserv.tuxbox-neutrino.org:8686"
 BB_SIGNATURE_HANDLER = "OEEquivHash"
 ```
 
+If you disable hash equivalence (default), the signature handler falls back to
+`OEBasicHash`.
+
 The `.tuxbox/deploy.conf` file is optional. If it does not exist, pass the
 variables on the command line instead.
 

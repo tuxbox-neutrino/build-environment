@@ -177,6 +177,7 @@ PACKAGECONFIG:append:pn-qemu-system-native = " sdl"
 # A local hashserv (unix://) has a different unihash context than the mirror,
 # so cache hits will be rare unless you also use a shared upstream hashserv.
 BB_HASHSERVE = ""
+BB_SIGNATURE_HANDLER = "OEBasicHash"
 #
 # Advanced: enable hash equivalence with a shared upstream server.
 #BB_HASHSERVE = "auto"

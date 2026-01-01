@@ -289,6 +289,8 @@ variables and examples. Uncomment what you need.
 Avoid these pitfalls:
 - Do not add spaces to `IMAGE_VER_STRING` (some OA scripts break on spaces).
 - Keep `vardepsexclude` when using `DATE`/`DATETIME` to avoid rebuild churn.
+- Do not use `:=` (immediate expansion) with `DATE`/`DATETIME` or you will trigger
+  basehash changes; use `=` or `?=` instead.
 - Do not use slashes in `IMAGE_NAME` (must be a filename).
 - Do not change `IMAGE_NAME_SUFFIX` unless your tooling expects it.
 

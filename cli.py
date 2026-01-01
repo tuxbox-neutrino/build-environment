@@ -842,6 +842,7 @@ class TuxboxBuilder:
                 "#\n"
                 "# Avoid: spaces in IMAGE_VER_STRING (breaks some OA scripts)\n"
                 "# Avoid: removing vardepsexclude when DATE/DATETIME is used (rebuild noise)\n"
+                "# Avoid: using := with DATE/DATETIME (causes basehash changes)\n"
                 "# Avoid: slashes in IMAGE_NAME (must be a filename)\n"
                 "# Avoid: changing IMAGE_NAME_SUFFIX unless your tooling expects it\n"
             ),

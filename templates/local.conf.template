@@ -290,6 +290,7 @@ DEFAULT_TIMEZONE = "Europe/Berlin"
 #
 # Avoid: spaces in IMAGE_VER_STRING (breaks some OA scripts)
 # Avoid: removing vardepsexclude when DATE/DATETIME is used (rebuild noise)
+# Avoid: using := with DATE/DATETIME (causes basehash changes)
 # Avoid: slashes in IMAGE_NAME (must be a filename)
 # Avoid: changing IMAGE_NAME_SUFFIX unless your tooling expects it
 #

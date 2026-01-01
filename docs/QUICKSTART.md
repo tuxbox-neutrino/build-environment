@@ -103,7 +103,8 @@ MACHINE = "hd60"
 MACHINEBUILD = "ax60"
 ```
 
-You can omit `MACHINEBUILD` when it matches `MACHINE`.
+You can omit `MACHINEBUILD` only when a machine has a single (or no) OEM
+variant. If multiple variants exist, you must set `MACHINEBUILD`.
 
 ## Step 4: Build Your First Image
 
@@ -111,7 +112,7 @@ You can omit `MACHINEBUILD` when it matches `MACHINE`.
 
 ```bash
 # Using Python CLI
-./cli.py build --machine hd51
+./cli.py build --machine hd51 --machinebuild mutant51
 
 # Or using Makefile (use MACHINEBUILD when it differs from MACHINE)
 make image MACHINE=hd51 MACHINEBUILD=mutant51
@@ -132,9 +133,8 @@ make machine-info MACHINE=hd51
 ### For GFutures (Mut@nt/AX) HD60/HD61
 
 ```bash
-make image MACHINE=hd60
-# or
-make image MACHINE=hd61
+make image MACHINE=hd60 MACHINEBUILD=ax60   # or mutant60
+make image MACHINE=hd61 MACHINEBUILD=ax61
 ```
 
 If `build/conf/local.conf` already exists, you can also run just:

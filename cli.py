@@ -406,6 +406,23 @@ class TuxboxBuilder:
             builds.append(f"{build} ({label})")
         return builds
 
+    def _machinebuild_candidates(self, machine: str) -> Tuple[List[str], List[str]]:
+        brand_map = self._load_brand_machines()
+        brand = self._machine_brand_cache.get(machine) if self._machine_brand_cache else None
+        if not brand:
+            return [], []
+        machines = brand_map.get(brand, [])
+        builds_map = self._machinebuilds_for_brand(brand, machines)
+        build_info = builds_map.get(
+            machine, {'explicit': set(), 'oem_imagedir': set(), 'oem_driver': set()}
+        )
+        build_names = sorted(
+            set(build_info.get('explicit', set()))
+            | set(build_info.get('oem_imagedir', set()))
+            | set(build_info.get('oem_driver', set()))
+        )
+        return build_names, self._format_machinebuild_list(build_info)
+
     def _read_conf_value(self, conf_path: Path, key: str) -> Optional[str]:
         if not conf_path.exists():
             return None
@@ -668,6 +685,18 @@ class TuxboxBuilder:
         brand = self.detect_machine_brand(machine)
         if brand == 'unknown':
             self.warning(f"Unknown machine '{machine}' - brand layer may need manual configuration")
+        if not machinebuild:
+            build_names, build_display = self._machinebuild_candidates(machine)
+            if len(build_names) == 1:
+                machinebuild = build_names[0]
+                self.info(f"Auto-selected MACHINEBUILD={machinebuild} for {machine}")
+            elif len(build_names) > 1:
+                self.error(f"MACHINEBUILD required for {machine}")
+                self.info(f"Available: {', '.join(build_display)}")
+                self.info("Pass --machinebuild or set MACHINEBUILD=...")
+                sys.exit(1)
+            else:
+                self.info(f"No MACHINEBUILD variants listed for {machine}; defaulting to MACHINEBUILD={machine}")
 
         # Create build/conf directory
         target_builddir = Path(builddir) if builddir else self.builddir
@@ -1027,7 +1056,7 @@ class TuxboxBuilder:
                       (f" --machinebuild {example_machinebuild}" if example_machinebuild else ""))
             self.info(f"  make image MACHINE={example_machine}" +
                       (f" MACHINEBUILD={example_machinebuild}" if example_machinebuild else "") +
-                      " (MACHINEBUILD defaults to MACHINE)")
+                      " (MACHINEBUILD required for some machines)")
         else:
             self.info(f"  ./cli.py build --machine {example_machine}  # example")
             self.info(f"  make image MACHINE={example_machine}  # example")

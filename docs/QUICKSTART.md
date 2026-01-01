@@ -276,6 +276,7 @@ Notes:
 - Consumers can point to your server with `SSTATE_MIRRORS` in
   `build/conf/local.conf.user.inc`.
 - If you use `$HOME` in this file, escape it as `$${HOME}` (Make expands `$`).
+- `SSTATE_RSYNC_EXCLUDE` accepts space or comma-separated patterns. Quotes are optional.
 
 ### Image Naming Overrides (Optional)
 

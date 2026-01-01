@@ -317,6 +317,8 @@ deploy-sstate:
 	if [[ "$(SSTATE_DEPLOY_DRYRUN)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--dry-run"); fi; \
 	if [[ -n "$(SSTATE_RSYNC_SSH)" ]]; then rsync_opts+=("-e" "$(SSTATE_RSYNC_SSH)"); fi; \
 	excludes_raw="$(SSTATE_RSYNC_EXCLUDE)"; \
+	excludes_raw="$${excludes_raw//\"/}"; \
+	excludes_raw="$${excludes_raw//\'/}"; \
 	if [[ -n "$$excludes_raw" ]]; then \
 		excludes=($${excludes_raw//,/ }); \
 		for ex in "$${excludes[@]}"; do \

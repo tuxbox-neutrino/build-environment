@@ -231,7 +231,7 @@ revisions.
 ```make
 # .tuxbox/deploy.conf
 SSTATE_RSYNC_DEST = user@host:/srv/sstate/kirkstone/tuxbox/release
-SSTATE_RSYNC_SSH = ssh -i ~/.ssh/id_rsa
+SSTATE_RSYNC_SSH = ssh -i $${HOME}/.ssh/id_rsa
 SSTATE_RSYNC_OPTS = -a --info=stats2
 SSTATE_DEPLOY_DRYRUN = 1
 SSTATE_DEPLOY_DELETE = 0
@@ -254,6 +254,7 @@ Notes:
   mixing incompatible caches.
 - Consumers can point to your server with `SSTATE_MIRRORS` in
   `build/conf/local.conf.user.inc`.
+- If you use `$HOME` in this file, escape it as `$${HOME}` (Make expands `$`).
 
 ### Image Naming Overrides (Optional)
 

@@ -468,6 +468,29 @@ class TuxboxBuilder:
 
         return machine, machinebuild
 
+    def _find_image_immediate_assignments(self, conf_paths: List[Path]) -> List[str]:
+        issues = []
+        for conf_path in conf_paths:
+            if not conf_path.exists():
+                continue
+            try:
+                text = conf_path.read_text(errors='ignore')
+            except OSError:
+                continue
+            for idx, line in enumerate(text.splitlines(), start=1):
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#') or ':=' not in stripped:
+                    continue
+                if not (
+                    stripped.startswith('IMAGE_NAME')
+                    or stripped.startswith('IMAGE_VER_STRING')
+                    or stripped.startswith('IMAGE_NAME_SUFFIX')
+                ):
+                    continue
+                if 'DATE' in stripped or 'DATETIME' in stripped:
+                    issues.append(f"{conf_path}:{idx}: {stripped}")
+        return issues
+
     def _discover_build_configs(self, builddir_hint: Optional[Path] = None) -> List[Dict[str, Optional[str]]]:
         builddirs: List[Path]
         if builddir_hint:
@@ -1003,6 +1026,15 @@ class TuxboxBuilder:
             self.info("")
             self.warning("Warnings:")
             for item in warnings:
+                self.warning(f"  {item}")
+
+        image_immediate = self._find_image_immediate_assignments(
+            [local_conf, local_user_conf, local_machine_conf]
+        )
+        if image_immediate:
+            self.info("")
+            self.warning("Image naming uses ':=' with DATE/DATETIME (causes basehash changes):")
+            for item in image_immediate:
                 self.warning(f"  {item}")
 
         if errors:

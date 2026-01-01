@@ -32,6 +32,7 @@ MACHINEBUILD ?= $(MACHINE)
 DISTRO ?= tuxbox
 DISTRO_TYPE ?= release
 TOPDIR := $(CURDIR)
+SYNC_EXCLUDE ?=
 MACHINE_ORIGIN := $(origin MACHINE)
 MACHINE_EXPLICIT := $(filter command line environment override,$(MACHINE_ORIGIN))
 ifeq ($(MACHINE_EXPLICIT),)
@@ -107,6 +108,7 @@ help:
 	@echo -e "  $(COLOR_GREEN)make deploy-sstate$(COLOR_RESET)                   Upload sstate cache (rsync)"
 	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules"
 	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + submodules (pinned)"
+	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make list-machines$(COLOR_RESET)                   List all supported machines"
@@ -347,7 +349,23 @@ sync:
 	@echo -e "$(COLOR_BOLD)Updating repository...$(COLOR_RESET)"
 	@git pull --ff-only
 	@echo -e "$(COLOR_BOLD)Updating submodules (pinned)...$(COLOR_RESET)"
-	@git submodule update --init --recursive
+	@if [[ -z "$(SYNC_EXCLUDE)" ]]; then \
+		git submodule update --init --recursive; \
+	else \
+		excludes_raw="$(SYNC_EXCLUDE)"; \
+		excludes=($${excludes_raw//,/ }); \
+		while read -r _ path; do \
+			skip=0; \
+			for ex in "$${excludes[@]}"; do \
+				if [[ "$$path" == "$$ex" ]]; then skip=1; break; fi; \
+			done; \
+			if [[ $$skip -eq 1 ]]; then \
+				echo -e "$(COLOR_YELLOW)Skipping submodule: $$path$(COLOR_RESET)"; \
+				continue; \
+			fi; \
+			git submodule update --init --recursive "$$path"; \
+		done < <(git config -f .gitmodules --get-regexp path); \
+	fi
 	@echo -e "$(COLOR_GREEN)Repository and submodules updated.$(COLOR_RESET)"
 
 .PHONY: list-machines

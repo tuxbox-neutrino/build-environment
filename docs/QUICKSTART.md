@@ -330,6 +330,8 @@ build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
 ./cli.py sync
 # Or
 make update
+# Or update repo + pinned submodules (optionally skipping some)
+make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
 ### Update Layers (Submodules)

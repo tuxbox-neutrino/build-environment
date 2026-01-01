@@ -170,6 +170,25 @@ If configs already exist, `make image` reuses them. To force regeneration:
 make image MACHINE=hd51 FORCE_CONFIG=1
 ```
 
+### BitBake and devtool wrappers (optional)
+
+You can run BitBake targets without typing `bitbake` directly:
+
+```bash
+make bb-ffmpeg
+make bb TARGET=ffmpeg BB_TASK=clean
+make bb BB_ARGS="-s"
+```
+
+For devtool:
+
+```bash
+make devtool ARGS="modify freetype"
+```
+
+These wrappers use your current config. Pass `MACHINE`/`MACHINEBUILD` if you
+want a specific build directory.
+
 ### Persistent Local Overrides (Recommended)
 
 Avoid editing `build/conf/local.conf` directly. Use the include files instead:

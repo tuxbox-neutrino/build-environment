@@ -53,6 +53,11 @@ ifneq ($(MACHIME_EXPLICIT),)
 endif
 FORCE_CONFIG ?=
 FORCE_CONFIG_ARG := $(if $(filter 1 yes true,$(FORCE_CONFIG)),--force-config,)
+BB_TARGET ?= $(TARGET)
+BB_TASK ?=
+BB_ARGS ?=
+BB_CMD = $(strip $(BB_ARGS) $(if $(BB_TASK),-c $(BB_TASK),) $(BB_TARGET))
+DEVTOOL_ARGS ?= $(ARGS)
 
 # Build directories
 BUILDDIR := $(TOPDIR)/build
@@ -102,6 +107,12 @@ help:
 	@echo -e "  $(COLOR_GREEN)./cli.py build -m hd51 --offline$(COLOR_RESET)     Build offline"
 	@echo -e "  $(COLOR_GREEN)./cli.py build -m hd51 --devshell$(COLOR_RESET)    Drop to devshell"
 	@echo -e "  $(COLOR_GREEN)./cli.py --help$(COLOR_RESET)                      Show all CLI options"
+	@echo ""
+	@echo -e "$(COLOR_BOLD)BitBake wrappers:$(COLOR_RESET)"
+	@echo -e "  $(COLOR_GREEN)make bb-ffmpeg$(COLOR_RESET)                      Run 'bitbake ffmpeg'"
+	@echo -e "  $(COLOR_GREEN)make bb TARGET=ffmpeg BB_TASK=clean$(COLOR_RESET) Run 'bitbake -c clean ffmpeg'"
+	@echo -e "  $(COLOR_GREEN)make bb BB_ARGS=\"-s\"$(COLOR_RESET)               Run 'bitbake -s'"
+	@echo -e "  $(COLOR_GREEN)make devtool ARGS=\"modify freetype\"$(COLOR_RESET) Run 'devtool modify freetype'"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Variables:$(COLOR_RESET)"
 	@echo -e "  MACHINE      Target hardware (default: hd51)"
@@ -228,6 +239,44 @@ else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
 endif
+
+.PHONY: bb
+bb: init
+	@echo -e "$(COLOR_BOLD)Running BitBake...$(COLOR_RESET)"
+	@if [[ -z "$(BB_CMD)" ]]; then \
+		echo -e "$(COLOR_RED)Missing BitBake args. Use 'make bb-<target>' or set BB_ARGS/BB_TASK/BB_TARGET.$(COLOR_RESET)"; \
+		exit 1; \
+	fi
+ifeq ($(USE_CLI),1)
+	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG) --target "$(BB_CMD)"
+else
+	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
+	@exit 1
+endif
+
+bb-%:
+	@$(MAKE) bb BB_TARGET=$*
+
+.PHONY: devtool
+devtool: init
+	@echo -e "$(COLOR_BOLD)Running devtool...$(COLOR_RESET)"
+	@if [[ -z "$(DEVTOOL_ARGS)" ]]; then \
+		echo -e "$(COLOR_RED)Missing devtool args. Use 'make devtool ARGS=\"modify freetype\"'.$(COLOR_RESET)"; \
+		exit 1; \
+	fi
+	@conf_dir="$(CONF_BUILDDIR)/conf"; \
+	local_conf="$$conf_dir/local.conf"; \
+	bblayers_conf="$$conf_dir/bblayers.conf"; \
+	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
+		echo -e "$(COLOR_RED)Config missing. Run 'make config MACHINE=$(MACHINE)' first.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
+	if [[ ! -f "$$oe_init" ]]; then \
+		echo -e "$(COLOR_RED)OE init script not found: $$oe_init$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	bash -c "source $$oe_init $(CONF_BUILDDIR) >/dev/null && devtool $(DEVTOOL_ARGS)"
 
 .PHONY: clean
 clean:

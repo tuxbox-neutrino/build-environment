@@ -46,6 +46,11 @@ ifeq ($(MACHINEBUILD_EXPLICIT),)
 else
   MACHINEBUILD_ARG := --machinebuild $(MACHINEBUILD)
 endif
+MACHIME_ORIGIN := $(origin MACHIME)
+MACHIME_EXPLICIT := $(filter command line,$(MACHIME_ORIGIN))
+ifneq ($(MACHIME_EXPLICIT),)
+  $(error Unknown variable MACHIME. Did you mean MACHINE=... ?)
+endif
 FORCE_CONFIG ?=
 FORCE_CONFIG_ARG := $(if $(filter 1 yes true,$(FORCE_CONFIG)),--force-config,)
 

@@ -142,8 +142,9 @@ BB_DISKMON_DIRS ??= "\
 # machine that uses the same shared state (e.g. the same package architecture) are available
 # they can be used to greatly reduce build time.
 #
-# Tuxbox-OS shared sstate server (when available)
-#SSTATE_MIRRORS ?= "file://.* http://sstate.tuxbox-neutrino.org/kirkstone/PATH;downloadfilename=PATH"
+# Tuxbox-OS shared sstate server (read-only, best-effort)
+SSTATE_MIRRORS ?= "file://.* https://sstate.tuxbox-neutrino.org/kirkstone/release/PATH;downloadfilename=PATH"
+# To disable, set SSTATE_MIRRORS = "" in local.conf.user.inc
 
 #
 # Qemu configuration

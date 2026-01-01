@@ -226,6 +226,10 @@ If you build regularly, you can upload your sstate cache to a server so other
 users can reuse it. This is helpful when everyone uses the same pinned layer
 revisions.
 
+By default, generated configs point at the public mirror:
+`https://sstate.tuxbox-neutrino.org/kirkstone/release`. You can disable it by
+setting `SSTATE_MIRRORS = ""` in `build/conf/local.conf.user.inc`.
+
 1) Create a local config file (not tracked by git):
 
 ```make

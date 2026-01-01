@@ -74,6 +74,7 @@ SSTATE_RSYNC_DEST ?=
 SSTATE_RSYNC_OPTS ?= -a
 SSTATE_RSYNC_SSH ?=
 SSTATE_RSYNC_EXCLUDE ?=
+SSTATE_RSYNC_EXCLUDE_ESC := $(subst ",\",$(SSTATE_RSYNC_EXCLUDE))
 SSTATE_DEPLOY_DRYRUN ?= 1
 SSTATE_DEPLOY_DELETE ?=
 SSTATE_DEPLOY_SRC ?= $(SSTATE_DIR)
@@ -316,7 +317,7 @@ deploy-sstate:
 	if [[ "$(SSTATE_DEPLOY_DELETE)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--delete"); fi; \
 	if [[ "$(SSTATE_DEPLOY_DRYRUN)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--dry-run"); fi; \
 	if [[ -n "$(SSTATE_RSYNC_SSH)" ]]; then rsync_opts+=("-e" "$(SSTATE_RSYNC_SSH)"); fi; \
-	excludes_raw="$(SSTATE_RSYNC_EXCLUDE)"; \
+	excludes_raw="$(SSTATE_RSYNC_EXCLUDE_ESC)"; \
 	excludes_raw="$${excludes_raw//\"/}"; \
 	excludes_raw="$${excludes_raw//\'/}"; \
 	if [[ -n "$$excludes_raw" ]]; then \

@@ -172,8 +172,9 @@ MACHINE = "hd51"
 DISTRO = "tuxbox"
 DL_DIR = "${TOPDIR}/downloads"
 SSTATE_DIR = "${TOPDIR}/sstate-cache"
-BB_NUMBER_THREADS = "8"    # CPU cores
-PARALLEL_MAKE = "-j 8"     # Parallel compilation
+# Parallelism defaults: leave unset to use BitBake auto CPU count
+# BB_NUMBER_THREADS ?= "${@oe.utils.cpu_count()}"
+# PARALLEL_MAKE ?= "-j ${@oe.utils.cpu_count()}"
 # Optional: switch Lua provider if needed
 # PREFERRED_PROVIDER_virtual/lua = "lua"
 ```
@@ -360,17 +361,16 @@ DL_DIR = "/opt/tuxbox-os/downloads"
 
 ### Parallel Builds
 
-**Threads**: BitBake task parallelism
+**Default**: BitBake already sets parallelism to CPU count when variables are
+unset (see `poky/meta/conf/bitbake.conf`).
+
+**Optional override** (in `local.conf.user.inc`):
 ```
 BB_NUMBER_THREADS = "8"  # Run 8 recipes in parallel
-```
-
-**Make Jobs**: Compilation parallelism
-```
 PARALLEL_MAKE = "-j 8"   # Run 8 gcc jobs in parallel
 ```
 
-**Recommendation**: `nproc - 1` (leave 1 core for system)
+**Recommendation**: use `nproc - 1` if you want to leave one core for the system.
 
 ## Security Considerations
 

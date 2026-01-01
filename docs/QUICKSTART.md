@@ -188,6 +188,19 @@ TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
 
 (Coolstream defaults to `build-${MACHINE}/tmp`.) Edit as needed.
 
+### Parallelism Defaults (Recommended)
+
+We intentionally **do not set** `BB_NUMBER_THREADS` or `PARALLEL_MAKE` in
+`local.conf`. BitBake already defaults both values to your CPU count
+(see `poky/meta/conf/bitbake.conf`).  
+
+If you want to override, do it in `build/conf/local.conf.user.inc`:
+
+```conf
+BB_NUMBER_THREADS = "8"
+PARALLEL_MAKE = "-j 8"
+```
+
 ### Image Naming Overrides (Optional)
 
 `build/conf/local.conf.user.inc` includes a commented template for image naming

@@ -736,12 +736,6 @@ class TuxboxBuilder:
         with open(template_file) as f:
             content = f.read()
 
-        # Calculate optimal thread counts
-        import multiprocessing
-        cpu_count = multiprocessing.cpu_count()
-        bb_threads = max(1, cpu_count - 1)  # Leave 1 core for system
-        parallel_make = max(1, cpu_count)
-
         # Default MACHINEBUILD to MACHINE if not provided
         effective_machinebuild = machinebuild or machine
 
@@ -749,8 +743,6 @@ class TuxboxBuilder:
         content = content.replace('##MACHINE##', machine)
         content = content.replace('##MACHINEBUILD##', effective_machinebuild)
         content = content.replace('##DISTRO##', distro)
-        content = content.replace('##BB_NUMBER_THREADS##', str(bb_threads))
-        content = content.replace('##PARALLEL_MAKE##', str(parallel_make))
         content = content.replace('##DL_DIR##', str(self.dl_dir))
         content = content.replace('##SSTATE_DIR##', str(self.sstate_dir))
         content = content.replace('##TMPDIR##', str(target_builddir / 'tmp'))
@@ -778,8 +770,8 @@ class TuxboxBuilder:
         self.info(f"  Machine: {machine}")
         self.info(f"  MachineBuild: {effective_machinebuild}")
         self.info(f"  Distro: {distro}")
-        self.info(f"  Threads: {bb_threads}")
-        self.info(f"  Parallel: {parallel_make}")
+        self.info("  Threads: default (auto)")
+        self.info("  Parallel: default (auto)")
 
     def ensure_user_overrides(self, conf_dir: Path, machine: str):
         """Create optional local override files if missing."""
@@ -794,6 +786,10 @@ class TuxboxBuilder:
                 "# Example:\n"
                 "# DL_DIR = \"/path/to/downloads\"\n"
                 "# SSTATE_DIR = \"/path/to/sstate-cache\"\n"
+                "#\n"
+                "# Parallelism (optional; defaults are auto CPU count):\n"
+                "# BB_NUMBER_THREADS = \"8\"\n"
+                "# PARALLEL_MAKE = \"-j 8\"\n"
                 "#\n"
                 "# Image naming (examples - uncomment to use):\n"
                 "#\n"

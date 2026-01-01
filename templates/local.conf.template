@@ -194,18 +194,20 @@ CONF_VERSION = "2"
 # These two options control how much parallelism BitBake should use. The first
 # option determines how many tasks bitbake should run in parallel:
 #
-BB_NUMBER_THREADS ?= "##BB_NUMBER_THREADS##"
+# We intentionally leave these unset to use BitBake's auto defaults
+# (see poky/meta/conf/bitbake.conf).
+# To override, set them in local.conf.user.inc, for example:
+# BB_NUMBER_THREADS = "8"
+# PARALLEL_MAKE = "-j 8"
 #
-# Default to setting automatically based on cpu count
-#BB_NUMBER_THREADS ?= "${@oe.utils.cpu_count()}"
+# Default to setting automatically based on CPU count (optional):
+# BB_NUMBER_THREADS ?= "${@oe.utils.cpu_count()}"
 #
 # The second option controls how many processes make should run in parallel when
 # running compile tasks:
 #
-PARALLEL_MAKE ?= "-j ##PARALLEL_MAKE##"
-#
-# Default to setting automatically based on cpu count
-#PARALLEL_MAKE ?= "-j ${@oe.utils.cpu_count()}"
+# Default to setting automatically based on CPU count (optional):
+# PARALLEL_MAKE ?= "-j ${@oe.utils.cpu_count()}"
 #
 # For a quad-core machine, BB_NUMBER_THREADS = "4", PARALLEL_MAKE = "-j 4" would
 # be appropriate for example.

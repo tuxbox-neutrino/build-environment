@@ -6,6 +6,7 @@
 
 # Generated configuration
 /.tuxbox/state.json
+/.tuxbox/deploy.conf
 /conf/
 /bitbake.lock
 

@@ -65,6 +65,17 @@ DL_DIR := $(TOPDIR)/downloads
 SSTATE_DIR := $(TOPDIR)/sstate-cache
 CONF_BUILDDIR = $(if $(filter coolstream%,$(MACHINE)),$(TOPDIR)/build-$(MACHINE),$(BUILDDIR))
 
+# Sstate deployment (optional)
+DEPLOY_CONFIG ?= $(TOPDIR)/.tuxbox/deploy.conf
+ifneq ("$(wildcard $(DEPLOY_CONFIG))","")
+include $(DEPLOY_CONFIG)
+endif
+SSTATE_RSYNC_DEST ?=
+SSTATE_RSYNC_OPTS ?= -a
+SSTATE_RSYNC_SSH ?=
+SSTATE_DEPLOY_DRYRUN ?= 1
+SSTATE_DEPLOY_DELETE ?=
+
 # State tracking
 STATE_FILE := $(TOPDIR)/.tuxbox/state.json
 
@@ -93,6 +104,7 @@ help:
 	@echo -e "$(COLOR_BOLD)Maintenance:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
 	@echo -e "  $(COLOR_GREEN)make distclean$(COLOR_RESET)                       Clean everything"
+	@echo -e "  $(COLOR_GREEN)make deploy-sstate$(COLOR_RESET)                   Upload sstate cache (rsync)"
 	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules"
 	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + submodules (pinned)"
 	@echo ""
@@ -277,6 +289,32 @@ devtool: init
 		exit 1; \
 	fi; \
 	bash -c "source $$oe_init $(CONF_BUILDDIR) >/dev/null && devtool $(DEVTOOL_ARGS)"
+
+.PHONY: deploy-sstate
+deploy-sstate:
+	@echo -e "$(COLOR_BOLD)Deploying sstate cache...$(COLOR_RESET)"
+	@if [[ -z "$(SSTATE_RSYNC_DEST)" ]]; then \
+		echo -e "$(COLOR_RED)Missing SSTATE_RSYNC_DEST.$(COLOR_RESET)"; \
+		echo -e "Set it in $(DEPLOY_CONFIG) or pass it on the command line:"; \
+		echo -e "  make deploy-sstate SSTATE_RSYNC_DEST=user@host:/path/to/sstate"; \
+		exit 1; \
+	fi
+	@if ! command -v rsync >/dev/null 2>&1; then \
+		echo -e "$(COLOR_RED)rsync not found. Install rsync and try again.$(COLOR_RESET)"; \
+		exit 1; \
+	fi
+	@if [[ ! -d "$(SSTATE_DIR)" ]]; then \
+		echo -e "$(COLOR_RED)SSTATE_DIR not found: $(SSTATE_DIR)$(COLOR_RESET)"; \
+		exit 1; \
+	fi
+	@rsync_opts=($(SSTATE_RSYNC_OPTS)); \
+	if [[ "$(SSTATE_DEPLOY_DELETE)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--delete"); fi; \
+	if [[ "$(SSTATE_DEPLOY_DRYRUN)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--dry-run"); fi; \
+	if [[ -n "$(SSTATE_RSYNC_SSH)" ]]; then rsync_opts+=("-e" "$(SSTATE_RSYNC_SSH)"); fi; \
+	dest="$(SSTATE_RSYNC_DEST)"; \
+	dest="$${dest%/}/"; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) rsync $${rsync_opts[*]} \"$(SSTATE_DIR)/\" \"$$dest\""; \
+	rsync "$${rsync_opts[@]}" "$(SSTATE_DIR)/" "$$dest"
 
 .PHONY: clean
 clean:

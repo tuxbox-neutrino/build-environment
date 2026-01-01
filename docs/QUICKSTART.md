@@ -220,6 +220,41 @@ BB_NUMBER_THREADS = "8"
 PARALLEL_MAKE = "-j 8"
 ```
 
+### Sstate Cache Sharing (Optional)
+
+If you build regularly, you can upload your sstate cache to a server so other
+users can reuse it. This is helpful when everyone uses the same pinned layer
+revisions.
+
+1) Create a local config file (not tracked by git):
+
+```make
+# .tuxbox/deploy.conf
+SSTATE_RSYNC_DEST = user@host:/srv/sstate/kirkstone/tuxbox/release
+SSTATE_RSYNC_SSH = ssh -i ~/.ssh/id_rsa
+SSTATE_RSYNC_OPTS = -a --info=stats2
+SSTATE_DEPLOY_DRYRUN = 1
+SSTATE_DEPLOY_DELETE = 0
+```
+
+2) Run the deploy command (defaults to dry-run for safety):
+
+```bash
+make deploy-sstate
+```
+
+3) When ready to upload, disable dry-run:
+
+```bash
+make deploy-sstate SSTATE_DEPLOY_DRYRUN=0
+```
+
+Notes:
+- Keep separate server paths for different branches/distro types to avoid
+  mixing incompatible caches.
+- Consumers can point to your server with `SSTATE_MIRRORS` in
+  `build/conf/local.conf.user.inc`.
+
 ### Image Naming Overrides (Optional)
 
 `build/conf/local.conf.user.inc` includes a commented template for image naming

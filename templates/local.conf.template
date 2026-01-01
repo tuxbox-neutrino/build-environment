@@ -173,7 +173,14 @@ PACKAGECONFIG:append:pn-qemu-system-native = " sdl"
 #
 # A shared hash equivalent server can be set with "<HOSTNAME>:<PORT>" format
 #
+# Default: disable local hash equivalence when using the public SSTATE mirror.
+# A local hashserv (unix://) has a different unihash context than the mirror,
+# so cache hits will be rare unless you also use a shared upstream hashserv.
+BB_HASHSERVE = ""
+#
+# Advanced: enable hash equivalence with a shared upstream server.
 #BB_HASHSERVE = "auto"
+#BB_HASHSERVE_UPSTREAM = "hashserv.tuxbox-neutrino.org:8686"
 #BB_SIGNATURE_HANDLER = "OEEquivHash"
 
 #

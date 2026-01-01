@@ -230,6 +230,18 @@ By default, generated configs point at the public mirror:
 `https://sstate.tuxbox-neutrino.org/kirkstone/release`. You can disable it by
 setting `SSTATE_MIRRORS = ""` in `build/conf/local.conf.user.inc`.
 
+Hash equivalence is disabled by default when using the public mirror. A local
+hash server (unix socket) uses a different unihash context, which would make
+mirror hits very rare. If you run a shared hash server, you can enable it in
+`build/conf/local.conf.user.inc`:
+
+```conf
+BB_HASHSERVE = "auto"
+BB_HASHSERVE_UPSTREAM = "hashserv.tuxbox-neutrino.org:8686"
+BB_SIGNATURE_HANDLER = "OEEquivHash"
+```
+
+
 1) Create a local config file (not tracked by git):
 
 ```make

@@ -26,6 +26,8 @@ BBMASK:append = "|.*/oe-alliance/meta-oe/recipes-devtools/gcc/.*11.2.*"
 BBMASK:append = "|.*/edid-decode.*"
 BBMASK:append = "|.*/oe-alliance/meta-oe/recipes-devtools/python/python3-youtube-dl.*|.*/oe-alliance/meta-oe/recipes-devtools/python/python3-yt-dlp.*|.*/oe-alliance/meta-oe/recipes-devtools/python/streamlink.*"
 BBMASK:append = "|.*/oe-alliance/meta-oe/recipes-core/base-files/base-files_3.0.14.bbappend"
+# Temporary: mask Kodi recipes (SRCREV_FORMAT issue; see TODO list)
+BBMASK:append = "|.*/oe-alliance/.*kodi.*|.*/meta-brands/.*/recipes-kodi/.*|.*/meta-tuxbox/recipes-kodi/.*|.*/meta-tuxbox/recipes-multimedia/kodi.*|.*/meta-tuxbox/recipes-multimedia/kodi-addons.*|.*/meta-tuxbox/recipes-multimedia/kodiext.*"
 
 # Remove Enigma2-only machine extras from OE-Alliance machine configs
 EXTRA_IMAGEDEPENDS:remove = "enigma2-plugin-systemplugins-remotecontrolcode"

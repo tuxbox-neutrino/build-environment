@@ -67,9 +67,8 @@ CONF_BUILDDIR = $(if $(filter coolstream%,$(MACHINE)),$(TOPDIR)/build-$(MACHINE)
 
 # Sstate deployment (optional)
 DEPLOY_CONFIG ?= $(TOPDIR)/.tuxbox/deploy.conf
-ifneq ("$(wildcard $(DEPLOY_CONFIG))","")
-include $(DEPLOY_CONFIG)
-endif
+# Optional include; missing file should not fail the build.
+-include $(DEPLOY_CONFIG)
 SSTATE_RSYNC_DEST ?=
 SSTATE_RSYNC_OPTS ?= -a
 SSTATE_RSYNC_SSH ?=

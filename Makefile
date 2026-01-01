@@ -73,6 +73,7 @@ DEPLOY_CONFIG ?= $(TOPDIR)/.tuxbox/deploy.conf
 SSTATE_RSYNC_DEST ?=
 SSTATE_RSYNC_OPTS ?= -a
 SSTATE_RSYNC_SSH ?=
+SSTATE_RSYNC_EXCLUDE ?=
 SSTATE_DEPLOY_DRYRUN ?= 1
 SSTATE_DEPLOY_DELETE ?=
 SSTATE_DEPLOY_SRC ?= $(SSTATE_DIR)
@@ -134,6 +135,7 @@ help:
 	@echo -e "  DISTRO       Distribution (default: tuxbox)"
 	@echo -e "  DISTRO_TYPE  Build type: release|development (default: release)"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
+	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"
@@ -314,6 +316,13 @@ deploy-sstate:
 	if [[ "$(SSTATE_DEPLOY_DELETE)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--delete"); fi; \
 	if [[ "$(SSTATE_DEPLOY_DRYRUN)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--dry-run"); fi; \
 	if [[ -n "$(SSTATE_RSYNC_SSH)" ]]; then rsync_opts+=("-e" "$(SSTATE_RSYNC_SSH)"); fi; \
+	excludes_raw="$(SSTATE_RSYNC_EXCLUDE)"; \
+	if [[ -n "$$excludes_raw" ]]; then \
+		excludes=($${excludes_raw//,/ }); \
+		for ex in "$${excludes[@]}"; do \
+			[[ -n "$$ex" ]] && rsync_opts+=("--exclude=$$ex"); \
+		done; \
+	fi; \
 	dest="$(SSTATE_RSYNC_DEST)"; \
 	dest="$${dest%/}/"; \
 	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) rsync $${rsync_opts[*]} \"$(SSTATE_DEPLOY_SRC)/\" \"$$dest\""; \

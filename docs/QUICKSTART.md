@@ -251,6 +251,7 @@ variables on the command line instead.
 SSTATE_RSYNC_DEST = user@host:/srv/sstate/kirkstone/tuxbox/release
 SSTATE_RSYNC_SSH = ssh -i $${HOME}/.ssh/id_rsa
 SSTATE_RSYNC_OPTS = -a --info=stats2
+SSTATE_RSYNC_EXCLUDE = tmp cache
 SSTATE_DEPLOY_DRYRUN = 1
 SSTATE_DEPLOY_DELETE = 0
 # Optional: if your sstate cache lives elsewhere

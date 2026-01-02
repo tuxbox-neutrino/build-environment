@@ -717,9 +717,7 @@ class TuxboxBuilder:
             if ref:
                 refs.append((name, ref))
         if refs:
-            self.info("Layer refs:")
-            for name, ref in refs:
-                self.info(f"  {name}: {ref}")
+            self._print_table("Layer refs", ["Layer", "Ref"], refs)
 
     def machines(self, args):
         """List machines by brand using OE-Alliance meta-brands."""

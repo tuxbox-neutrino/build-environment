@@ -613,6 +613,49 @@ class TuxboxBuilder:
 
         return machine_brands.get(machine, 'unknown')
 
+    def _git_output(self, path: Path, args: List[str]) -> Optional[str]:
+        if not path.exists():
+            return None
+        result = subprocess.run(
+            ['git', '-C', str(path)] + args,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return None
+        value = result.stdout.strip()
+        return value or None
+
+    def _layer_ref(self, path: Path) -> Optional[str]:
+        if not self._git_output(path, ['rev-parse', '--git-dir']):
+            return None
+        branch = self._git_output(path, ['rev-parse', '--abbrev-ref', 'HEAD'])
+        commit = self._git_output(path, ['rev-parse', '--short', 'HEAD'])
+        if branch and branch != 'HEAD':
+            return f"{branch}:{commit}" if commit else branch
+        name = self._git_output(path, ['name-rev', '--name-only', '--no-undefined', 'HEAD'])
+        if name:
+            return f"detached({name}):{commit}" if commit else f"detached({name})"
+        return f"detached:{commit}" if commit else "detached"
+
+    def _print_layer_refs(self):
+        layers = [
+            ('poky', self.topdir / 'poky'),
+            ('oe-alliance', self.topdir / 'oe-alliance'),
+            ('meta-openembedded', self.topdir / 'meta-openembedded'),
+            ('meta-neutrino', self.topdir / 'meta-neutrino'),
+            ('meta-tuxbox', self.topdir / 'meta-tuxbox'),
+        ]
+        refs = []
+        for name, path in layers:
+            ref = self._layer_ref(path)
+            if ref:
+                refs.append((name, ref))
+        if refs:
+            self.info("Layer refs:")
+            for name, ref in refs:
+                self.info(f"  {name}: {ref}")
+
     def machines(self, args):
         """List machines by brand using OE-Alliance meta-brands."""
         brand_map = self._load_brand_machines()
@@ -1122,6 +1165,7 @@ class TuxboxBuilder:
                 machinebuild = selected.get('machinebuild')
             target_builddir = Path(selected['builddir']) if selected.get('builddir') else self.builddir
 
+        self._print_layer_refs()
         self.log(f"=== Building {target} for {machine} ===", Colors.BOLD, bold=True)
         if machinebuild:
             self.info(f"Using MACHINEBUILD={machinebuild}")

@@ -167,6 +167,7 @@ endif
 init: check
 	@echo -e "$(COLOR_BOLD)Initializing Tuxbox-OS build environment...$(COLOR_RESET)"
 ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) init $(MACHINE_ARG) $(MACHINEBUILD_ARG)"
 	@$(CLI) init $(MACHINE_ARG) $(MACHINEBUILD_ARG)
 else
 	@$(TOPDIR)/scripts/init.sh
@@ -180,6 +181,7 @@ else
 	@echo -e "$(COLOR_BOLD)Building image for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 endif
 ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)"
 	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
@@ -190,6 +192,7 @@ endif
 config: init
 	@echo -e "$(COLOR_BOLD)Generating config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)"
 	@$(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
@@ -200,6 +203,7 @@ endif
 show-config:
 	@echo -e "$(COLOR_BOLD)Showing config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) show-config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)"
 	@$(CLI) show-config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
@@ -263,6 +267,7 @@ endif
 devshell: init
 	@echo -e "$(COLOR_BOLD)Starting development shell for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --devshell $(FORCE_CONFIG_ARG)"
 	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --devshell $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
@@ -277,6 +282,7 @@ bb: init
 		exit 1; \
 	fi
 ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG) --target \"$(BB_CMD)\""
 	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG) --target "$(BB_CMD)"
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
@@ -305,6 +311,7 @@ devtool: init
 		echo -e "$(COLOR_RED)OE init script not found: $$oe_init$(COLOR_RESET)"; \
 		exit 1; \
 	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(CONF_BUILDDIR) >/dev/null && devtool $(DEVTOOL_ARGS)"; \
 	bash -c "source $$oe_init $(CONF_BUILDDIR) >/dev/null && devtool $(DEVTOOL_ARGS)"
 
 .PHONY: deploy-sstate

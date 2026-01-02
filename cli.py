@@ -691,17 +691,17 @@ class TuxboxBuilder:
         value = result.stdout.strip()
         return value or None
 
-    def _layer_ref(self, path: Path) -> Optional[str]:
+    def _layer_ref(self, path: Path) -> Optional[Tuple[str, str, str]]:
         if not self._git_output(path, ['rev-parse', '--git-dir']):
             return None
         branch = self._git_output(path, ['rev-parse', '--abbrev-ref', 'HEAD'])
-        commit = self._git_output(path, ['rev-parse', '--short', 'HEAD'])
+        commit = self._git_output(path, ['rev-parse', '--short', 'HEAD']) or "-"
         if branch and branch != 'HEAD':
-            return f"{branch}:{commit}" if commit else branch
+            return ("branch", branch, commit)
         name = self._git_output(path, ['name-rev', '--name-only', '--no-undefined', 'HEAD'])
         if name:
-            return f"detached({name}):{commit}" if commit else f"detached({name})"
-        return f"detached:{commit}" if commit else "detached"
+            return ("detached", name, commit)
+        return ("detached", "-", commit)
 
     def _print_layer_refs(self):
         layers = [
@@ -715,9 +715,10 @@ class TuxboxBuilder:
         for name, path in layers:
             ref = self._layer_ref(path)
             if ref:
-                refs.append((name, ref))
+                state, ref_name, commit = ref
+                refs.append((name, state, ref_name, commit))
         if refs:
-            self._print_table("Layer refs", ["Layer", "Ref"], refs)
+            self._print_table("Layer refs", ["Layer", "State", "Ref", "Commit"], refs)
 
     def machines(self, args):
         """List machines by brand using OE-Alliance meta-brands."""

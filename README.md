@@ -107,6 +107,18 @@ Avoid these pitfalls:
 - Do not use slashes in `IMAGE_NAME` (must be a filename).
 - Do not change `IMAGE_NAME_SUFFIX` unless your tooling expects it.
 
+### Troubleshooting: hdfastboot8gb basehash mismatch
+
+On GFutures fastboot machines (hd60/hd61/hd66se), a basehash mismatch can
+appear if `IMAGE_NAME` includes `DATETIME`. Ensure submodules are up to date;
+recent `meta-tuxbox` excludes `IMAGE_NAME` from that task’s signature.
+
+If you want a fresh timestamped image every run, force the task:
+
+```bash
+bitbake -f -c do_image_hdfastboot8gb tuxbox-image
+```
+
 ## Supported Platforms
 
 ### Priority Platforms (Tested)

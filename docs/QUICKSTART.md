@@ -412,6 +412,19 @@ sudo apt install -y gawk wget git diffstat unzip texinfo \
 git submodule update --init --recursive --force
 ```
 
+### Build Fails: basehash mismatch in do_image_hdfastboot8gb
+
+This can occur on GFutures fastboot machines (hd60/hd61/hd66se) when
+`IMAGE_NAME` includes `DATETIME`, which makes the task signature change
+between parses. Ensure your submodules are up to date; recent `meta-tuxbox`
+excludes `IMAGE_NAME` from that task’s signature.
+
+If you *want* a fresh timestamped image every time, force the task:
+
+```bash
+bitbake -f -c do_image_hdfastboot8gb tuxbox-image
+```
+
 ### Reset Everything
 
 ```bash

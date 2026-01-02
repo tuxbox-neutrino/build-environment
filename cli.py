@@ -1343,9 +1343,10 @@ source {oe_init_script} {self.builddir}
             bb_cmd = f"bitbake {target}"
             build_cmd += f"{bb_cmd}\n"
 
-        self.log("BitBake command (oe-init-build-env):", Colors.BOLD, bold=True)
-        self.info(f"  source {oe_init_script} {self.builddir}")
-        self.info(f"  {bb_cmd}")
+        self._print_table("BitBake command (oe-init-build-env)", ["Step", "Command"], [
+            ("1", f"source {oe_init_script} {self.builddir}"),
+            ("2", bb_cmd),
+        ])
         self.info(f"Building target: {target}")
         if offline:
             self.info("Offline mode: enabled")
@@ -1377,9 +1378,10 @@ source {oe_init_script} {self.builddir}
 bitbake -c devshell {target}
 """
 
-        self.log("BitBake command (oe-init-build-env):", Colors.BOLD, bold=True)
-        self.info(f"  source {oe_init_script} {self.builddir}")
-        self.info(f"  bitbake -c devshell {target}")
+        self._print_table("BitBake command (oe-init-build-env)", ["Step", "Command"], [
+            ("1", f"source {oe_init_script} {self.builddir}"),
+            ("2", f"bitbake -c devshell {target}"),
+        ])
         # Execute interactively
         result = self.run_cmd(['bash', '-c', devshell_cmd], check=False)
 

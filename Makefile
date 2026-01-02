@@ -81,7 +81,7 @@ SSTATE_DEPLOY_SRC ?= $(SSTATE_DIR)
 DL_RSYNC_DEST ?=
 DL_RSYNC_OPTS ?= -a
 DL_RSYNC_SSH ?=
-DL_RSYNC_EXCLUDE ?=
+DL_RSYNC_EXCLUDE ?= tmp cache *.done *.lock *.tmp
 DL_RSYNC_EXCLUDE_ESC := $(subst ",\",$(DL_RSYNC_EXCLUDE))
 DL_DEPLOY_DRYRUN ?= 1
 DL_DEPLOY_DELETE ?=
@@ -147,7 +147,7 @@ help:
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
-	@echo -e "  DL_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
+	@echo -e "  DL_RSYNC_EXCLUDE Exclude patterns (default: tmp cache *.done *.lock *.tmp)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"

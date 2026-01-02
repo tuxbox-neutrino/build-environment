@@ -264,7 +264,7 @@ SSTATE_DEPLOY_DELETE = 0
 # DL_RSYNC_DEST = user@host:/srv/downloads/tuxbox/kirkstone
 # DL_RSYNC_SSH = ssh -i $${HOME}/.ssh/id_rsa
 # DL_RSYNC_OPTS = -a --info=stats2
-# DL_RSYNC_EXCLUDE = tmp cache *.done *.siginfo
+# DL_RSYNC_EXCLUDE defaults to: tmp cache *.done *.lock *.tmp
 # DL_DEPLOY_DRYRUN = 1
 # DL_DEPLOY_DELETE = 0
 # Optional: if your downloads live elsewhere

@@ -170,6 +170,9 @@ If configs already exist, `make image` reuses them. To force regeneration:
 make image MACHINE=hd51 FORCE_CONFIG=1
 ```
 
+Tip: The CLI prints the underlying `oe-init-build-env` + `bitbake` command
+before executing it, so you can copy/paste and run it manually if you prefer.
+
 ### BitBake and devtool wrappers (optional)
 
 You can run BitBake targets without typing `bitbake` directly:

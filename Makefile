@@ -54,6 +54,7 @@ ifneq ($(MACHIME_EXPLICIT),)
 endif
 FORCE_CONFIG ?=
 FORCE_CONFIG_ARG := $(if $(filter 1 yes true,$(FORCE_CONFIG)),--force-config,)
+FORCE_INIT ?=
 BB_TARGET ?= $(TARGET)
 BB_TASK ?=
 BB_ARGS ?=
@@ -144,6 +145,7 @@ help:
 	@echo -e "  MACHINEBUILD OEM variant (default: MACHINE)"
 	@echo -e "  DISTRO       Distribution (default: tuxbox)"
 	@echo -e "  DISTRO_TYPE  Build type: release|development (default: release)"
+	@echo -e "  FORCE_INIT   Force re-run init (default: 0)"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
@@ -164,48 +166,57 @@ else
 endif
 
 .PHONY: init
+ifeq ($(USE_CLI),1)
+init:
+	@run_init=0; \
+	if [[ "$(FORCE_INIT)" =~ ^(1|yes|true)$$ ]]; then \
+		run_init=1; \
+	elif [[ ! -f "$(STATE_FILE)" ]]; then \
+		run_init=1; \
+	fi; \
+	if [[ $$run_init -eq 1 ]]; then \
+		echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) init $(MACHINE_ARG) $(MACHINEBUILD_ARG)"; \
+		$(CLI) init $(MACHINE_ARG) $(MACHINEBUILD_ARG); \
+	fi
+else
 init: check
 	@echo -e "$(COLOR_BOLD)Initializing Tuxbox-OS build environment...$(COLOR_RESET)"
-ifeq ($(USE_CLI),1)
-	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) init $(MACHINE_ARG) $(MACHINEBUILD_ARG)"
-	@$(CLI) init $(MACHINE_ARG) $(MACHINEBUILD_ARG)
-else
 	@$(TOPDIR)/scripts/init.sh
 endif
 
 .PHONY: image
 image: init
+ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)"
+	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
+else
 ifeq ($(MACHINE_EXPLICIT),)
 	@echo -e "$(COLOR_BOLD)Building image using existing config...$(COLOR_RESET)"
 else
 	@echo -e "$(COLOR_BOLD)Building image for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 endif
-ifeq ($(USE_CLI),1)
-	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)"
-	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
-else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1
 endif
 
 .PHONY: config
 config: init
-	@echo -e "$(COLOR_BOLD)Generating config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)"
 	@$(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
+	@echo -e "$(COLOR_BOLD)Generating config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1
 endif
 
 .PHONY: show-config
 show-config:
-	@echo -e "$(COLOR_BOLD)Showing config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) show-config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)"
 	@$(CLI) show-config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
+	@echo -e "$(COLOR_BOLD)Showing config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
 endif
@@ -265,18 +276,17 @@ endif
 
 .PHONY: devshell
 devshell: init
-	@echo -e "$(COLOR_BOLD)Starting development shell for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --devshell $(FORCE_CONFIG_ARG)"
 	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --devshell $(FORCE_CONFIG_ARG)
 else
+	@echo -e "$(COLOR_BOLD)Starting development shell for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1
 endif
 
 .PHONY: bb
 bb: init
-	@echo -e "$(COLOR_BOLD)Running BitBake...$(COLOR_RESET)"
 	@if [[ -z "$(BB_CMD)" ]]; then \
 		echo -e "$(COLOR_RED)Missing BitBake args. Use 'make bb-<target>' or set BB_ARGS/BB_TASK/BB_TARGET.$(COLOR_RESET)"; \
 		exit 1; \
@@ -285,6 +295,7 @@ ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG) --target \"$(BB_CMD)\""
 	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG) --target "$(BB_CMD)"
 else
+	@echo -e "$(COLOR_BOLD)Running BitBake...$(COLOR_RESET)"
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1
 endif

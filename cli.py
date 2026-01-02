@@ -229,6 +229,71 @@ class TuxboxBuilder:
             lines.append(f"... {remaining} more brands")
         return lines
 
+    def _brand_summary_rows(self, max_brands: int = 5, max_machines: int = 6) -> List[Tuple[str, str]]:
+        """Return short brand -> machines rows for tabular display."""
+        brand_map = self._load_brand_machines()
+        if not brand_map:
+            return []
+
+        preferred = [
+            'gfutures',
+            'airdigital',
+            'vuplus',
+            'coolstream',
+            'ini',
+            'edision',
+        ]
+        rows: List[Tuple[str, str]] = []
+        seen = set()
+
+        for brand in preferred + sorted(brand_map.keys()):
+            if brand in seen or brand not in brand_map:
+                continue
+            machines = brand_map[brand]
+            if not machines:
+                continue
+            sample = ", ".join(machines[:max_machines])
+            extra = len(machines) - max_machines
+            if extra > 0:
+                sample = f"{sample}, ... (+{extra} more)"
+            rows.append((brand, sample))
+            seen.add(brand)
+            if len(rows) >= max_brands:
+                break
+
+        remaining = len(brand_map) - len(seen)
+        if remaining > 0:
+            rows.append(("...", f"{remaining} more brands"))
+        return rows
+
+    def _print_kv_table(self, title: str, rows: List[Tuple[str, str]]):
+        if not rows:
+            return
+        self.log(title, Colors.BOLD, bold=True)
+        width = max(len(key) for key, _ in rows)
+        for key, value in rows:
+            self.info(f"  {key:<{width}} : {value}")
+
+    def _print_table(self, title: str, headers: List[str], rows: List[Tuple[str, ...]]):
+        if not rows:
+            return
+        self.log(title, Colors.BOLD, bold=True)
+        col_widths = [len(header) for header in headers]
+        for row in rows:
+            for idx, cell in enumerate(row):
+                col_widths[idx] = max(col_widths[idx], len(str(cell)))
+
+        header_line = "  " + "  ".join(
+            f"{headers[idx]:<{col_widths[idx]}}" for idx in range(len(headers))
+        )
+        self.info(header_line)
+        self.info("  " + "  ".join("-" * width for width in col_widths))
+        for row in rows:
+            row_line = "  " + "  ".join(
+                f"{str(row[idx]):<{col_widths[idx]}}" for idx in range(len(headers))
+            )
+            self.info(row_line)
+
     def _extract_includes(self, text: str) -> List[str]:
         includes: List[str] = []
         for line in text.splitlines():
@@ -1120,13 +1185,18 @@ class TuxboxBuilder:
         self.save_state(state)
 
         self.success("Build environment initialized successfully!")
-        examples = self._brand_summary_lines()
+        self.info("")
+        self._print_kv_table("Environment", [
+            ("Build dir", str(self.builddir)),
+            ("DL dir", str(self.dl_dir)),
+            ("SSTATE dir", str(self.sstate_dir)),
+        ])
+
+        examples = self._brand_summary_rows()
         if examples:
             self.info("")
-            self.info("Machine examples by brand (from OE-Alliance):")
-            for line in examples:
-                self.info(f"  {line}")
-            self.info("Full list: make list-machines")
+            self._print_table("Machine examples (OE-Alliance)", ["Brand", "Examples"], examples)
+            self.info("  Full list: make list-machines")
 
         hint_machine = getattr(args, 'machine', None) or os.environ.get('MACHINE')
         hint_machinebuild = getattr(args, 'machinebuild', None) or os.environ.get('MACHINEBUILD')
@@ -1137,18 +1207,23 @@ class TuxboxBuilder:
             if len(build_names) == 1 and build_names[0] != example_machine:
                 example_machinebuild = build_names[0]
 
-        self.info("\nNext steps:")
+        self.info("")
+        self._print_table("Next steps", ["Tool", "Command"], [
+            (
+                "Make",
+                f"make image MACHINE={example_machine}" +
+                (f" MACHINEBUILD={example_machinebuild}" if example_machinebuild else "")
+            ),
+            (
+                "CLI",
+                f"./cli.py build --machine {example_machine}" +
+                (f" --machinebuild {example_machinebuild}" if example_machinebuild else "")
+            ),
+        ])
         if hint_machine:
-            self.info(f"  make image MACHINE={example_machine}" +
-                      (f" MACHINEBUILD={example_machinebuild}" if example_machinebuild else ""))
-            self.info("  # Or using the CLI:")
-            self.info(f"  ./cli.py build --machine {example_machine}" +
-                      (f" --machinebuild {example_machinebuild}" if example_machinebuild else ""))
-            self.info("  # Note: MACHINEBUILD is required for some machines.")
+            self.info("  Note: MACHINEBUILD is required for some machines.")
         else:
-            self.info(f"  make image MACHINE={example_machine}  # example")
-            self.info("  # Or using the CLI:")
-            self.info(f"  ./cli.py build --machine {example_machine}  # example")
+            self.info("  Note: examples use hd51 by default.")
 
     def build(self, args):
         """Build an image."""
@@ -1174,8 +1249,6 @@ class TuxboxBuilder:
 
         self._print_layer_refs()
         self.log(f"=== Building {target} for {machine} ===", Colors.BOLD, bold=True)
-        if machinebuild:
-            self.info(f"Using MACHINEBUILD={machinebuild}")
 
         # Select per-machine build directory (isolate Coolstream builds)
         if not target_builddir:
@@ -1206,6 +1279,7 @@ class TuxboxBuilder:
         local_conf = conf_dir / 'local.conf'
         bblayers_conf = conf_dir / 'bblayers.conf'
         config_exists = local_conf.exists() and bblayers_conf.exists()
+        config_status = "existing"
         if config_exists and not args.force_config:
             configured_machine = self._read_conf_value(local_conf, 'MACHINE')
             configured_machinebuild = self._read_conf_value(local_conf, 'MACHINEBUILD')
@@ -1224,9 +1298,20 @@ class TuxboxBuilder:
                 sys.exit(1)
             if not machinebuild and configured_machinebuild:
                 machinebuild = configured_machinebuild
-            self.info("Using existing configuration (not regenerating)")
         else:
             self.generate_config(machine, distro, distro_type, machinebuild, target_builddir)
+            config_status = "generated"
+
+        self.info("")
+        self._print_kv_table("Build summary", [
+            ("Target", target),
+            ("Machine", machine),
+            ("MachineBuild", machinebuild or "-"),
+            ("Distro", distro),
+            ("Distro type", distro_type),
+            ("Build dir", str(self.builddir)),
+            ("Config", config_status),
+        ])
 
         # Setup environment and invoke BitBake
         if args.devshell:

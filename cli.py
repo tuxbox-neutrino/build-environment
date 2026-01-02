@@ -1089,14 +1089,16 @@ class TuxboxBuilder:
 
         self.info("\nNext steps:")
         if hint_machine:
+            self.info(f"  make image MACHINE={example_machine}" +
+                      (f" MACHINEBUILD={example_machinebuild}" if example_machinebuild else ""))
+            self.info("  # Or using the CLI:")
             self.info(f"  ./cli.py build --machine {example_machine}" +
                       (f" --machinebuild {example_machinebuild}" if example_machinebuild else ""))
-            self.info(f"  make image MACHINE={example_machine}" +
-                      (f" MACHINEBUILD={example_machinebuild}" if example_machinebuild else "") +
-                      " (MACHINEBUILD required for some machines)")
+            self.info("  # Note: MACHINEBUILD is required for some machines.")
         else:
-            self.info(f"  ./cli.py build --machine {example_machine}  # example")
             self.info(f"  make image MACHINE={example_machine}  # example")
+            self.info("  # Or using the CLI:")
+            self.info(f"  ./cli.py build --machine {example_machine}  # example")
 
     def build(self, args):
         """Build an image."""

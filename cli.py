@@ -1082,6 +1082,10 @@ class TuxboxBuilder:
         hint_machinebuild = getattr(args, 'machinebuild', None) or os.environ.get('MACHINEBUILD')
         example_machine = hint_machine or "hd51"
         example_machinebuild = hint_machinebuild if hint_machinebuild and hint_machinebuild != example_machine else None
+        if hint_machine and not example_machinebuild:
+            build_names, _ = self._machinebuild_candidates(hint_machine)
+            if len(build_names) == 1 and build_names[0] != example_machine:
+                example_machinebuild = build_names[0]
 
         self.info("\nNext steps:")
         if hint_machine:

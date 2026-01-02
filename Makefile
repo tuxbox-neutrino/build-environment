@@ -78,6 +78,14 @@ SSTATE_RSYNC_EXCLUDE_ESC := $(subst ",\",$(SSTATE_RSYNC_EXCLUDE))
 SSTATE_DEPLOY_DRYRUN ?= 1
 SSTATE_DEPLOY_DELETE ?=
 SSTATE_DEPLOY_SRC ?= $(SSTATE_DIR)
+DL_RSYNC_DEST ?=
+DL_RSYNC_OPTS ?= -a
+DL_RSYNC_SSH ?=
+DL_RSYNC_EXCLUDE ?=
+DL_RSYNC_EXCLUDE_ESC := $(subst ",\",$(DL_RSYNC_EXCLUDE))
+DL_DEPLOY_DRYRUN ?= 1
+DL_DEPLOY_DELETE ?=
+DL_DEPLOY_SRC ?= $(DL_DIR)
 
 # State tracking
 STATE_FILE := $(TOPDIR)/.tuxbox/state.json
@@ -108,6 +116,7 @@ help:
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
 	@echo -e "  $(COLOR_GREEN)make distclean$(COLOR_RESET)                       Clean everything"
 	@echo -e "  $(COLOR_GREEN)make deploy-sstate$(COLOR_RESET)                   Upload sstate cache (rsync)"
+	@echo -e "  $(COLOR_GREEN)make deploy-downloads$(COLOR_RESET)                Upload downloads cache (rsync)"
 	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules"
 	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + submodules (pinned)"
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
@@ -137,6 +146,8 @@ help:
 	@echo -e "  DISTRO_TYPE  Build type: release|development (default: release)"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
+	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
+	@echo -e "  DL_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"
@@ -330,6 +341,41 @@ deploy-sstate:
 	dest="$${dest%/}/"; \
 	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) rsync $${rsync_opts[*]} \"$(SSTATE_DEPLOY_SRC)/\" \"$$dest\""; \
 	rsync "$${rsync_opts[@]}" "$(SSTATE_DEPLOY_SRC)/" "$$dest"
+
+.PHONY: deploy-downloads
+deploy-downloads:
+	@echo -e "$(COLOR_BOLD)Deploying downloads cache...$(COLOR_RESET)"
+	@if [[ -z "$(DL_RSYNC_DEST)" ]]; then \
+		echo -e "$(COLOR_RED)Missing DL_RSYNC_DEST.$(COLOR_RESET)"; \
+		echo -e "Set it in $(DEPLOY_CONFIG) or pass it on the command line:"; \
+		echo -e "  make deploy-downloads DL_RSYNC_DEST=user@host:/path/to/downloads"; \
+		exit 1; \
+	fi
+	@if ! command -v rsync >/dev/null 2>&1; then \
+		echo -e "$(COLOR_RED)rsync not found. Install rsync and try again.$(COLOR_RESET)"; \
+		exit 1; \
+	fi
+	@if [[ ! -d "$(DL_DEPLOY_SRC)" ]]; then \
+		echo -e "$(COLOR_RED)Downloads source not found: $(DL_DEPLOY_SRC)$(COLOR_RESET)"; \
+		exit 1; \
+	fi
+	@rsync_opts=($(DL_RSYNC_OPTS)); \
+	if [[ "$(DL_DEPLOY_DELETE)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--delete"); fi; \
+	if [[ "$(DL_DEPLOY_DRYRUN)" =~ ^(1|yes|true)$$ ]]; then rsync_opts+=("--dry-run"); fi; \
+	if [[ -n "$(DL_RSYNC_SSH)" ]]; then rsync_opts+=("-e" "$(DL_RSYNC_SSH)"); fi; \
+	excludes_raw="$(DL_RSYNC_EXCLUDE_ESC)"; \
+	excludes_raw="$${excludes_raw//\"/}"; \
+	excludes_raw="$${excludes_raw//\'/}"; \
+	if [[ -n "$$excludes_raw" ]]; then \
+		excludes=($${excludes_raw//,/ }); \
+		for ex in "$${excludes[@]}"; do \
+			[[ -n "$$ex" ]] && rsync_opts+=("--exclude=$$ex"); \
+		done; \
+	fi; \
+	dest="$(DL_RSYNC_DEST)"; \
+	dest="$${dest%/}/"; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) rsync $${rsync_opts[*]} \"$(DL_DEPLOY_SRC)/\" \"$$dest\""; \
+	rsync "$${rsync_opts[@]}" "$(DL_DEPLOY_SRC)/" "$$dest"
 
 .PHONY: clean
 clean:

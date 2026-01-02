@@ -259,6 +259,16 @@ SSTATE_DEPLOY_DRYRUN = 1
 SSTATE_DEPLOY_DELETE = 0
 # Optional: if your sstate cache lives elsewhere
 # SSTATE_DEPLOY_SRC = /path/to/sstate-cache
+
+# Optional: mirror downloads (DL_DIR) to a server
+# DL_RSYNC_DEST = user@host:/srv/downloads/tuxbox/kirkstone
+# DL_RSYNC_SSH = ssh -i $${HOME}/.ssh/id_rsa
+# DL_RSYNC_OPTS = -a --info=stats2
+# DL_RSYNC_EXCLUDE = tmp cache *.done *.siginfo
+# DL_DEPLOY_DRYRUN = 1
+# DL_DEPLOY_DELETE = 0
+# Optional: if your downloads live elsewhere
+# DL_DEPLOY_SRC = /path/to/downloads
 ```
 
 2) Run the deploy command (defaults to dry-run for safety):
@@ -267,10 +277,22 @@ SSTATE_DEPLOY_DELETE = 0
 make deploy-sstate
 ```
 
+To deploy downloads instead:
+
+```bash
+make deploy-downloads
+```
+
 3) When ready to upload, disable dry-run:
 
 ```bash
 make deploy-sstate SSTATE_DEPLOY_DRYRUN=0
+```
+
+Or for downloads:
+
+```bash
+make deploy-downloads DL_DEPLOY_DRYRUN=0
 ```
 
 Notes:

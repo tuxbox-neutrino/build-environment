@@ -107,6 +107,19 @@ Avoid these pitfalls:
 - Do not use slashes in `IMAGE_NAME` (must be a filename).
 - Do not change `IMAGE_NAME_SUFFIX` unless your tooling expects it.
 
+### Source Download Mirror (Optional)
+
+You can use the public source mirror for faster downloads. Generated configs
+enable it in `build/conf/local.conf.user.inc`. Remove the lines below if you
+want upstream-only fetches:
+
+```conf
+INHERIT += "own-mirrors"
+SOURCE_MIRROR_URL = "https://archiv.tuxbox-neutrino.org/"
+# Optional: fail if the mirror misses a source (no upstream fetch)
+# BB_FETCH_PREMIRRORONLY = "1"
+```
+
 ### Troubleshooting: hdfastboot8gb basehash mismatch
 
 On GFutures fastboot machines (hd60/hd61/hd66se), a basehash mismatch can

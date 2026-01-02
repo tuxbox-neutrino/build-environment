@@ -231,6 +231,14 @@ CONF_VERSION = "2"
 DL_DIR ?= "##DL_DIR##"
 
 #
+# Source download mirror (optional, not enabled by default)
+#
+# The public mirror is enabled by default in local.conf.user.inc.
+# Remove the lines below there if you want upstream-only fetches.
+# Optional: fail if the mirror misses a source (no upstream fetch)
+# BB_FETCH_PREMIRRORONLY = "1"
+
+#
 # Shared-state directory
 #
 # Where to place the build cache

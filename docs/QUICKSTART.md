@@ -244,6 +244,22 @@ BB_SIGNATURE_HANDLER = "OEEquivHash"
 If you disable hash equivalence (default), the signature handler falls back to
 `OEBasicHash`.
 
+### Source Download Mirror (Optional)
+
+The public source mirror provides pre-fetched downloads. It is separate from
+the sstate cache and only affects `DL_DIR` fetches.
+
+Generated configs enable the public mirror in `build/conf/local.conf.user.inc`
+so downloads still work if upstream is flaky. Remove the lines below to use
+upstream-only fetches:
+
+```conf
+INHERIT += "own-mirrors"
+SOURCE_MIRROR_URL = "https://archiv.tuxbox-neutrino.org/"
+# Optional: fail if the mirror misses a source (no upstream fetch)
+# BB_FETCH_PREMIRRORONLY = "1"
+```
+
 The `.tuxbox/deploy.conf` file is optional. If it does not exist, pass the
 variables on the command line instead.
 

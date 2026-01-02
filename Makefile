@@ -179,7 +179,7 @@ endif
 config: init
 	@echo -e "$(COLOR_BOLD)Generating config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) config --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+	@$(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1

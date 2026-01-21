@@ -99,6 +99,12 @@ BUILDHISTORY_COMMIT ?= "1"
 #
 # Interactive shell configuration
 #
+# Compiler cache (ccache)
+# Enable to speed up rebuilds; default is off.
+#INHERIT += "ccache"
+#CCACHE_TOP_DIR = "${HOME}/.ccache"
+#export CCACHE_MAXSIZE = "30G"
+#
 # Under certain circumstances the system may need input from you and to do this it
 # can launch an interactive shell. It needs to do this since the build is
 # multithreaded and needs to be able to handle the case where more than one parallel

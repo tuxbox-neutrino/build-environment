@@ -102,7 +102,7 @@ BUILDHISTORY_COMMIT ?= "1"
 # Compiler cache (ccache)
 # Enable to speed up rebuilds; default is off.
 #INHERIT += "ccache"
-#CCACHE_TOP_DIR = "${HOME}/.ccache"
+#CCACHE_DIR = "${HOME}/.ccache"
 #export CCACHE_MAXSIZE = "30G"
 #
 # Under certain circumstances the system may need input from you and to do this it

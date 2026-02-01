@@ -387,8 +387,11 @@ make update
 # Or
 ./cli.py sync
 ```
-`make update` / `./cli.py sync` move submodules to upstream HEAD and will leave
-your working tree dirty unless you commit updated submodule pointers.
+Warning: `make update` / `./cli.py sync` move submodules to upstream HEAD
+(unpinned). This can put you on branches/REVs that do not match the pinned build
+and will leave your working tree dirty unless you commit updated submodule
+pointers. Use only when you are intentionally updating layer pins.
+If you ran this by mistake, run `make sync` to return to pinned versions.
 
 ### Update Layers (Submodules)
 

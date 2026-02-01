@@ -44,9 +44,11 @@ If you get repeated passphrase prompts, load your SSH key once:
 ssh-add ~/.ssh/id_rsa
 ```
 
-Note: `make update` and `./cli.py sync` move submodules to upstream HEAD
-(unpinned) and will leave your working tree dirty unless you commit the new
+Warning: `make update` and `./cli.py sync` move submodules to upstream HEAD
+(unpinned). This can put layers on branches/REVs that do not match the pinned
+build and will leave your working tree dirty unless you commit the new
 submodule pointers. Use those only when you intend to update layer pins.
+If you run them by mistake, use `make sync` to return to the pinned state.
 
 ### 3. Build an Image
 

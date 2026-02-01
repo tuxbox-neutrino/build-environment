@@ -51,7 +51,18 @@ git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-## 5. Update a layer to the latest upstream (advanced)
+## 5. make sync vs make update (important)
+
+- `make sync`: pulls the top-level repo and checks out pinned submodule commits
+  (safe for builds).
+- `make update` / `./cli.py sync`: moves submodules to upstream HEAD (as set in
+  `.gitmodules`), leaves the tree dirty unless you commit new pointers, and can
+  put layers on branches/REVs that do not match the pinned build.
+
+If you ran `make update` by mistake, run `make sync` to return to the pinned
+state.
+
+## 6. Update a layer to the latest upstream (advanced)
 
 Only do this if you know why you need newer layer commits.
 
@@ -66,7 +77,7 @@ git commit -m "Update meta-tuxbox"
 
 Repeat for `meta-neutrino` if needed.
 
-## 6. Branch and tag policy
+## 7. Branch and tag policy
 
 - Default branch: `master` (current Yocto line)
 - Maintenance branches: `gatesgarth`, `kirkstone`, etc.

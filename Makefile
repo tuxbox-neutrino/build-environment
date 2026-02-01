@@ -118,8 +118,8 @@ help:
 	@echo -e "  $(COLOR_GREEN)make distclean$(COLOR_RESET)                       Clean everything"
 	@echo -e "  $(COLOR_GREEN)make deploy-sstate$(COLOR_RESET)                   Upload sstate cache (rsync)"
 	@echo -e "  $(COLOR_GREEN)make deploy-downloads$(COLOR_RESET)                Upload downloads cache (rsync)"
-	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules to upstream HEAD (unpinned)"
-	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + pinned submodules (safe)"
+	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules to upstream HEAD (DEV ONLY, unpinned)"
+	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + pinned submodules (safe/pinned)"
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
@@ -418,6 +418,9 @@ distclean:
 update:
 	@echo -e "$(COLOR_BOLD)Syncing submodule URLs...$(COLOR_RESET)"
 	@git submodule sync --recursive
+	@echo -e "$(COLOR_YELLOW)Warning: make update moves submodules to upstream HEAD (unpinned).$(COLOR_RESET)"
+	@echo -e "$(COLOR_YELLOW)Use this only when you intend to update layer pins; for builds use make sync.$(COLOR_RESET)"
+	@echo -e "$(COLOR_YELLOW)It will leave the working tree dirty unless you commit updated pointers.$(COLOR_RESET)"
 	@echo -e "$(COLOR_BOLD)Updating submodules to upstream HEAD (unpinned)...$(COLOR_RESET)"
 	@git submodule update --remote --recursive
 	@echo -e "$(COLOR_GREEN)Submodules updated (unpinned).$(COLOR_RESET)"

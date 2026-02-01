@@ -118,8 +118,8 @@ help:
 	@echo -e "  $(COLOR_GREEN)make distclean$(COLOR_RESET)                       Clean everything"
 	@echo -e "  $(COLOR_GREEN)make deploy-sstate$(COLOR_RESET)                   Upload sstate cache (rsync)"
 	@echo -e "  $(COLOR_GREEN)make deploy-downloads$(COLOR_RESET)                Upload downloads cache (rsync)"
-	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules"
-	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + submodules (pinned)"
+	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update submodules to upstream HEAD (unpinned)"
+	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Update repo + pinned submodules (safe)"
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
@@ -416,14 +416,18 @@ distclean:
 
 .PHONY: update
 update:
-	@echo -e "$(COLOR_BOLD)Updating submodules...$(COLOR_RESET)"
+	@echo -e "$(COLOR_BOLD)Syncing submodule URLs...$(COLOR_RESET)"
+	@git submodule sync --recursive
+	@echo -e "$(COLOR_BOLD)Updating submodules to upstream HEAD (unpinned)...$(COLOR_RESET)"
 	@git submodule update --remote --recursive
-	@echo -e "$(COLOR_GREEN)Submodules updated.$(COLOR_RESET)"
+	@echo -e "$(COLOR_GREEN)Submodules updated (unpinned).$(COLOR_RESET)"
 
 .PHONY: sync
 sync:
 	@echo -e "$(COLOR_BOLD)Updating repository...$(COLOR_RESET)"
 	@git pull --ff-only
+	@echo -e "$(COLOR_BOLD)Syncing submodule URLs...$(COLOR_RESET)"
+	@git submodule sync --recursive
 	@echo -e "$(COLOR_BOLD)Updating submodules (pinned)...$(COLOR_RESET)"
 	@if [[ -z "$(SYNC_EXCLUDE)" ]]; then \
 		git submodule update --init --recursive; \

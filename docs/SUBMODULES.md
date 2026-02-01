@@ -45,6 +45,9 @@ git submodule update --init --recursive
 This will update all submodules to the exact commits recorded by the builder:
 
 ```bash
+make sync
+# Or, raw git (no top-level pull):
+git submodule sync --recursive
 git submodule update --init --recursive
 ```
 

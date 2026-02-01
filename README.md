@@ -23,9 +23,12 @@ cd tuxbox-os-builder
 ./cli.py init
 ```
 
-If you already cloned without submodules:
+If you already cloned without submodules or want to resync later (safe/pinned):
 
 ```bash
+make sync
+# Or, raw git (pinned submodules only, no top-level pull):
+git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
@@ -40,6 +43,10 @@ If you get repeated passphrase prompts, load your SSH key once:
 ```bash
 ssh-add ~/.ssh/id_rsa
 ```
+
+Note: `make update` and `./cli.py sync` move submodules to upstream HEAD
+(unpinned) and will leave your working tree dirty unless you commit the new
+submodule pointers. Use those only when you intend to update layer pins.
 
 ### 3. Build an Image
 
@@ -177,7 +184,8 @@ make help                         # Show all commands
 ./cli.py build -m hd51 --offline  # Offline build
 ./cli.py build -m hd51 --devshell # Drop to development shell
 ./cli.py fetch-only -m hd51       # Download sources only
-./cli.py sync --check             # Check upstream updates
+./cli.py sync --check             # Check upstream updates (no changes)
+./cli.py sync                     # Update submodules to upstream HEAD (unpinned)
 ./cli.py clean -m hd51            # Clean build directory
 ```
 

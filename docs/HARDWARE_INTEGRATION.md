@@ -8,6 +8,8 @@ OE-Alliance machine is ready for Neutrino out of the box.
 - [Reality Check](#reality-check)
 - [Where Hardware Support Lives](#where-hardware-support-lives)
 - [libstb-hal Selection and Boxmodel Mapping](#libstb-hal-selection-and-boxmodel-mapping)
+- [Hardware Caps: Where to Find Them](#hardware-caps-where-to-find-them)
+- [Example: Add a New Boxmodel](#example-add-a-new-boxmodel)
 - [Workflow: Add a New Machine](#workflow-add-a-new-machine)
 - [Verification Checklist](#verification-checklist)
 - [Contributing Upstream](#contributing-upstream)
@@ -62,6 +64,76 @@ Current boxmodels (library-stb-hal):
 
 If your machine name is not in this list, `configure` will fail and Neutrino
 cannot run. You must add the boxmodel and hardware caps.
+
+## Hardware Caps: Where to Find Them
+
+`libstb-hal` exposes hardware capabilities via `hw_caps_t`:
+
+- Struct definition: `library-stb-hal/include/hardware_caps.h`
+- ARM caps: `library-stb-hal/libarmbox/hardware_caps.c`
+- MIPS caps: `library-stb-hal/libmipsbox/hardware_caps.c`
+- Generic/PC: `library-stb-hal/libgeneric-pc/hardware_caps.c`
+- Raspberry Pi: `library-stb-hal/libraspi/hardware_caps.c`
+
+Common fields to set (examples):
+
+- `has_CI`, `has_HDMI`, `has_SCART`, `can_cec`, `can_shutdown`
+- `display_type`, `display_xres`, `display_yres`, display flags
+- `boxmodel`, `boxvendor`, `boxname`, `boxarch`
+
+Where to get values:
+
+- `/proc/stb/info/*` for boxtype/model info
+- Machine docs or OEM datasheets (display resolution, CI slots, HDMI)
+- Existing similar models in `hardware_caps.c` (same SoC/brand)
+- Device nodes (`/dev/dvb/*`, `/dev/fb*`) and frontpanel drivers
+
+## Example: Add a New Boxmodel
+
+Example: `gb800solo` (MIPS) is defined in OE-A, but not in `libstb-hal`.
+Use `gb800se` as a starting point and adjust to real hardware values.
+
+1) Add the boxmodel to `library-stb-hal/acinclude.m4`:
+
+```m4
+AS_HELP_STRING([], [valid for mipsbox: vuduo, vuduo2, gb800se, gb800solo, osnino, osninoplus, osninopro]),
+...
+AM_CONDITIONAL(BOXMODEL_GB800SOLO, test "$BOXMODEL" = "gb800solo")
+...
+elif test "$BOXMODEL" = "gb800solo"; then
+    AC_DEFINE(BOXMODEL_GB800SOLO, 1, [gb800solo])
+```
+
+2) Add hardware caps in `library-stb-hal/libmipsbox/hardware_caps.c`:
+
+```c
+#if BOXMODEL_GB800SOLO
+    caps.has_CI = 1; /* verify */
+    caps.can_cec = 0; /* verify */
+    caps.can_shutdown = 1;
+    caps.display_type = HW_DISPLAY_LINE_TEXT; /* or LED, verify */
+    caps.display_xres = 16;
+    caps.display_can_deepstandby = 1;
+    caps.display_can_set_brightness = 1;
+    caps.has_HDMI = 1;
+    caps.has_SCART = 1; /* verify */
+    strcpy(caps.startup_file, "");
+    strcpy(caps.boxmodel, "gb800solo");
+    strcpy(caps.boxvendor, "GigaBlue");
+    strcpy(caps.boxname, "GB800 SOLO");
+    strcpy(caps.boxarch, "BCM7325"); /* verify */
+#endif
+```
+
+3) Build and test:
+
+```bash
+bitbake libstb-hal -c compile
+bitbake neutrino
+bitbake tuxbox-image
+```
+
+If it boots, validate HDMI, audio, demux, PIP, frontpanel, and standby.
 
 ## Workflow: Add a New Machine
 

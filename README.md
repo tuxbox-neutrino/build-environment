@@ -15,34 +15,52 @@ sudo apt install -y gawk wget git diffstat unzip texinfo \
   libacl1 curl
 ```
 
-### 2. Clone & Initialize
+TIPP:
+Use SSH instead of HTTPS for GitHub submodules (avoid login prompts)
 
-```bash
-git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
-cd tuxbox-os-builder
-./cli.py init
-```
+If Git tries to update or clone GitHub repositories/submodules via **HTTPS**
+(`https://github.com/...`) it may prompt for credentials (typically a **token**
+rather than a password). Switching to **SSH** (`git@github.com:...`) lets Git use
+your **SSH key**, which usually avoids repeated prompts and works better for
+automated builds/CI.
 
-If you already cloned without submodules or want to resync later (safe/pinned):
-
-```bash
-make sync
-# Or, raw git (pinned submodules only, no top-level pull):
-git submodule sync --recursive
-git submodule update --init --recursive
-```
-
-If you have access to private GitHub submodules, use SSH instead of HTTPS:
+Rewrite all GitHub HTTPS URLs to SSH (recommended)
+This makes Git automatically replace `https://github.com/` with `git@github.com:` for all repositories on your machine:
 
 ```bash
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
-
-If you get repeated passphrase prompts, load your SSH key once:
-
+Ensure an SSH agent is running
+```bash
+eval "$(ssh-agent -s)"
+```
+Then run
 ```bash
 ssh-add ~/.ssh/id_rsa
 ```
+
+### 2. Initialize or Update
+
+### 2.1. Clone for 1st Initialize
+```bash
+git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
+cd tuxbox-os-builder
+make init
+```
+
+### 2.2. Update and Sync
+If you already cloned without submodules or want to resync later (safe/pinned):
+```bash
+make sync
+```
+
+... or, raw git (pinned submodules only, no top-level pull):
+```bash
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+### 2.3 Sync with Upstreams
 
 Warning: `make update` and `./cli.py sync` move submodules to upstream HEAD
 (unpinned). This can put layers on branches/REVs that do not match the pinned

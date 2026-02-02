@@ -98,7 +98,6 @@ already exists.
 ```bash
 # First build (recommended): pass MACHINE (and MACHINEBUILD if needed).
 # This auto-generates config if it does not exist yet.
-make image MACHINE=hd51
 make image MACHINE=hd51 MACHINEBUILD=mutant51
 
 # If a config already exists, you can just run:
@@ -114,7 +113,7 @@ make edit-conf MACHINE=hd51     # opens the include files
 make image MACHINE=hd51 FORCE_CONFIG=1
 
 # OEM/brand variants (use MACHINEBUILD when it differs from MACHINE)
-make image MACHINE=hd51 MACHINEBUILD=mutant51
+make image MACHINE=hd60 MACHINEBUILD=ax60
 
 # Find valid MACHINEBUILD values
 make list-machines
@@ -128,7 +127,7 @@ MACHINEBUILD=mutant51 ./cli.py build --machine hd51
 `make show-config` reports where values come from (local.conf vs include
 files) and lists layers with their source file.
 
-Built images will be in `build/tmp/deploy/images/hd51/`
+Built images will be in `build/tmp/deploy/images/<machine>/` (e.g. `hd51/`).
 
 ### Persistent Local Overrides (Beginner Friendly)
 

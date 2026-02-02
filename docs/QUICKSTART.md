@@ -115,6 +115,15 @@ variant. If multiple variants exist, you must set `MACHINEBUILD`.
 
 ## Step 4: Build Your First Image
 
+Important: first build requires `MACHINE` (and `MACHINEBUILD` when needed).
+`make image` without `MACHINE` only works after a config already exists. If
+you are unsure about `MACHINEBUILD`, use:
+
+```bash
+make list-machines
+make machine-info MACHINE=hd51
+```
+
 ### For GFutures (Mut@nt/AX) HD51
 
 ```bash
@@ -125,28 +134,12 @@ variant. If multiple variants exist, you must set `MACHINEBUILD`.
 make image MACHINE=hd51 MACHINEBUILD=mutant51
 ```
 
-### OEM variants (use MACHINEBUILD when it differs)
-
-```bash
-# Example: OEM variant for hd51
-make image MACHINE=hd51 MACHINEBUILD=mutant51
-MACHINEBUILD=mutant51 ./cli.py build --machine hd51
-
-# Find valid MACHINEBUILD values
-make list-machines
-make machine-info MACHINE=hd51
-```
-
 ### For GFutures (Mut@nt/AX) HD60/HD61
 
 ```bash
 make image MACHINE=hd60 MACHINEBUILD=ax60   # or mutant60
 make image MACHINE=hd61 MACHINEBUILD=ax61
 ```
-
-First build: always pass `MACHINE` (and `MACHINEBUILD` when required) or run
-`make config` first. `make image` without `MACHINE` only works after a config
-already exists.
 
 If `build/conf/local.conf` already exists, you can also run just:
 

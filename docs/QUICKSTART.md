@@ -144,6 +144,10 @@ make image MACHINE=hd60 MACHINEBUILD=ax60   # or mutant60
 make image MACHINE=hd61 MACHINEBUILD=ax61
 ```
 
+First build: always pass `MACHINE` (and `MACHINEBUILD` when required) or run
+`make config` first. `make image` without `MACHINE` only works after a config
+already exists.
+
 If `build/conf/local.conf` already exists, you can also run just:
 
 ```bash

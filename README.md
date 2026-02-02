@@ -91,9 +91,15 @@ make sync
 
 ### 3. Build an Image
 
+First build: always pass `MACHINE` (and `MACHINEBUILD` if required) or run
+`make config` first. `make image` without `MACHINE` only works after a config
+already exists.
+
 ```bash
-# Build for HD51
+# First build (recommended): pass MACHINE (and MACHINEBUILD if needed).
+# This auto-generates config if it does not exist yet.
 make image MACHINE=hd51
+make image MACHINE=hd51 MACHINEBUILD=mutant51
 
 # If a config already exists, you can just run:
 make image

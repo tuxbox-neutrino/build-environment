@@ -1,9 +1,6 @@
 name: Nightly Build
 
 on:
-  schedule:
-    # Run at 2 AM UTC every night
-    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       machines:

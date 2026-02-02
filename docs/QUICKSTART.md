@@ -27,6 +27,13 @@ sudo apt install -y gawk wget git diffstat unzip texinfo \
   python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl
 ```
 
+For 32-bit targets on a 64-bit host (e.g. armhf machines like HD60/HD61),
+install multilib headers:
+
+```bash
+sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386
+```
+
 ### Configure Locale
 
 ```bash

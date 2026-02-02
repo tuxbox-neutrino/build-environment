@@ -8,14 +8,14 @@ This project keeps the build layers in their own Git repositories:
 - `poky`
 - `meta-openembedded`
 
-The `tuxbox-os-builder` repo only orchestrates the build.
+The `build-environment` repo only orchestrates the build.
 Submodules let us pin exact versions while keeping each layer independent.
 
 ## 1. Clone with submodules
 
 ```bash
-git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
-cd tuxbox-os-builder
+git clone --recurse-submodules https://github.com/tuxbox-neutrino/build-environment.git
+cd build-environment
 ```
 
 ## 2. SSH for private submodules
@@ -84,3 +84,9 @@ Repeat for `meta-neutrino` if needed.
 - Tags: `<codename>-<yocto_version>` (example: `kirkstone-4.0.12`)
 
 This makes it easy to see which layer version matches a specific Yocto release.
+
+## Related Docs
+
+- [QUICKSTART.md](QUICKSTART.md) - First build steps
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System overview
+- [README.md](../README.md) - Project overview and commands

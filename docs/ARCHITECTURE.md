@@ -224,7 +224,7 @@ Configurations are **hash-tracked** - regenerated only when variables change.
 ## Directory Structure
 
 ```
-tuxbox-os-builder/               # Orchestrator repository
+build-environment/               # Orchestrator repository
 ├── Makefile                     # Simple build interface
 ├── cli.py                       # Advanced Python CLI
 ├── scripts/                     # Helper scripts
@@ -429,5 +429,7 @@ make image MACHINE=ultimo4k
 ---
 
 **For more details, see:**
-- [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) - Customization workflows
+- [QUICKSTART.md](QUICKSTART.md) - First build steps
+- [SUBMODULES.md](SUBMODULES.md) - Layers and pinning
 - [COOLSTREAM.md](COOLSTREAM.md) - External toolchain details
+- [README.md](../README.md) - Project overview and commands

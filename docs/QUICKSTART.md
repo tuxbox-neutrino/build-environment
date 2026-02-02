@@ -51,8 +51,8 @@ git config --global user.email "you@example.com"
 ## Step 2: Clone Repository
 
 ```bash
-git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
-cd tuxbox-os-builder
+git clone --recurse-submodules https://github.com/tuxbox-neutrino/build-environment.git
+cd build-environment
 ```
 
 If you already cloned without submodules:
@@ -506,13 +506,13 @@ make distclean  # Removes all builds and caches
 ## Next Steps
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Understand how it works
-- **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** - Customize and extend
+- **[SUBMODULES.md](SUBMODULES.md)** - Layers and pinning
 - **[COOLSTREAM.md](COOLSTREAM.md)** - Build for Coolstream Tank
-- **[FAQ.md](FAQ.md)** - Common questions
+- **[README.md](../README.md)** - Project overview and commands
 
 ## Getting Help
 
-- **Issues**: https://github.com/tuxbox-neutrino/tuxbox-os-builder/issues
+- **Issues**: https://github.com/tuxbox-neutrino/build-environment/issues
 - **Forum**: https://forum.tuxbox-neutrino.org
 - **IRC**: #tuxbox-neutrino on libera.chat
 

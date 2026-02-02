@@ -51,8 +51,8 @@ ssh-add ~/.ssh/id_rsa
 
 ### 2.1. Clone for 1st Initialize
 ```bash
-git clone --recurse-submodules https://github.com/tuxbox-neutrino/tuxbox-os-builder.git
-cd tuxbox-os-builder
+git clone --recurse-submodules https://github.com/tuxbox-neutrino/build-environment.git
+cd build-environment
 make init
 ```
 
@@ -252,7 +252,7 @@ or SSH access for submodules. To automate, re-enable `push`/`schedule` in
 ## Project Structure
 
 ```
-tuxbox-os-builder/           # Orchestrator (this repo)
+build-environment/           # Orchestrator (this repo)
 ├── Makefile                 # Simple build interface
 ├── cli.py                   # Advanced Python CLI
 ├── scripts/                 # Helper scripts
@@ -271,8 +271,8 @@ Submodules (auto-managed):
 
 This is a Tuxbox-Neutrino community project. Contributions welcome!
 
-- Report issues: https://github.com/tuxbox-neutrino/tuxbox-os-builder/issues
-- Submit PRs: https://github.com/tuxbox-neutrino/tuxbox-os-builder/pulls
+- Report issues: https://github.com/tuxbox-neutrino/build-environment/issues
+- Submit PRs: https://github.com/tuxbox-neutrino/build-environment/pulls
 
 ## License
 

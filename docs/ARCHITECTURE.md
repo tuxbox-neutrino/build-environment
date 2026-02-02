@@ -334,6 +334,8 @@ Submodules (Git submodules):
 - Can't mix glibc and uClibc in same layer
 - Clean separation via `meta-tuxbox-toolchain`
 
+**Status**: Coolstream support is experimental/PoC and not production-ready.
+
 **Benefits**:
 - ✅ Doesn't pollute main layer
 - ✅ Optional (only loaded for tank builds)

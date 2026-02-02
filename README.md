@@ -190,7 +190,7 @@ bitbake -f -c do_image_hdfastboot8gb tuxbox-image
 ### Priority Platforms (Tested)
 - **GFutures (Mut@nt/AX)**: HD51, HD60, HD61
 - **AirDigital**: ZgemmaH7, H7S, H7C
-- **Coolstream**: Tank (uClibc toolchain)
+- **Coolstream**: Tank (uClibc toolchain, experimental/PoC)
 
 ### All OE-Alliance Platforms (300+ devices)
 See `make list-machines` for complete list.
@@ -201,7 +201,7 @@ See `make list-machines` for complete list.
 - **Neutrino-Only**: No Enigma2 dependencies
 - **Yocto Kirkstone**: LTS support until May 2026
 - **Hybrid Build System**: Simple for beginners, powerful for developers
-- **External Toolchain**: Coolstream uClibc support
+- **External Toolchain**: Coolstream uClibc support (experimental/PoC)
 - **QEMU Testing**: Fast smoke tests without hardware
 
 ## Build Commands
@@ -247,7 +247,7 @@ or SSH access for submodules. To automate, re-enable `push`/`schedule` in
 - [QUICKSTART.md](docs/QUICKSTART.md) - 5-minute quick start guide
 - [SUBMODULES.md](docs/SUBMODULES.md) - Beginner guide to layers and submodules
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
-- [COOLSTREAM.md](docs/COOLSTREAM.md) - Coolstream Tank uClibc builds
+- [COOLSTREAM.md](docs/COOLSTREAM.md) - Coolstream Tank uClibc builds (experimental/PoC)
 
 ## Project Structure
 

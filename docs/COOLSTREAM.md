@@ -4,6 +4,9 @@ Coolstream HD2-Geräte benötigen eine uClibc-Toolchain. Wir kapseln das in
 `meta-coolstream` (Maschinen/BSP) plus `meta-tuxbox-toolchain`
 (TCMODE `external-coolstream`).
 
+Status: **experimentell / Proof of Concept**. Diese Inhalte sind eine
+Machbarkeitsforschung und noch nicht produktiv.
+
 Siehe auch:
 - [QUICKSTART.md](QUICKSTART.md)
 - [SUBMODULES.md](SUBMODULES.md)

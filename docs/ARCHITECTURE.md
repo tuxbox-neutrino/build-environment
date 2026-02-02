@@ -89,10 +89,10 @@ Tuxbox-OS Builder is a **parasitic integration** system that leverages OE-Allian
 **Philosophy**: Don't reinvent the wheel. Use OE-Alliance as-is.
 
 **Benefits**:
-- ✅ Zero maintenance for hardware support
+- ✅ Low maintenance for hardware definitions (Neutrino integration still required)
 - ✅ Automatic upstream updates
 - ✅ Proven, production-ready infrastructure
-- ✅ 300+ devices without extra work
+- ✅ 300+ machine definitions available (Neutrino integration varies by boxmodel)
 
 **Implementation**:
 - OE-Alliance as **unmodified git submodule** (pinned SHA)
@@ -132,7 +132,17 @@ Higher priority layers can **override** recipes from lower layers.
 - `MACHINE=hd51 DISTRO=tuxbox` → Tuxbox on HD51
 - `MACHINE=hd60 DISTRO=tuxbox` → Tuxbox on HD60
 
-### 4. Image Composition
+### 4. Hardware Coverage and Neutrino Integration
+
+OE-Alliance provides 300+ machine definitions, but not all of them are tested
+or integrated for Neutrino. Neutrino requires `libstb-hal` support, and that
+library only lists a subset of `boxmodel` values. For machines outside that
+subset, you will need to extend `libstb-hal` and the hardware backend.
+
+For a precise bring-up workflow, see:
+`docs/HARDWARE_INTEGRATION.md`.
+
+### 5. Image Composition
 
 Images are built from **packagegroups**:
 
@@ -157,7 +167,7 @@ tuxbox-image.bb
        └─ ... (hardware-dependent)
 ```
 
-### 5. Configuration Generation
+### 6. Configuration Generation
 
 Build configurations are **generated dynamically**:
 
@@ -191,7 +201,7 @@ SSTATE_DIR = "${TOPDIR}/sstate-cache"
 
 Configurations are **hash-tracked** - regenerated only when variables change.
 
-### 6. Build Flow
+### 7. Build Flow
 
 ```
 1. User runs: make image MACHINE=hd51
@@ -443,5 +453,6 @@ make image MACHINE=ultimo4k
 **For more details, see:**
 - [QUICKSTART.md](QUICKSTART.md) - First build steps
 - [SUBMODULES.md](SUBMODULES.md) - Layers and pinning
+- [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md) - Add new hardware
 - [COOLSTREAM.md](COOLSTREAM.md) - External toolchain details
 - [README.md](../README.md) - Project overview and commands

@@ -521,6 +521,7 @@ make distclean  # Removes all builds and caches
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Understand how it works
 - **[SUBMODULES.md](SUBMODULES.md)** - Layers and pinning
+- **[HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md)** - Add new hardware
 - **[COOLSTREAM.md](COOLSTREAM.md)** - Build for Coolstream Tank (experimental/PoC)
 - **[README.md](../README.md)** - Project overview and commands
 

@@ -193,7 +193,9 @@ bitbake -f -c do_image_hdfastboot8gb tuxbox-image
 - **Coolstream**: Tank (uClibc toolchain, experimental/PoC)
 
 ### All OE-Alliance Platforms (300+ devices)
-See `make list-machines` for complete list.
+See `make list-machines` for complete list. Not all machines are tested or
+integrated for Neutrino; `libstb-hal` support is limited. See
+`docs/HARDWARE_INTEGRATION.md` for the bring-up workflow.
 
 ## Key Features
 
@@ -247,6 +249,7 @@ or SSH access for submodules. To automate, re-enable `push`/`schedule` in
 - [QUICKSTART.md](docs/QUICKSTART.md) - 5-minute quick start guide
 - [SUBMODULES.md](docs/SUBMODULES.md) - Beginner guide to layers and submodules
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
+- [HARDWARE_INTEGRATION.md](docs/HARDWARE_INTEGRATION.md) - Add new hardware
 - [COOLSTREAM.md](docs/COOLSTREAM.md) - Coolstream Tank uClibc builds (experimental/PoC)
 
 ## Project Structure

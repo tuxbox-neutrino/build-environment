@@ -100,4 +100,5 @@ This makes it easy to see which layer version matches a specific Yocto release.
 
 - [QUICKSTART.md](QUICKSTART.md) - First build steps
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System overview
+- [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md) - Add new hardware
 - [README.md](../README.md) - Project overview and commands

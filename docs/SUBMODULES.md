@@ -11,6 +11,17 @@ This project keeps the build layers in their own Git repositories:
 The `build-environment` repo only orchestrates the build.
 Submodules let us pin exact versions while keeping each layer independent.
 
+## Contents
+
+- [1. Clone with submodules](#1-clone-with-submodules)
+- [2. SSH for private submodules](#2-ssh-for-private-submodules)
+- [3. Fix empty layer folders](#3-fix-empty-layer-folders)
+- [4. Update to the recorded (safe) versions](#4-update-to-the-recorded-safe-versions)
+- [5. make sync vs make update (important)](#5-make-sync-vs-make-update-important)
+- [6. Update a layer to the latest upstream (advanced)](#6-update-a-layer-to-the-latest-upstream-advanced)
+- [7. Branch and tag policy](#7-branch-and-tag-policy)
+- [Related Docs](#related-docs)
+
 ## 1. Clone with submodules
 
 ```bash

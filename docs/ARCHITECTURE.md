@@ -2,6 +2,16 @@
 
 Understanding the build system architecture and design decisions.
 
+## Contents
+
+- [Overview](#overview)
+- [Core Concepts](#core-concepts)
+- [Directory Structure](#directory-structure)
+- [Key Design Decisions](#key-design-decisions)
+- [Build Optimization](#build-optimization)
+- [Security Considerations](#security-considerations)
+- [Extensibility](#extensibility)
+
 ## Overview
 
 Tuxbox-OS Builder is a **parasitic integration** system that leverages OE-Alliance's mature build infrastructure while providing a Neutrino-focused distribution.

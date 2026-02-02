@@ -420,11 +420,22 @@ make clean
 
 ### Build Package Feeds
 
+Image builds already generate package index files as part of the image build.
+Use the feeds target if you want to refresh indexes without building an image
+or as part of a release feed pipeline.
+
 ```bash
 ./cli.py build --machine hd51 --target feeds
 # Or
 make feeds MACHINE=hd51
 ```
+
+### GitHub Actions (Manual)
+
+Workflows are manual-only by default to keep private submodules working during
+setup. Trigger runs from the Actions tab after configuring secrets or SSH
+access for submodules. To automate, re-enable `push`/`schedule` in
+`.github/workflows/*.yml` once submodule authentication is working.
 
 ### Offline Build
 

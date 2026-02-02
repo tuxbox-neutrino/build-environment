@@ -22,8 +22,7 @@ install multilib headers:
 sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386
 ```
 
-TIPP:
-Use SSH instead of HTTPS for GitHub submodules (avoid login prompts)
+Tip: Use SSH instead of HTTPS for GitHub submodules (avoid login prompts).
 
 If Git tries to update or clone GitHub repositories/submodules via **HTTPS**
 (`https://github.com/...`) it may prompt for credentials (typically a **token**
@@ -31,17 +30,19 @@ rather than a password). Switching to **SSH** (`git@github.com:...`) lets Git us
 your **SSH key**, which usually avoids repeated prompts and works better for
 automated builds/CI.
 
-Rewrite all GitHub HTTPS URLs to SSH (recommended)
+Rewrite all GitHub HTTPS URLs to SSH (recommended):
 This makes Git automatically replace `https://github.com/` with `git@github.com:` for all repositories on your machine:
 
 ```bash
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
-Ensure an SSH agent is running
+
+Ensure an SSH agent is running:
 ```bash
 eval "$(ssh-agent -s)"
 ```
-Then run
+
+Then add your key:
 ```bash
 ssh-add ~/.ssh/id_rsa
 ```
@@ -69,11 +70,24 @@ git submodule update --init --recursive
 
 ### 2.3 Sync with Upstreams
 
+Use this only when you intentionally want to move submodules to upstream HEAD
+(unpinned):
+
+```bash
+make update
+# Or
+./cli.py sync
+```
+
 Warning: `make update` and `./cli.py sync` move submodules to upstream HEAD
 (unpinned). This can put layers on branches/REVs that do not match the pinned
 build and will leave your working tree dirty unless you commit the new
 submodule pointers. Use those only when you intend to update layer pins.
-If you run them by mistake, use `make sync` to return to the pinned state.
+If you run them by mistake, use `make sync` to return to the pinned state:
+
+```bash
+make sync
+```
 
 ### 3. Build an Image
 
@@ -194,7 +208,7 @@ make image MACHINE=hd51 FORCE_CONFIG=1  # Re-generate config
 make config MACHINE=hd51          # Generate config only
 make show-config MACHINE=hd51     # Show config + checks
 make edit-conf MACHINE=hd51       # Edit config files
-make feeds MACHINE=hd51           # Build package feeds
+make feeds MACHINE=hd51           # Build package feeds (optional; image builds also generate indexes)
 make clean                        # Clean build (keeps sstate)
 make distclean                    # Clean everything
 make list-machines                # Show all machines
@@ -215,6 +229,13 @@ make help                         # Show all commands
 ./cli.py sync                     # Update submodules to upstream HEAD (unpinned)
 ./cli.py clean -m hd51            # Clean build directory
 ```
+
+## GitHub Actions (Manual by Default)
+
+Workflows are manual-only for now so private submodules can be used during
+setup. Trigger runs from the Actions tab after configuring repository secrets
+or SSH access for submodules. To automate, re-enable `push`/`schedule` in
+`.github/workflows/*.yml` once submodule authentication is working.
 
 ## Documentation
 

@@ -21,6 +21,19 @@ if [[ ! -d "${BUILD_DIR}/conf" ]]; then
 fi
 
 DEPLOY_DIR="${BUILD_DIR}/tmp/deploy/images/${MACHINE}"
+
+CONF_MACHINE="${BUILD_DIR}/conf/local.conf.${MACHINE}.inc"
+if [[ -f "${CONF_MACHINE}" ]]; then
+  tmpdir_line="$(sed -n 's/^TMPDIR = \"\\(.*\\)\"/\\1/p' "${CONF_MACHINE}" | head -n 1)"
+  if [[ -n "${tmpdir_line}" ]]; then
+    tmpdir="${tmpdir_line}"
+    tmpdir="${tmpdir//\$\{TOPDIR\}/${BUILD_DIR}}"
+    tmpdir="${tmpdir//\$\{MACHINE\}/${MACHINE}}"
+    if [[ -d "${tmpdir}/deploy/images/${MACHINE}" ]]; then
+      DEPLOY_DIR="${tmpdir}/deploy/images/${MACHINE}"
+    fi
+  fi
+fi
 QEMUBOOT_CONF="${DEPLOY_DIR}/${IMAGE}-${MACHINE}.qemuboot.conf"
 
 if [[ -f "${QEMUBOOT_CONF}" ]]; then

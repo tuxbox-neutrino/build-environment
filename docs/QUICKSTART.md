@@ -458,48 +458,14 @@ make feeds MACHINE=hd51
 
 ### QEMU Smoke Tests (qemux86-64)
 
-Current QEMU target: `qemux86-64` only.
-The QEMU image is a minimal smoke-test build (no Neutrino/multimedia stack).
+Full guide: `docs/QEMU.md` (EN) / `docs/de/QEMU.md` (DE).
 
-Build the QEMU image:
+Quick start:
 
 ```bash
 ./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
-```
-
-Run QEMU (headless + user networking):
-
-```bash
 ./scripts/qemu/run-qemu.sh nographic slirp
-```
-
-Run the smoke test in another terminal:
-
-```bash
 ./scripts/qemu/smoke-test.sh
-```
-
-Notes:
-- SSH is forwarded to `127.0.0.1:2222` (override with `SSH_PORT=...`).
-- If `2222` is busy, runqemu will shift the port; set `SSH_PORT` accordingly.
-- The first SSH connection may prompt for the root password (empty, press Enter).
-- Set `SHUTDOWN=0` if you want to keep QEMU running after tests.
-
-If `build/conf` already targets a different machine (e.g. hd60):
-
-Option A (overwrite config in `build/`):
-
-```bash
-make config MACHINE=qemux86-64
-./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
-```
-
-Option B (keep existing config, use separate build dir):
-
-```bash
-./cli.py config --machine qemux86-64 --builddir build-qemu
-./cli.py build --machine qemux86-64 --target tuxbox-qemu-image --builddir build-qemu
-BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
 ```
 
 ### GitHub Actions (Manual)

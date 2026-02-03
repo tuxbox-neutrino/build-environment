@@ -1,0 +1,93 @@
+# QEMU Smoke-Tests (qemux86-64)
+
+Dieses Dokument beschreibt den QEMU-Workflow für Smoke-Tests. Es ist für
+Entwicklung und CI gedacht, nicht für produktive Images.
+
+## Umfang
+
+- Aktuelles Target: nur `qemux86-64`.
+- Image: `tuxbox-qemu-image` (minimal, ohne Neutrino/Multimedia-Stack).
+
+## Build
+
+Wenn `build/conf` bereits auf eine andere Maschine zeigt, entweder neu
+generieren oder ein separates Build-Verzeichnis nutzen.
+
+Option A (Build in `build/`):
+
+```bash
+make config MACHINE=qemux86-64
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
+```
+
+Option B (separates Build-Verzeichnis):
+
+```bash
+./cli.py config --machine qemux86-64 --builddir build-qemu
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image --builddir build-qemu
+BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
+```
+
+## QEMU starten
+
+```bash
+./scripts/qemu/run-qemu.sh nographic slirp
+```
+
+Hinweise:
+- User-Networking (slirp). SSH ist auf `127.0.0.1:2222` weitergeleitet.
+- Wenn `2222` belegt ist, verschiebt runqemu den Port; `SSH_PORT=...` nutzen.
+
+### SSH Login
+
+```bash
+ssh -p 2222 root@127.0.0.1
+```
+
+Das Root-Passwort ist leer, außer du setzt `ROOTPW` beim Build.
+
+## Smoke-Tests
+
+```bash
+./scripts/qemu/smoke-test.sh
+```
+
+Nützliche Variablen:
+- `SHUTDOWN=0` QEMU nach dem Test weiterlaufen lassen.
+- `SKIP_PING=1` Ping-Checks überspringen.
+- `REQUIRED_UNITS=...` systemd-Units überschreiben.
+- `EXPECTED_FAILED_UNITS=...` erlaubte failed Units überschreiben.
+- `FAIL_ON_UNEXPECTED_FAILED_UNITS=1` bei zusätzlichen failed Units abbrechen.
+- `SSH_PORT=...` falls runqemu den Port verschoben hat.
+
+Logs liegen unter `build/qemu-logs/`.
+
+Erwartete failed Units in QEMU (default):
+`firstboot.service`, `local.service`, `nmb.service`, `smb.service`,
+`systemd-networkd-wait-online.service`.
+
+## opkg Feeds
+
+`tuxbox-feed-config` erzeugt `/etc/opkg/base-feeds.conf`, wenn
+`IPK_FEED_SERVER` oder `FEED_DEPLOYDIR_BASE_URI` beim Build gesetzt ist.
+
+Beispiel (HTTP-Server zeigt auf deploy-Verzeichnis):
+
+```conf
+IPK_FEED_SERVER = "http://192.168.1.202:33333/tmp-${MACHINE}/deploy/ipk"
+```
+
+Dann in QEMU:
+
+```bash
+opkg update
+opkg install <paket>
+```
+
+## Troubleshooting
+
+- QEMU bleibt schwarz: `nographic` verwenden und
+  `build/qemu-logs/runqemu-*.log` prüfen.
+- SSH wird zuerst abgelehnt: 20-60s auf Boot/sshd warten.
+- `base-feeds.conf` fehlt: prüfen, ob `tuxbox-feed-config` installiert ist,
+  dann Image neu bauen.

@@ -140,35 +140,16 @@ Gebautes Image liegt in `build/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
 
 ### QEMU Smoke-Tests (qemux86-64)
 
-Aktuelles QEMU-Target: nur `qemux86-64`.
-Das QEMU-Image ist ein schlanker Smoke-Test-Build (ohne Neutrino/Multimedia-Stack).
+Vollständige Anleitung: [docs/de/QEMU.md](docs/de/QEMU.md) (DE) /
+[docs/QEMU.md](docs/QEMU.md) (EN).
 
-QEMU-Image bauen:
+Quick-Start:
 
 ```bash
 ./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
-```
-
-QEMU starten (headless + User-Netzwerk):
-
-```bash
 ./scripts/qemu/run-qemu.sh nographic slirp
-```
-
-Smoke-Test in einem zweiten Terminal:
-
-```bash
 ./scripts/qemu/smoke-test.sh
 ```
-
-Hinweise:
-- SSH wird auf `127.0.0.1:2222` weitergeleitet (mit `SSH_PORT=...` überschreiben).
-- Wenn `2222` belegt ist, verschiebt runqemu den Port; `SSH_PORT` entsprechend setzen.
-- Beim ersten SSH-Login kann eine Passwortabfrage kommen (Root ist leer, Enter).
-- Mit `SHUTDOWN=0` bleibt QEMU nach dem Test laufen.
-- Wenn `build/conf` bereits auf eine andere Maschine zeigt (z.B. hd60),
-  entweder die Config neu erzeugen (überschreibt) oder ein separates
-  Build-Verzeichnis nutzen und `BUILD_DIR=...` an `run-qemu` übergeben.
 
 ### Dauerhafte lokale Overrides (einsteigerfreundlich)
 
@@ -240,6 +221,7 @@ bitbake -f -c do_image_hdfastboot8gb tuxbox-image
 ## Dokumentation
 
 - QUICKSTART: [DE](docs/de/QUICKSTART.md), [EN](docs/QUICKSTART.md) - Schnellstart
+- QEMU: [DE](docs/de/QEMU.md), [EN](docs/QEMU.md) - QEMU Smoke-Tests und Dev-Workflow
 - SUBMODULES: [DE](docs/de/SUBMODULES.md), [EN](docs/SUBMODULES.md) - Layer und Submodule
 - ARCHITECTURE: [DE](docs/de/ARCHITECTURE.md), [EN](docs/ARCHITECTURE.md) - Systemarchitektur
 - HARDWARE: [DE](docs/de/HARDWARE_INTEGRATION.md), [EN](docs/HARDWARE_INTEGRATION.md) - Neue Hardware

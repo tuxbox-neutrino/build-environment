@@ -24,7 +24,7 @@ DEPLOY_DIR="${BUILD_DIR}/tmp/deploy/images/${MACHINE}"
 
 CONF_MACHINE="${BUILD_DIR}/conf/local.conf.${MACHINE}.inc"
 if [[ -f "${CONF_MACHINE}" ]]; then
-  tmpdir_line="$(sed -n 's/^TMPDIR = \"\\(.*\\)\"/\\1/p' "${CONF_MACHINE}" | head -n 1)"
+  tmpdir_line="$(sed -n 's/^TMPDIR = \"\(.*\)\"/\1/p' "${CONF_MACHINE}" | head -n 1)"
   if [[ -n "${tmpdir_line}" ]]; then
     tmpdir="${tmpdir_line}"
     tmpdir="${tmpdir//\$\{TOPDIR\}/${BUILD_DIR}}"

@@ -2,11 +2,11 @@
 
 English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 
-Verstaendnis der Build-System-Architektur und der Designentscheidungen.
+Verständnis der Build-System-Architektur und der Designentscheidungen.
 
 ## Inhalt
 
-- [Uebersicht](#uebersicht)
+- [Übersicht](#übersicht)
 - [Grundkonzepte](#grundkonzepte)
 - [Verzeichnisstruktur](#verzeichnisstruktur)
 - [Wichtige Designentscheidungen](#wichtige-designentscheidungen)
@@ -14,7 +14,7 @@ Verstaendnis der Build-System-Architektur und der Designentscheidungen.
 - [Sicherheitsaspekte](#sicherheitsaspekte)
 - [Erweiterbarkeit](#erweiterbarkeit)
 
-## Uebersicht
+## Übersicht
 
 Tuxbox-OS Builder ist ein **parasitisches Integrationssystem**, das die
 reife Build-Infrastruktur von OE-Alliance nutzt und gleichzeitig eine
@@ -65,22 +65,22 @@ Neutrino-fokussierte Distribution bereitstellt.
 
 ### 1. Parasitische Integration
 
-**Philosophie**: Das Rad nicht neu erfinden. OE-Alliance unveraendert nutzen.
+**Philosophie**: Das Rad nicht neu erfinden. OE-Alliance unverändert nutzen.
 
 **Vorteile**:
-- OK: Geringe Wartung fuer Hardware-Definitionen (Neutrino-Integration bleibt noetig)
+- OK: Geringe Wartung für Hardware-Definitionen (Neutrino-Integration bleibt nötig)
 - OK: Automatische Upstream-Updates
-- OK: Bewaehrte, produktionsreife Infrastruktur
-- OK: 300+ Maschinen-Definitionen verfuegbar (Neutrino-Integration je Boxmodel)
+- OK: Bewährte, produktionsreife Infrastruktur
+- OK: 300+ Maschinen-Definitionen verfügbar (Neutrino-Integration je Boxmodel)
 
 **Umsetzung**:
-- OE-Alliance als **unveraendertes Git-Submodule** (pinned SHA)
+- OE-Alliance als **unverändertes Git-Submodule** (pinned SHA)
 - Wir legen nur unsere Distribution oben drauf
 - bbappends entfernen Enigma2-Dependencies aus gemeinsamen Recipes
 
 ### 2. Layer-Hierarchie
 
-Layer werden mit Prioritaetsreihenfolge gestapelt (hoeher = wichtiger):
+Layer werden mit Prioritätsreihenfolge gestapelt (höher = wichtiger):
 
 ```
 Priority 15: meta-local          (User-Anpassungen)
@@ -93,11 +93,11 @@ Priority  6: meta-openembedded   (Erweiterte Recipes)
 Priority  5: meta                (Yocto Core - niedrigste Prioritaet)
 ```
 
-Hoehere Prioritaet kann Recipes aus niedrigeren Layern **ueberschreiben**.
+Höhere Priorität kann Recipes aus niedrigeren Layern **überschreiben**.
 
 ### 3. Distributionsmodell
 
-**Tuxbox** ist eine **Distribution** (wie OpenATV, OpenVix fuer E2).
+**Tuxbox** ist eine **Distribution** (wie OpenATV, OpenVix für E2).
 
 **Distribution definiert**:
 - conf/distro/tuxbox.conf - Kern-Settings
@@ -107,18 +107,18 @@ Hoehere Prioritaet kann Recipes aus niedrigeren Layern **ueberschreiben**.
 - Image-Namen und Versionierung
 
 **Maschinen sind getrennt** von der Distribution:
-- Die gleiche Tuxbox-Distribution kann fuer jede OE-Alliance Maschine bauen
+- Die gleiche Tuxbox-Distribution kann für jede OE-Alliance Maschine bauen
 - `MACHINE=hd51 DISTRO=tuxbox` -> Tuxbox auf HD51
 - `MACHINE=hd60 DISTRO=tuxbox` -> Tuxbox auf HD60
 
 ### 4. Hardware-Abdeckung und Neutrino-Integration
 
 OE-Alliance bietet 300+ Maschinen-Definitionen, aber nicht alle sind getestet
-oder fuer Neutrino integriert. Neutrino benoetigt `libstb-hal` Support, und die
-Library listet nur einen Teil der `boxmodel` Werte. Fuer Maschinen ausserhalb
+oder für Neutrino integriert. Neutrino benötigt `libstb-hal` Support, und die
+Library listet nur einen Teil der `boxmodel` Werte. Für Maschinen ausserhalb
 dieser Liste musst du `libstb-hal` und das Hardware-Backend erweitern.
 
-Fuer einen genauen Bring-up-Workflow siehe:
+Für einen genauen Bring-up-Workflow siehe:
 `docs/de/HARDWARE_INTEGRATION.md`.
 
 ### 5. Image-Zusammensetzung
@@ -179,7 +179,7 @@ SSTATE_DIR = "${TOPDIR}/sstate-cache"
 ```
 
 Konfigurationen sind **hash-getrackt** - regeneriert nur, wenn Variablen
-sich aendern.
+sich ändern.
 
 ### 7. Build-Flow
 
@@ -279,23 +279,23 @@ Submodule (Git-Submodule):
 ### Warum Submodule?
 
 **Pros**:
-- OK: Upstream-Aenderungen explizit getrackt (pinned SHA)
+- OK: Upstream-Änderungen explizit getrackt (pinned SHA)
 - OK: Einfaches Update: `git submodule update --remote`
 - OK: Klare Trennung zwischen unserem Code und Upstream
 - OK: Keine Merge-Konflikte mit Upstream
 
 **Cons**:
-- Contra: Nutzer muessen beim Klonen `--recursive` beachten
+- Contra: Nutzer müssen beim Klonen `--recursive` beachten
 - Contra: Submodule-Updates brauchen einen expliziten Commit
 
 **Mitigation**: Unsere Init-Skripte handhaben Submodule automatisch.
 
 ### Warum Python CLI + Makefile?
 
-**Makefile**: Einfaches Interface fuer Einsteiger
+**Makefile**: Einfaches Interface für Einsteiger
 - `make image MACHINE=hd51` - funktioniert direkt
 
-**Python CLI**: Power fuer Entwickler
+**Python CLI**: Power für Entwickler
 - State-Tracking (JSON)
 - Bessere Fehlerbehandlung
 - Erweiterte Features (offline, devshell, sync)
@@ -308,28 +308,28 @@ Submodule (Git-Submodule):
 **Kirkstone (4.0)**:
 - OK: LTS Release (Support bis Mai 2026)
 - OK: Stabil, gut getestet
-- OK: Gute Balance aus modern + bewaehrt
+- OK: Gute Balance aus modern + bewährt
 
 **Nicht Scarthgap (5.0)**:
-- Contra: OE-Alliance nicht ueberall auf Whinlasser
+- Contra: OE-Alliance nicht überall auf Whinlasser
 - Contra: Neuer = mehr Churn, weniger stabil
-- Contra: Migrationsaufwand fuer meta-neutrino
+- Contra: Migrationsaufwand für meta-neutrino
 
-**Strategie**: Jetzt Kirkstone, Upgrade auf naechstes LTS wenn OE-A ready ist.
+**Strategie**: Jetzt Kirkstone, Upgrade auf nächstes LTS wenn OE-A ready ist.
 
 ### Warum separate Toolchain-Layer?
 
 **Coolstream Tank braucht uClibc** (nicht glibc):
 - Unterschiedliche ABI, unterschiedliche Toolchain
 - glibc und uClibc nicht in einem Layer mischen
-- Saubere Trennung ueber `meta-tuxbox-toolchain`
+- Saubere Trennung über `meta-tuxbox-toolchain`
 
 **Status**: Coolstream-Support ist experimentell/PoC und nicht produktiv.
 
 **Vorteile**:
 - OK: Verschmutzt den Main-Layer nicht
-- OK: Optional (nur fuer Tank-Builds geladen)
-- OK: Einfach weitere externe Toolchains hinzufuegen
+- OK: Optional (nur für Tank-Builds geladen)
+- OK: Einfach weitere externe Toolchains hinzufügen
 
 ## Build-Optimierung
 
@@ -354,7 +354,7 @@ SSTATE_DIR = "/opt/tuxbox-os/sstate-cache"
 **Wo**: `downloads/`
 **Nutzen**: Keine Re-Downloads bei Rebuilds
 
-**Groesse**: ~10GB nach vollem Build
+**Größe**: ~10GB nach vollem Build
 
 **Zwischen Maschinen teilen**:
 ```bash
@@ -363,7 +363,7 @@ DL_DIR = "/opt/tuxbox-os/downloads"
 
 ### Parallele Builds
 
-**Default**: BitBake setzt Parallelitaet automatisch auf CPU-Anzahl, wenn
+**Default**: BitBake setzt Parallelität automatisch auf CPU-Anzahl, wenn
 Variablen nicht gesetzt sind (siehe `poky/meta/conf/bitbake.conf`).
 
 **Optionales Override** (in `local.conf.user.inc`):
@@ -387,36 +387,36 @@ git add oe-alliance
 git commit -m "Pin OE-Alliance to <sha>"
 ```
 
-**Warum**: Verhindert, dass Upstream-Aenderungen Builds brechen.
+**Warum**: Verhindert, dass Upstream-Änderungen Builds brechen.
 
 ### Source-Verification
 
 **BitBake verifiziert Quellen**:
 - SRC_URI mit Checksums (MD5, SHA256)
-- Signatur-Pruefung fuer kritische Pakete
+- Signatur-Prüfung für kritische Pakete
 
 **Beispiel**:
 ```
 SRC_URI[sha256sum] = "abc123..."
 ```
 
-Wenn Checksums nicht passen -> Build faellt (schutz gegen MITM).
+Wenn Checksums nicht passen -> Build fällt (schutz gegen MITM).
 
 ## Erweiterbarkeit
 
-### Neue Maschine hinzufuegen
+### Neue Maschine hinzufügen
 
 1. Sicherstellen, dass der meta-brand Layer in bblayers.conf enthalten ist
 2. MACHINE Variable setzen
 3. Build
 
-**Beispiel fuer Vu+ Ultimo 4K**:
+**Beispiel für Vu+ Ultimo 4K**:
 ```bash
 # Add meta-vuplus to bblayers.conf (if not already)
 make image MACHINE=ultimo4k
 ```
 
-### Neue Distribution hinzufuegen
+### Neue Distribution hinzufügen
 
 1. `conf/distro/mydistro.conf` in meta-tuxbox anlegen
 2. DISTRO Features definieren
@@ -425,14 +425,14 @@ make image MACHINE=ultimo4k
 ### Custom Packages
 
 1. Recipe in `meta-tuxbox/recipes-custom/` anlegen
-2. Ueber Packagegroup ins Image aufnehmen
+2. Über Packagegroup ins Image aufnehmen
 3. Rebuild
 
 ---
 
-**Fuer mehr Details siehe:**
+**Für mehr Details siehe:**
 - [QUICKSTART.md](QUICKSTART.md) - Erste Build-Schritte
 - [SUBMODULES.md](SUBMODULES.md) - Layer und Pinning
 - [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md) - Neue Hardware integrieren
 - [COOLSTREAM.md](COOLSTREAM.md) - Externe Toolchain-Details
-- [README.de.md](../../README.de.md) - Projektueberblick und Kommandos
+- [README.de.md](../../README.de.md) - Projektüberblick und Kommandos

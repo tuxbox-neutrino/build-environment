@@ -2,7 +2,7 @@
 
 English: [../COOLSTREAM.md](../COOLSTREAM.md)
 
-Coolstream HD2-Geraete benoetigen eine uClibc-Toolchain. Wir kapseln das in
+Coolstream HD2-Geräte benötigen eine uClibc-Toolchain. Wir kapseln das in
 `meta-coolstream` (Maschinen/BSP) plus `meta-tuxbox-toolchain`
 (TCMODE `external-coolstream`).
 
@@ -30,29 +30,29 @@ Siehe auch:
 
 ## Layer
 - `meta-coolstream`: Maschinenbeschreibungen, Flash/Layout, BSP-Anpassungen.
-  In `bblayers.conf` hinzufuegen:
+  In `bblayers.conf` hinzufügen:
   ```
   BBLAYERS += "${TOPDIR}/../meta-coolstream"
   ```
-- `meta-coolstream` enthaelt jetzt den Binaer-Puller `libcoolstream-bin`.
-  `meta-libcoolstream` bleibt optional fuer kuenftige Source-Builds, enthaelt
-  kein binaeres Rezept mehr.
-- Binaere Treiber/Firmware: `cst-drivers` (Module + FW fuer HD1/HD2), optional
-  `cst-drivers-extra` (rt5572sta fuer nevis).
+- `meta-coolstream` enthält jetzt den Binär-Puller `libcoolstream-bin`.
+  `meta-libcoolstream` bleibt optional für künftige Source-Builds, enthält
+  kein binäres Rezept mehr.
+- Binäre Treiber/Firmware: `cst-drivers` (Module + FW für HD1/HD2), optional
+  `cst-drivers-extra` (rt5572sta für nevis).
 - `meta-tuxbox-toolchain`: Externe uClibc-Toolchain.
-- **Quellen (aus ni-buildsystem ableitbar, muessen geklont/angepasst werden):**
+- **Quellen (aus ni-buildsystem ableitbar, müssen geklont/angepasst werden):**
   - `ni-linux-kernel` (2.6.34.15 HD1 / 3.10.108 HD2, inkl. defconfigs)
   - `ni-drivers-bin` (Kernel-Module, DTBs hd849x/en75x1, Firmware, Bootloader/uldr)
-  - `ni-libcoolstream` (libcoolstream, libnxp fuer HD1)
+  - `ni-libcoolstream` (libcoolstream, libnxp für HD1)
   - Toolchain: fertiges uClibc-Tarball (s. unten) bzw. CT-NG-Configs (hd1/hd2)
-  - **Kein** libstb-hal auf Coolstream-Geraeten erforderlich.
+  - **Kein** libstb-hal auf Coolstream-Geräten erforderlich.
 
 ## Toolchain
 **URL**: https://sourceforge.net/projects/n4k/files/toolchains/
 **File**: `toolchain-coolstream-uclibc-armv7.tar.bz2`
 **SHA256**: `b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6`
 
-Layout (gekuerzt):
+Layout (gekürzt):
 ```
 toolchain-coolstream-uclibc-armv7/
 +-- cross/arm-linux-3.10.93/
@@ -76,15 +76,15 @@ bitbake tuxbox-image
 ```
 
 ## Hinweise
-- DISTRO bleibt `tuxbox`; libc/TCMODE fuer Coolstream-Maschinen explizit setzen.
-- Kernel/Bootloader/Driver muessen noch aus dem ni-buildsystem migriert werden.
+- DISTRO bleibt `tuxbox`; libc/TCMODE für Coolstream-Maschinen explizit setzen.
+- Kernel/Bootloader/Driver müssen noch aus dem ni-buildsystem migriert werden.
 - MACHINE-Namen (Mapping zu NI BOXMODEL):
   - `coolstream-nevis` (HD1 glibc): HD1/BSE/NEO/NEO2/NEO2 Twin/ZEE
   - `coolstream-apollo` (HD2 uClibc): Tank
   - `coolstream-shiner` (HD2 uClibc): Trinity V1
   - `coolstream-kronos` (HD2 uClibc): Zee2 / Trinity V2
   - `coolstream-kronos-v2` (HD2 uClibc): Link / Trinity Duo
-- HD1/Nevis-Geraete (arm1176) glibc; uClibc gilt fuer HD2 (apollo/shiner/kronos/kronos_v2).
+- HD1/Nevis-Geräte (arm1176) glibc; uClibc gilt für HD2 (apollo/shiner/kronos/kronos_v2).
 
 ### Distribution Config
 

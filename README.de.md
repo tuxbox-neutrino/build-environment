@@ -2,7 +2,7 @@
 
 English: [README.md](README.md)
 
-Produktionsreifes Build-System fuer Tuxbox-Neutrino basierend auf der
+Produktionsreifes Build-System für Tuxbox-Neutrino basierend auf der
 OE-Alliance Infrastruktur.
 
 ## Schnellstart
@@ -18,23 +18,23 @@ sudo apt install -y gawk wget git diffstat unzip texinfo \
   libacl1 curl
 ```
 
-Fuer 32-bit Targets auf einem 64-bit Host (z.B. armhf Maschinen wie HD60/HD61)
+Für 32-bit Targets auf einem 64-bit Host (z.B. armhf Maschinen wie HD60/HD61)
 zusatzlich Multilib-Header installieren:
 
 ```bash
 sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386
 ```
 
-Tipp: Nutze SSH statt HTTPS fuer GitHub Submodule (keine Login-Prompts).
+Tipp: Nutze SSH statt HTTPS für GitHub Submodule (keine Login-Prompts).
 
-Wenn Git GitHub Repos/Submodule ueber **HTTPS** (`https://github.com/...`)
+Wenn Git GitHub Repos/Submodule über **HTTPS** (`https://github.com/...`)
 clont, fragt es nach Credentials (meist ein **Token** statt Passwort).
 Wechsel auf **SSH** (`git@github.com:...`) nutzt deinen **SSH Key** und
-vermeidet wiederholte Prompts. Das ist auch besser fuer automatisierte
+vermeidet wiederholte Prompts. Das ist auch besser für automatisierte
 Builds/CI.
 
 Alle GitHub HTTPS URLs auf SSH umschreiben (empfohlen):
-Das sorgt dafuer, dass `https://github.com/` automatisch zu `git@github.com:`
+Das sorgt dafür, dass `https://github.com/` automatisch zu `git@github.com:`
 ersetzt wird:
 
 ```bash
@@ -46,14 +46,14 @@ SSH-Agent starten:
 eval "$(ssh-agent -s)"
 ```
 
-Dann Key hinzufuegen:
+Dann Key hinzufügen:
 ```bash
 ssh-add ~/.ssh/id_rsa
 ```
 
 ### 2. Initialisieren oder aktualisieren
 
-### 2.1. Klonen fuer erste Initialisierung
+### 2.1. Klonen für erste Initialisierung
 ```bash
 git clone --recurse-submodules https://github.com/tuxbox-neutrino/build-environment.git
 cd build-environment
@@ -61,7 +61,7 @@ make init
 ```
 
 ### 2.2. Update und Sync
-Wenn du ohne Submodule geklont hast oder spaeter resyncen willst (safe/pinned):
+Wenn du ohne Submodule geklont hast oder später resyncen willst (safe/pinned):
 ```bash
 make sync
 ```
@@ -85,10 +85,10 @@ make update
 
 Warnung: `make update` und `./cli.py sync` bewegen Submodule auf Upstream HEAD
 (unpinned). Das kann Layer auf Branches/REVs setzen, die nicht zum gepinnten
-Build passen, und laesst deinen Tree dirty, bis du neue Submodule-Pointer
+Build passen, und lässt deinen Tree dirty, bis du neue Submodule-Pointer
 committest. Nur verwenden, wenn du Layer-Pins absichtlich aktualisieren willst.
-Falls du das aus Versehen ausgefuehrt hast, nutze `make sync`, um auf den
-gepinnten Stand zurueckzugehen:
+Falls du das aus Versehen ausgeführt hast, nutze `make sync`, um auf den
+gepinnten Stand zurückzugehen:
 
 ```bash
 make sync
@@ -96,8 +96,8 @@ make sync
 
 ### 3. Image bauen
 
-Erster Build: immer `MACHINE` (und `MACHINEBUILD` falls noetig) angeben oder
-zuerst `make config` ausfuehren. `make image` ohne `MACHINE` funktioniert nur,
+Erster Build: immer `MACHINE` (und `MACHINEBUILD` falls nötig) angeben oder
+zuerst `make config` ausführen. `make image` ohne `MACHINE` funktioniert nur,
 wenn bereits eine Konfiguration existiert.
 
 ```bash
@@ -136,26 +136,26 @@ Gebautes Image liegt in `build/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
 
 ### Dauerhafte lokale Overrides (einsteigerfreundlich)
 
-`make config` erzeugt `local.conf` und `bblayers.conf`. Fuer persoenliche
-Aenderungen, die Updates ueberstehen sollen, nutze diese Files:
+`make config` erzeugt `local.conf` und `bblayers.conf`. Für persönliche
+Änderungen, die Updates überstehen sollen, nutze diese Files:
 
-- `build/conf/local.conf.user.inc` (persoenliche Defaults)
+- `build/conf/local.conf.user.inc` (persönliche Defaults)
 - `build/conf/local.conf.<machine>.inc` (maschinen-spezifische Tweaks)
 - `build/conf/bblayers.conf.user.inc` (extra Layer / masks)
 
-Diese Dateien werden automatisch erzeugt und nie ueberschrieben.
+Diese Dateien werden automatisch erzeugt und nie überschrieben.
 
-Standardmaessig setzt `local.conf.<machine>.inc` ein per-Maschine TMPDIR:
+Standardmäßigig setzt `local.conf.<machine>.inc` ein per-Maschine TMPDIR:
 
 ```
 TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
 ```
 
-(Coolstream nutzt standardmaessig `build-${MACHINE}/tmp`.) Bei Bedarf anpassen.
+(Coolstream nutzt standardmäßigig `build-${MACHINE}/tmp`.) Bei Bedarf anpassen.
 
 ### Image Naming Overrides (optional)
 
-`build/conf/local.conf.user.inc` enthaelt eine kommentierte Vorlage fuer
+`build/conf/local.conf.user.inc` enthält eine kommentierte Vorlage für
 Image-Namen-Variablen und Beispiele. Aktiviere nur, was du brauchst.
 
 Diese Stolperfallen vermeiden:
@@ -163,11 +163,11 @@ Diese Stolperfallen vermeiden:
 - `vardepsexclude` beibehalten, wenn `DATE`/`DATETIME` genutzt werden, um
   Rebuild-Churn zu vermeiden.
 - Keine Slashes in `IMAGE_NAME` (muss ein Dateiname sein).
-- `IMAGE_NAME_SUFFIX` nicht aendern, ausser deine Tools erwarten das.
+- `IMAGE_NAME_SUFFIX` nicht ändern, ausser deine Tools erwarten das.
 
 ### Source Download Mirror (optional)
 
-Du kannst den oeffentlichen Source-Mirror nutzen, um Downloads zu beschleunigen.
+Du kannst den öffentlichen Source-Mirror nutzen, um Downloads zu beschleunigen.
 Generierte Configs aktivieren das in `build/conf/local.conf.user.inc`. Entferne
 folgende Zeilen, wenn du nur Upstream nutzen willst:
 
@@ -181,11 +181,11 @@ SOURCE_MIRROR_URL = "https://archiv.tuxbox-neutrino.org/"
 ### Troubleshooting: hdfastboot8gb basehash mismatch
 
 Auf GFutures fastboot Maschinen (hd60/hd61/hd66se) kann ein basehash mismatch
-auftreten, wenn `IMAGE_NAME` `DATETIME` enthaelt. Stelle sicher, dass Submodule
+auftreten, wenn `IMAGE_NAME` `DATETIME` enthält. Stelle sicher, dass Submodule
 aktuell sind; aktuelles `meta-tuxbox` schliesst `IMAGE_NAME` aus der
 Task-Signatur aus.
 
-Wenn du fuer jeden Build ein frisches Image willst, erzwinge die Task:
+Wenn du für jeden Build ein frisches Image willst, erzwinge die Task:
 
 ```bash
 bitbake -f -c do_image_hdfastboot8gb tuxbox-image
@@ -199,24 +199,24 @@ bitbake -f -c do_image_hdfastboot8gb tuxbox-image
 - HARDWARE: [DE](docs/de/HARDWARE_INTEGRATION.md), [EN](docs/HARDWARE_INTEGRATION.md) - Neue Hardware
 - COOLSTREAM: [DE](docs/de/COOLSTREAM.md), [EN](docs/COOLSTREAM.md) - uClibc Builds (experimental/PoC)
 
-## Unterstuetzte Plattformen
+## Unterstützte Plattformen
 
-### Prioritaetsplattformen (getestet)
+### Prioritätsplattformen (getestet)
 - **GFutures (Mut@nt/AX)**: HD51, HD60, HD61
 - **AirDigital**: ZgemmaH7, H7S, H7C
 - **Coolstream**: Tank (uClibc Toolchain, experimentell/PoC)
 
-### Alle OE-Alliance Plattformen (300+ Geraete)
-Siehe `make list-machines` fuer die komplette Liste. Nicht alle Maschinen sind
-getestet oder fuer Neutrino integriert; `libstb-hal` Support ist begrenzt.
-Siehe `docs/de/HARDWARE_INTEGRATION.md` fuer den Bring-up-Workflow.
+### Alle OE-Alliance Plattformen (300+ Geräte)
+Siehe `make list-machines` für die komplette Liste. Nicht alle Maschinen sind
+getestet oder für Neutrino integriert; `libstb-hal` Support ist begrenzt.
+Siehe `docs/de/HARDWARE_INTEGRATION.md` für den Bring-up-Workflow.
 
 ## Kernfunktionen
 
 - **OE-Alliance Integration**: Unmodifizierte OE-Alliance Infrastruktur
-- **Neutrino-Only**: Keine Enigma2-Abhaengigkeiten
+- **Neutrino-Only**: Keine Enigma2-Abhängigkeiten
 - **Yocto Kirkstone**: LTS Support bis Mai 2026
-- **Hybrid Build System**: Einfach fuer Einsteiger, stark fuer Entwickler
+- **Hybrid Build System**: Einfach für Einsteiger, stark für Entwickler
 - **Externe Toolchain**: Coolstream uClibc Support (experimentell/PoC)
 - **QEMU-Tests**: Schnelle Smoke-Tests ohne Hardware
 
@@ -251,11 +251,11 @@ make help                         # Alle Kommandos anzeigen
 ./cli.py clean -m hd51            # Build-Verzeichnis bereinigen
 ```
 
-## GitHub Actions (standardmaessig manuell)
+## GitHub Actions (standardmäßigig manuell)
 
 Workflows sind vorerst manuell, damit private Submodule funktionieren.
-Starte Runs im Actions-Tab, nachdem Secrets oder SSH Zugang fuer Submodule
-konfiguriert sind. Fuer Automatisierung aktiviere `push`/`schedule` in
+Starte Runs im Actions-Tab, nachdem Secrets oder SSH Zugang für Submodule
+konfiguriert sind. Für Automatisierung aktiviere `push`/`schedule` in
 `.github/workflows/*.yml`, sobald die Submodule-Auth funktioniert.
 
 ## Projektstruktur
@@ -278,7 +278,7 @@ Submodule (auto-managed):
 
 ## Mitmachen
 
-Dies ist ein Tuxbox-Neutrino Community-Projekt. Beitraege willkommen!
+Dies ist ein Tuxbox-Neutrino Community-Projekt. Beiträge willkommen!
 
 - Issues: https://github.com/tuxbox-neutrino/build-environment/issues
 - PRs: https://github.com/tuxbox-neutrino/build-environment/pulls

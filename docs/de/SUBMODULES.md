@@ -2,7 +2,7 @@
 
 English: [../SUBMODULES.md](../SUBMODULES.md)
 
-Dieses Projekt haelt die Build-Layer in eigenen Git-Repositories:
+Dieses Projekt hält die Build-Layer in eigenen Git-Repositories:
 
 - `meta-neutrino`
 - `meta-tuxbox`
@@ -17,7 +17,7 @@ voneinander zu trennen.
 ## Inhalt
 
 - [1. Mit Submodulen klonen](#1-mit-submodulen-klonen)
-- [2. SSH fuer private Submodule](#2-ssh-fuer-private-submodule)
+- [2. SSH für private Submodule](#2-ssh-für-private-submodule)
 - [3. Leere Layer-Ordner beheben](#3-leere-layer-ordner-beheben)
 - [4. Auf gepinnte (sichere) Versionen aktualisieren](#4-auf-gepinnte-sichere-versionen-aktualisieren)
 - [5. make sync vs make update (wichtig)](#5-make-sync-vs-make-update-wichtig)
@@ -32,7 +32,7 @@ git clone --recurse-submodules https://github.com/tuxbox-neutrino/build-environm
 cd build-environment
 ```
 
-## 2. SSH fuer private Submodule
+## 2. SSH für private Submodule
 
 Wenn du Zugriff auf private GitHub-Submodule hast, nutze SSH statt HTTPS:
 
@@ -69,14 +69,14 @@ git submodule update --init --recursive
 ## 5. make sync vs make update (wichtig)
 
 - `make sync`: zieht das Top-Level Repo und checkt die gepinnten Submodule aus
-  (sicher fuer Builds).
+  (sicher für Builds).
 - `make update` / `./cli.py sync`: bewegt Submodule auf Upstream HEAD (wie in
-  `.gitmodules` gesetzt), laesst den Tree dirty, wenn du keine neuen Pointer
+  `.gitmodules` gesetzt), lässt den Tree dirty, wenn du keine neuen Pointer
   committest, und kann Layer auf Branches/REVs bringen, die nicht zum gepinnten
   Build passen.
 
-Wenn du `make update` aus Versehen ausgefuehrt hast, nutze `make sync`, um
-zurueck zum gepinnten Stand zu kommen.
+Wenn du `make update` aus Versehen ausgeführt hast, nutze `make sync`, um
+zurück zum gepinnten Stand zu kommen.
 
 ## 6. Layer auf aktuelles Upstream bringen (fortgeschritten)
 
@@ -91,7 +91,7 @@ git add meta-tuxbox
 git commit -m "Update meta-tuxbox"
 ```
 
-Bei Bedarf fuer `meta-neutrino` wiederholen.
+Bei Bedarf für `meta-neutrino` wiederholen.
 
 ## 7. Branch- und Tag-Richtlinie
 
@@ -100,11 +100,11 @@ Bei Bedarf fuer `meta-neutrino` wiederholen.
 - Tags: `<codename>-<yocto_version>` (Beispiel: `kirkstone-4.0.12`)
 
 So ist schnell erkennbar, welche Layer-Version zu einer bestimmten Yocto-Version
-gehoert.
+gehört.
 
 ## Verwandte Dokus
 
 - [QUICKSTART.md](QUICKSTART.md) - Erste Build-Schritte
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Systemueberblick
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Systemüberblick
 - [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md) - Neue Hardware integrieren
-- [README.de.md](../../README.de.md) - Projektueberblick und Kommandos
+- [README.de.md](../../README.de.md) - Projektüberblick und Kommandos

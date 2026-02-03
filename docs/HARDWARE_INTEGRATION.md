@@ -8,9 +8,10 @@ OE-Alliance machine is ready for Neutrino out of the box.
 - [Reality Check](#reality-check)
 - [Where Hardware Support Lives](#where-hardware-support-lives)
 - [libstb-hal Selection and Boxmodel Mapping](#libstb-hal-selection-and-boxmodel-mapping)
+- [Integration Flow (Decision)](#integration-flow-decision)
+- [Existing Machine in meta-brands: Integration Steps](#existing-machine-in-meta-brands-integration-steps)
 - [Hardware Caps: Where to Find Them](#hardware-caps-where-to-find-them)
 - [Example: Add a New Boxmodel](#example-add-a-new-boxmodel)
-- [Existing Machine in meta-brands: Integration Steps](#existing-machine-in-meta-brands-integration-steps)
 - [Workflow: Add a New Machine](#workflow-add-a-new-machine)
 - [Verification Checklist](#verification-checklist)
 - [Contributing Upstream](#contributing-upstream)
@@ -50,7 +51,7 @@ The build passes:
 
 Neutrino itself uses the same flags (see
 `meta-neutrino/recipes-neutrino/neutrino/*.inc`). Ensure both recipes agree. If
-your machine naming differs, override `EXTRA_OECONF` via a bbappend.
+machine naming differs, override `EXTRA_OECONF` via a bbappend.
 
 Valid boxtype values are `generic`, `armbox`, `mipsbox`. The `boxmodel` list is
 defined in `library-stb-hal/acinclude.m4` (and similar in the other flavours).
@@ -66,6 +67,15 @@ Current boxmodels (library-stb-hal):
 If your machine name is not in this list, `configure` will fail and Neutrino
 cannot run. You must add the boxmodel and hardware caps.
 
+## Integration Flow (Decision)
+
+```
+Start
+  |
+  +-- Is MACHINE already in meta-brands? -- yes --> Existing machine steps
+  |                                       no  --> Add new machine steps
+```
+
 Integration map (existing meta-brands machine):
 
 ```
@@ -78,6 +88,44 @@ OE-A machine.conf -> MACHINE -> libstb-hal configure -> hardware_caps -> Neutrin
         └─ kernel/DTB/drivers already exist
 ```
 
+## Existing Machine in meta-brands: Integration Steps
+
+If a box already exists in `oe-alliance/meta-brands`, you can skip the machine
+definition work and focus on Neutrino integration:
+
+1) **Confirm the MACHINE name.**
+   - Use `make list-machines` and `make machine-info MACHINE=<name>`.
+   - The machine name must match a libstb-hal boxmodel or be mapped.
+
+2) **Align boxtype/boxmodel between libstb-hal and Neutrino.**
+   - Neutrino uses `--with-boxtype=${TARGET_ARCH}box` and
+     `--with-boxmodel=${MACHINE}`.
+   - If `TARGET_ARCH` yields an unsupported boxtype (e.g. `aarch64box`,
+     `mipselbox`), override to `armbox` or `mipsbox` as appropriate.
+   - Prefer bbappends in `meta-tuxbox` so overrides live in the distro layer.
+
+Example overrides:
+
+```bitbake
+# meta-tuxbox/recipes-neutrino/libstb-hal/libstb-hal_git.bbappend
+EXTRA_OECONF:append = " --with-boxtype=armbox --with-boxmodel=<boxmodel>"
+
+# meta-tuxbox/recipes-neutrino/neutrino/neutrino_git.bbappend
+EXTRA_OECONF:append = " --with-boxtype=armbox --with-boxmodel=<boxmodel>"
+```
+
+3) **Make libstb-hal accept the machine.**
+   - Add the boxmodel to `library-stb-hal/acinclude.m4`.
+   - Add caps in `libarmbox/` or `libmipsbox/` (see sections below).
+   - Adjust backend code in `libarmbox/` or `libmipsbox/` if device nodes or
+     IOCTLs differ for the new SoC/driver stack.
+
+4) **Build and smoke-test on hardware.**
+   - `bitbake libstb-hal -c compile`
+   - `bitbake neutrino`
+   - `bitbake tuxbox-image`
+   - Validate `/proc/stb/info/*`, video/audio, demux, frontpanel, standby.
+
 ## Hardware Caps: Where to Find Them
 
 `libstb-hal` exposes hardware capabilities via `hw_caps_t`:
@@ -88,7 +136,7 @@ OE-A machine.conf -> MACHINE -> libstb-hal configure -> hardware_caps -> Neutrin
 - Generic/PC: `library-stb-hal/libgeneric-pc/hardware_caps.c`
 - Raspberry Pi: `library-stb-hal/libraspi/hardware_caps.c`
 
-Common fields to set (examples):
+Common fields to set:
 
 - `has_CI`, `has_HDMI`, `has_SCART`, `can_cec`, `can_shutdown`
 - `display_type`, `display_xres`, `display_yres`, display flags
@@ -148,73 +196,17 @@ bitbake tuxbox-image
 
 If it boots, validate HDMI, audio, demux, PIP, frontpanel, and standby.
 
-## Existing Machine in meta-brands: Integration Steps
-
-If a box already exists in `oe-alliance/meta-brands`, you can skip the machine
-definition work and focus on Neutrino integration:
-
-1) **Confirm the MACHINE name.**
-   - Use `make list-machines` and `make machine-info MACHINE=<name>`.
-   - The machine name must match a libstb-hal boxmodel or be mapped.
-
-2) **Make libstb-hal accept the machine.**
-   - Add the boxmodel to `library-stb-hal/acinclude.m4`.
-   - Add caps in `libarmbox/` or `libmipsbox/` (see example above).
-   - If the machine name differs, add a bbappend to override:
-     - `EXTRA_OECONF:append = " --with-boxmodel=<boxmodel> --with-boxtype=armbox"`
-     - Apply the same override in Neutrino (`neutrino_*.bbappend`), so both
-       use identical boxtype/boxmodel.
-
-3) **Verify Neutrino build flags.**
-   - Neutrino uses `--with-boxtype=${TARGET_ARCH}box` and
-     `--with-boxmodel=${MACHINE}` (see `meta-neutrino/recipes-neutrino/neutrino/*.inc`).
-   - If your target arch is `aarch64`, you must override boxtype to `armbox`
-     (libstb-hal only accepts `generic|armbox|mipsbox`).
-
-4) **Build and smoke-test on hardware.**
-   - `bitbake libstb-hal -c compile`
-   - `bitbake neutrino`
-   - `bitbake tuxbox-image`
-   - Validate `/proc/stb/info/*`, video/audio, demux, frontpanel, standby.
-
 ## Workflow: Add a New Machine
 
-1) **Ensure OE-A machine support exists (or add it).**
-   - Add `oe-alliance/meta-brands/meta-<brand>/conf/machine/<machine>.conf`.
-   - Set key values: `SOC_FAMILY`, `TUNE_FEATURES`, `KERNEL_IMAGETYPE`,
-     `KERNEL_DEVICETREE`, `IMAGE_FSTYPES`, `SERIAL_CONSOLE`, `MACHINE_FEATURES`.
-   - Set providers as needed:
-     `PREFERRED_PROVIDER_virtual/kernel`,
-     `PREFERRED_PROVIDER_virtual/bootloader`.
-   - Add or update `linux-<brand>_<ver>.bb` and defconfig/DTB in the same layer.
+If a machine is missing in `meta-brands`, add it there first and then follow
+"Existing Machine in meta-brands: Integration Steps":
 
-2) **Verify kernel/driver bring-up.**
-   - DVB nodes exist: `/dev/dvb/adapter0/...`
-   - STB info exists: `/proc/stb/info/*`
-   - Frontpanel/remote drivers load at boot.
-
-3) **Integrate `libstb-hal`.**
-   - Pick the correct flavour repo via `FLAVOUR` (default: `tuxbox`).
-   - Add the new boxmodel in `library-stb-hal/acinclude.m4`:
-     - Extend the `--with-boxmodel` list.
-     - Add `AM_CONDITIONAL(BOXMODEL_<NAME>, ...)`.
-     - Add `AC_DEFINE(BOXMODEL_<NAME>, 1, [...])`.
-   - Add hardware caps in the backend:
-     - `libarmbox/hardware_caps.c` for ARM
-     - `libmipsbox/hardware_caps.c` for MIPS
-     - Fill in `caps` fields (vendor/name/arch, display, HDMI/CI, PIP, etc.).
-   - Adjust backend code in `libarmbox/` or `libmipsbox/` if device nodes or
-     IOCTLs differ for the new SoC/driver stack.
-
-4) **Build and test.**
-   - `bitbake libstb-hal -c compile` (fast check)
-   - `bitbake neutrino` and `bitbake tuxbox-image`
-   - Test on hardware: audio/video, demux, PIP, frontpanel, HDMI-CEC, standby.
-
-5) **Upstream contributions.**
-   - Send `libstb-hal` changes to the selected upstream repo first.
-   - For machine/kernel/bootloader changes, update the OE-A layer first, then
-     update the submodule pointer in this repo.
+1) Add `oe-alliance/meta-brands/meta-<brand>/conf/machine/<machine>.conf`.
+2) Set `SOC_FAMILY`, `TUNE_FEATURES`, `KERNEL_IMAGETYPE`, `KERNEL_DEVICETREE`,
+   `IMAGE_FSTYPES`, `SERIAL_CONSOLE`, `MACHINE_FEATURES`.
+3) Add or update `linux-<brand>_<ver>.bb` and defconfig/DTB in the same layer.
+4) Verify kernel/driver bring-up (`/dev/dvb/*`, `/proc/stb/info/*`).
+5) Continue with the integration steps above.
 
 ## Verification Checklist
 

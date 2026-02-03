@@ -46,6 +46,12 @@ ssh -p 2222 root@127.0.0.1
 
 Das Root-Passwort ist leer, außer du setzt `ROOTPW` beim Build.
 
+## Webmin
+
+In QEMU-Images lauscht Webmin auf Port `10001`, damit es keinen Konflikt mit
+Webmin auf dem Host gibt. Für Zugriff vom Host mit slirp Port-Forwarding
+einrichten oder SSH-Tunneling verwenden.
+
 ## Smoke-Tests
 
 ```bash

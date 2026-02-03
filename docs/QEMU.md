@@ -46,6 +46,12 @@ ssh -p 2222 root@127.0.0.1
 
 The root password is empty unless you set `ROOTPW` at build time.
 
+## Webmin
+
+In QEMU images, Webmin listens on port `10001` to avoid conflicts with a host
+Webmin instance. If you want host access with slirp, add a port forward or use
+SSH tunneling.
+
 ## Smoke Tests
 
 ```bash

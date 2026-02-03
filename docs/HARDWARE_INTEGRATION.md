@@ -13,6 +13,7 @@ OE-Alliance machine is ready for Neutrino out of the box.
 - [MACHINE vs MACHINEBUILD](#machine-vs-machinebuild)
 - [Existing Machine in meta-brands: Integration Steps](#existing-machine-in-meta-brands-integration-steps)
 - [Hardware Caps: Where to Find Them](#hardware-caps-where-to-find-them)
+- [Reducing BOXMODEL Branches in Neutrino](#reducing-boxmodel-branches-in-neutrino)
 - [Example: Add a New Boxmodel](#example-add-a-new-boxmodel)
 - [Workflow: Add a New Machine](#workflow-add-a-new-machine)
 - [Verification Checklist](#verification-checklist)
@@ -194,6 +195,29 @@ Where to get values:
 - Machine docs or OEM datasheets (display resolution, CI slots, HDMI)
 - Existing similar models in `hardware_caps.c` (same SoC/brand)
 - Device nodes (`/dev/dvb/*`, `/dev/fb*`) and frontpanel drivers
+
+## Reducing BOXMODEL Branches in Neutrino
+
+libstb-hal was designed to isolate hardware specifics so Neutrino can stay
+mostly free of `#if BOXMODEL_*` and `HAVE_*_HARDWARE` branches. In practice,
+some compile-time checks still exist in Neutrino and drivers (for device node
+paths, display types, PIP gating, and frontpanel behavior). This makes new
+hardware bring-up require Neutrino patches and creates behavior differences
+based on build-time flags instead of runtime caps.
+
+Target state: keep boxmodel knowledge inside libstb-hal, and make Neutrino rely
+on `g_info.hw_caps` or HAL helper APIs. If you need a new box-specific rule,
+extend `hw_caps_t` or add a small HAL accessor, then replace `#if BOXMODEL_*`
+with a runtime check.
+
+Practical migration steps:
+
+1) Identify `#if BOXMODEL_*` blocks in Neutrino (core + `src/driver/`).
+2) Decide which capability or device detail is missing in `hw_caps_t`.
+3) Add that field in `hardware_caps.h` and set it per boxmodel in
+   `libarmbox/` or `libmipsbox/`.
+4) Replace the compile-time branch with a runtime check (caps or helper).
+5) Keep compile-time branching only for true boxtype backends, not UI logic.
 
 ## Example: Add a New Boxmodel
 

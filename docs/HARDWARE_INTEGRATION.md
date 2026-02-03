@@ -9,6 +9,7 @@ OE-Alliance machine is ready for Neutrino out of the box.
 - [Where Hardware Support Lives](#where-hardware-support-lives)
 - [libstb-hal Selection and Boxmodel Mapping](#libstb-hal-selection-and-boxmodel-mapping)
 - [Integration Flow (Decision)](#integration-flow-decision)
+- [MACHINE vs MACHINEBUILD](#machine-vs-machinebuild)
 - [Existing Machine in meta-brands: Integration Steps](#existing-machine-in-meta-brands-integration-steps)
 - [Hardware Caps: Where to Find Them](#hardware-caps-where-to-find-them)
 - [Example: Add a New Boxmodel](#example-add-a-new-boxmodel)
@@ -88,6 +89,34 @@ OE-A machine.conf -> MACHINE -> libstb-hal configure -> hardware_caps -> Neutrin
         └─ kernel/DTB/drivers already exist
 ```
 
+## MACHINE vs MACHINEBUILD
+
+- `MACHINE` selects the base hardware config:
+  `oe-alliance/meta-brands/meta-<brand>/conf/machine/<machine>.conf`.
+- `MACHINEBUILD` selects an OEM or variant for the same base machine.
+  It often toggles tuners, frontpanel, branding, partitions, or image layout.
+- Some OE-A layers add `MACHINEOVERRIDES` based on `MACHINEBUILD`, which lets
+  recipes override settings per OEM variant.
+- If a machine has no OEM variants, `MACHINEBUILD` can be omitted (or equals
+  `MACHINE`).
+
+How to find valid `MACHINEBUILD` values:
+
+- Inspect the machine file and its includes for `MACHINEBUILD` usage or
+  `MACHINEOVERRIDES`.
+- Quick search:
+
+```bash
+rg -n "MACHINEBUILD" oe-alliance/meta-brands/meta-<brand>/conf/machine -S
+```
+
+When integrating `libstb-hal`:
+
+- `MACHINE`/boxmodel is the key input. `MACHINEBUILD` does **not** map to
+  boxmodel automatically.
+- If an OEM variant needs different caps, add a new boxmodel and map to it via
+  bbappend overrides.
+
 ## Existing Machine in meta-brands: Integration Steps
 
 If a box already exists in `oe-alliance/meta-brands`, you can skip the machine
@@ -95,6 +124,7 @@ definition work and focus on Neutrino integration:
 
 1) **Confirm the MACHINE name.**
    - Use `make list-machines` and `make machine-info MACHINE=<name>`.
+   - If OEM variants exist, set `MACHINEBUILD` accordingly.
    - The machine name must match a libstb-hal boxmodel or be mapped.
 
 2) **Align boxtype/boxmodel between libstb-hal and Neutrino.**

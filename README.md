@@ -131,6 +131,38 @@ files) and lists layers with their source file.
 
 Built images will be in `build/tmp/deploy/images/<machine>/` (e.g. `hd51/`).
 
+### QEMU Smoke Tests (qemux86-64)
+
+Current QEMU target: `qemux86-64` only.
+The QEMU image is a minimal smoke-test build (no Neutrino/multimedia stack).
+
+Build the QEMU image:
+
+```bash
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
+```
+
+Start QEMU (headless + user networking):
+
+```bash
+./scripts/qemu/run-qemu.sh nographic slirp
+```
+
+Run the smoke test in another terminal:
+
+```bash
+./scripts/qemu/smoke-test.sh
+```
+
+Notes:
+- SSH is forwarded to `127.0.0.1:2222` (override with `SSH_PORT=...`).
+- If `2222` is busy, runqemu will shift the port; set `SSH_PORT` accordingly.
+- The first SSH connection may prompt for the root password (empty, press Enter).
+- Set `SHUTDOWN=0` if you want to keep QEMU running after tests.
+- If `build/conf` already targets a different machine (e.g. hd60), either
+  regenerate config (overwrites) or use a separate build dir and pass
+  `BUILD_DIR=...` to run-qemu.
+
 ### Persistent Local Overrides (Beginner Friendly)
 
 `make config` generates `local.conf` and `bblayers.conf`. To keep personal changes
@@ -161,6 +193,16 @@ Avoid these pitfalls:
 - Keep `vardepsexclude` when using `DATE`/`DATETIME` to avoid rebuild churn.
 - Do not use slashes in `IMAGE_NAME` (must be a filename).
 - Do not change `IMAGE_NAME_SUFFIX` unless your tooling expects it.
+
+### Locale Defaults (Optional)
+
+Default images ship only `en-us` to keep footprints small. The QEMU smoke image
+keeps multiple locales for convenience. Override per build in
+`build/conf/local.conf.user.inc`:
+
+```conf
+IMAGE_LINGUAS = "en-us"
+```
 
 ### Source Download Mirror (Optional)
 

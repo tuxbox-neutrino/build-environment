@@ -367,6 +367,16 @@ Diese Stolperfallen vermeiden:
 - Keine Slashes in `IMAGE_NAME` (muss ein Dateiname sein).
 - `IMAGE_NAME_SUFFIX` nicht ändern, ausser deine Tools erwarten das.
 
+### Locale-Defaults (optional)
+
+Standard-Images liefern nur `en-us`, um den Footprint klein zu halten. Das QEMU
+Smoke-Image behält mehrere Locales zur Bequemlichkeit. Pro Build kannst du das
+in `build/conf/local.conf.user.inc` überschreiben:
+
+```conf
+IMAGE_LINGUAS = "en-us"
+```
+
 **Buildzeit**: 2-4 Stunden beim ersten Build (Downloads ~10GB Sources)
 
 **Folge-Builds**: 20-40 Minuten (mit Cache)
@@ -454,6 +464,52 @@ oder als Teil einer Release-Pipeline.
 ./cli.py build --machine hd51 --target feeds
 # Or
 make feeds MACHINE=hd51
+```
+
+### QEMU Smoke-Tests (qemux86-64)
+
+Aktuelles QEMU-Target: nur `qemux86-64`.
+Das QEMU-Image ist ein schlanker Smoke-Test-Build (ohne Neutrino/Multimedia-Stack).
+
+QEMU-Image bauen:
+
+```bash
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
+```
+
+QEMU starten (headless + User-Netzwerk):
+
+```bash
+./scripts/qemu/run-qemu.sh nographic slirp
+```
+
+Smoke-Test in einem zweiten Terminal:
+
+```bash
+./scripts/qemu/smoke-test.sh
+```
+
+Hinweise:
+- SSH wird auf `127.0.0.1:2222` weitergeleitet (mit `SSH_PORT=...` überschreiben).
+- Wenn `2222` belegt ist, verschiebt runqemu den Port; `SSH_PORT` entsprechend setzen.
+- Beim ersten SSH-Login kann eine Passwortabfrage kommen (Root ist leer, Enter).
+- Mit `SHUTDOWN=0` bleibt QEMU nach dem Test laufen.
+
+Wenn `build/conf` bereits auf eine andere Maschine zeigt (z.B. hd60):
+
+Option A (Config in `build/` überschreibt):
+
+```bash
+make config MACHINE=qemux86-64
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
+```
+
+Option B (bestehende Config behalten, separates Build-Verzeichnis):
+
+```bash
+./cli.py config --machine qemux86-64 --builddir build-qemu
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image --builddir build-qemu
+BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
 ```
 
 ### GitHub Actions (manuell)

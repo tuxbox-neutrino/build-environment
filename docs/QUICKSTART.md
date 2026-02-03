@@ -355,6 +355,16 @@ Avoid these pitfalls:
 - Do not use slashes in `IMAGE_NAME` (must be a filename).
 - Do not change `IMAGE_NAME_SUFFIX` unless your tooling expects it.
 
+### Locale Defaults (Optional)
+
+Default images ship only `en-us` to keep footprints small. The QEMU smoke image
+keeps multiple locales for convenience. Override per build in
+`build/conf/local.conf.user.inc`:
+
+```conf
+IMAGE_LINGUAS = "en-us"
+```
+
 **Build time**: 2-4 hours on first build (downloads ~10GB sources)
 
 **Subsequent builds**: 20-40 minutes (using cache)
@@ -441,6 +451,52 @@ or as part of a release feed pipeline.
 ./cli.py build --machine hd51 --target feeds
 # Or
 make feeds MACHINE=hd51
+```
+
+### QEMU Smoke Tests (qemux86-64)
+
+Current QEMU target: `qemux86-64` only.
+The QEMU image is a minimal smoke-test build (no Neutrino/multimedia stack).
+
+Build the QEMU image:
+
+```bash
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
+```
+
+Run QEMU (headless + user networking):
+
+```bash
+./scripts/qemu/run-qemu.sh nographic slirp
+```
+
+Run the smoke test in another terminal:
+
+```bash
+./scripts/qemu/smoke-test.sh
+```
+
+Notes:
+- SSH is forwarded to `127.0.0.1:2222` (override with `SSH_PORT=...`).
+- If `2222` is busy, runqemu will shift the port; set `SSH_PORT` accordingly.
+- The first SSH connection may prompt for the root password (empty, press Enter).
+- Set `SHUTDOWN=0` if you want to keep QEMU running after tests.
+
+If `build/conf` already targets a different machine (e.g. hd60):
+
+Option A (overwrite config in `build/`):
+
+```bash
+make config MACHINE=qemux86-64
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
+```
+
+Option B (keep existing config, use separate build dir):
+
+```bash
+./cli.py config --machine qemux86-64 --builddir build-qemu
+./cli.py build --machine qemux86-64 --target tuxbox-qemu-image --builddir build-qemu
+BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
 ```
 
 ### GitHub Actions (Manual)

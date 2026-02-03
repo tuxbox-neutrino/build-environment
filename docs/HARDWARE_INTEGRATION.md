@@ -54,6 +54,11 @@ useful starting point, but not a guarantee that Neutrino integration exists.
 - `ni.inc` -> `neutrino-images/ni-libstb-hal`
 - `tango.inc` -> `TangoCash/libstb-hal-tangos`
 
+Note: These forks are not guaranteed to be compatible with each other. This
+guide focuses on `library-stb-hal` (tuxbox flavour). The community shares
+knowledge across forks, but implementation style and commit practices can
+diverge, so apply changes in the fork you actually build against.
+
 The build passes:
 
 - `--with-boxtype=${TARGET_ARCH}box`

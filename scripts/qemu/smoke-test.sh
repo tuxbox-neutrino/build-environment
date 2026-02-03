@@ -8,10 +8,34 @@ SSH_PORT="${SSH_PORT:-2222}"
 SSH_USER="${SSH_USER:-root}"
 TIMEOUT="${TIMEOUT:-180}"
 SHUTDOWN="${SHUTDOWN:-1}"
-SKIP_PING="${SKIP_PING:-0}"
-REQUIRED_UNITS="${REQUIRED_UNITS:-sshd}"
-REQUIRED_SERVICES="${REQUIRED_SERVICES:-sshd}"
 LOG_DIR="${LOG_DIR:-${TOPDIR}/build/qemu-logs}"
+PING_TARGET="${PING_TARGET:-192.168.7.1}"
+
+is_qemu_slirp=0
+if [[ "${SSH_HOST}" == "127.0.0.1" && "${SSH_PORT}" == "2222" ]]; then
+  is_qemu_slirp=1
+fi
+
+if [[ -z "${SKIP_PING+x}" ]]; then
+  if [[ "${is_qemu_slirp}" == "1" ]]; then
+    SKIP_PING=1
+  else
+    SKIP_PING=0
+  fi
+fi
+if [[ -z "${REQUIRED_UNITS+x}" ]]; then
+  if [[ "${is_qemu_slirp}" == "1" ]]; then
+    REQUIRED_UNITS="sshd.socket"
+  else
+    REQUIRED_UNITS="sshd"
+  fi
+fi
+if [[ -z "${REQUIRED_SERVICES+x}" ]]; then
+  REQUIRED_SERVICES="sshd"
+fi
+if [[ -z "${EXPECTED_FAILED_UNITS+x}" && "${is_qemu_slirp}" == "1" ]]; then
+  EXPECTED_FAILED_UNITS="firstboot.service local.service nmb.service smb.service systemd-networkd-wait-online.service"
+fi
 
 ssh_opts=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5)
 if [[ -n "${SSH_OPTS:-}" ]]; then
@@ -33,8 +57,16 @@ ssh_cmd() {
 wait_for_ssh() {
   local deadline=$((SECONDS + TIMEOUT))
   while (( SECONDS < deadline )); do
-    if (echo >"/dev/tcp/${SSH_HOST}/${SSH_PORT}") >/dev/null 2>&1; then
-      return 0
+    if exec 3<>"/dev/tcp/${SSH_HOST}/${SSH_PORT}" 2>/dev/null; then
+      local banner=""
+      if IFS= read -r -t 5 banner <&3; then
+        exec 3<&- 3>&-
+        if [[ "${banner}" == SSH-* ]]; then
+          return 0
+        fi
+      else
+        exec 3<&- 3>&-
+      fi
     fi
     sleep 2
   done
@@ -79,7 +111,7 @@ ssh_cmd "ip route show"
 ssh_cmd "opkg --version"
 
 if [[ "${SKIP_PING}" != "1" ]]; then
-  ssh_cmd "ping -c1 -w5 192.168.7.1"
+  ssh_cmd "ping -c1 -w5 ${PING_TARGET}"
 fi
 
 if ssh_cmd "command -v systemctl >/dev/null 2>&1"; then
@@ -88,6 +120,31 @@ if ssh_cmd "command -v systemctl >/dev/null 2>&1"; then
     ssh_cmd "systemctl is-active ${unit}"
   done
   ssh_cmd "systemctl --no-pager --failed || true"
+  failed_units="$(ssh_cmd "systemctl --failed --no-legend --plain --no-pager | awk '{print \\$1}'" || true)"
+  if [[ -n "${failed_units}" ]]; then
+    if [[ -n "${EXPECTED_FAILED_UNITS:-}" ]]; then
+      expected_found=()
+      unexpected=()
+      for unit in ${failed_units}; do
+        if [[ " ${EXPECTED_FAILED_UNITS} " == *" ${unit} "* ]]; then
+          expected_found+=("${unit}")
+        else
+          unexpected+=("${unit}")
+        fi
+      done
+      if (( ${#expected_found[@]} )); then
+        echo "Expected failed units: ${expected_found[*]}"
+      fi
+      if (( ${#unexpected[@]} )); then
+        echo "Unexpected failed units: ${unexpected[*]}" >&2
+        if [[ "${FAIL_ON_UNEXPECTED_FAILED_UNITS:-0}" == "1" ]]; then
+          exit 1
+        fi
+      fi
+    else
+      echo "Failed units: ${failed_units}"
+    fi
+  fi
   ssh_cmd "journalctl -b --no-pager" > "${log_prefix}-journal.txt" || true
 else
   for svc in ${REQUIRED_SERVICES}; do

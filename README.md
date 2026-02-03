@@ -185,6 +185,14 @@ If you want a fresh timestamped image every run, force the task:
 bitbake -f -c do_image_hdfastboot8gb tuxbox-image
 ```
 
+## Documentation
+
+- [QUICKSTART.md](docs/QUICKSTART.md) - 5-minute quick start guide
+- [SUBMODULES.md](docs/SUBMODULES.md) - Beginner guide to layers and submodules
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
+- [HARDWARE_INTEGRATION.md](docs/HARDWARE_INTEGRATION.md) - Add new hardware
+- [COOLSTREAM.md](docs/COOLSTREAM.md) - Coolstream Tank uClibc builds (experimental/PoC)
+
 ## Supported Platforms
 
 ### Priority Platforms (Tested)
@@ -243,14 +251,6 @@ Workflows are manual-only for now so private submodules can be used during
 setup. Trigger runs from the Actions tab after configuring repository secrets
 or SSH access for submodules. To automate, re-enable `push`/`schedule` in
 `.github/workflows/*.yml` once submodule authentication is working.
-
-## Documentation
-
-- [QUICKSTART.md](docs/QUICKSTART.md) - 5-minute quick start guide
-- [SUBMODULES.md](docs/SUBMODULES.md) - Beginner guide to layers and submodules
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
-- [HARDWARE_INTEGRATION.md](docs/HARDWARE_INTEGRATION.md) - Add new hardware
-- [COOLSTREAM.md](docs/COOLSTREAM.md) - Coolstream Tank uClibc builds (experimental/PoC)
 
 ## Project Structure
 

@@ -120,7 +120,7 @@ if ssh_cmd "command -v systemctl >/dev/null 2>&1"; then
     ssh_cmd "systemctl is-active ${unit}"
   done
   ssh_cmd "systemctl --no-pager --failed || true"
-  failed_units="$(ssh_cmd "systemctl --failed --no-legend --plain --no-pager | awk '{print \\$1}'" || true)"
+  failed_units="$(ssh_cmd 'systemctl --failed --no-legend --plain --no-pager | awk '"'"'{print $1}'"'"' || true')"
   if [[ -n "${failed_units}" ]]; then
     if [[ -n "${EXPECTED_FAILED_UNITS:-}" ]]; then
       expected_found=()

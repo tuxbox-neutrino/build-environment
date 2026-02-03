@@ -1,5 +1,7 @@
 # Tuxbox-OS Quick Start Guide
 
+Deutsch: [de/QUICKSTART.md](de/QUICKSTART.md)
+
 Get started building Neutrino images in under 10 minutes.
 
 ## Contents

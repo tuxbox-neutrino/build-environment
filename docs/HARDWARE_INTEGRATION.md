@@ -1,5 +1,7 @@
 # Hardware Integration Guide (Neutrino + libstb-hal)
 
+Deutsch: [de/HARDWARE_INTEGRATION.md](de/HARDWARE_INTEGRATION.md)
+
 This document explains how hardware support is wired up and why not every
 OE-Alliance machine is ready for Neutrino out of the box.
 

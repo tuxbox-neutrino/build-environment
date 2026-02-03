@@ -1,5 +1,7 @@
 # Tuxbox-OS Builder
 
+Deutsch: [README.de.md](README.de.md)
+
 Production-ready build system for Tuxbox-Neutrino based on OE-Alliance infrastructure.
 
 ## Quick Start
@@ -187,11 +189,11 @@ bitbake -f -c do_image_hdfastboot8gb tuxbox-image
 
 ## Documentation
 
-- [QUICKSTART.md](docs/QUICKSTART.md) - 5-minute quick start guide
-- [SUBMODULES.md](docs/SUBMODULES.md) - Beginner guide to layers and submodules
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
-- [HARDWARE_INTEGRATION.md](docs/HARDWARE_INTEGRATION.md) - Add new hardware
-- [COOLSTREAM.md](docs/COOLSTREAM.md) - Coolstream Tank uClibc builds (experimental/PoC)
+- QUICKSTART: [EN](docs/QUICKSTART.md), [DE](docs/de/QUICKSTART.md) - 5-minute quick start guide
+- SUBMODULES: [EN](docs/SUBMODULES.md), [DE](docs/de/SUBMODULES.md) - Layers and submodules
+- ARCHITECTURE: [EN](docs/ARCHITECTURE.md), [DE](docs/de/ARCHITECTURE.md) - System architecture
+- HARDWARE: [EN](docs/HARDWARE_INTEGRATION.md), [DE](docs/de/HARDWARE_INTEGRATION.md) - Add new hardware
+- COOLSTREAM: [EN](docs/COOLSTREAM.md), [DE](docs/de/COOLSTREAM.md) - uClibc builds (experimental/PoC)
 
 ## Supported Platforms
 

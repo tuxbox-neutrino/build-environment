@@ -1,58 +1,58 @@
 # Coolstream (uClibc) Builds
 
-Deutsch: [de/COOLSTREAM.md](de/COOLSTREAM.md)
+English: [../COOLSTREAM.md](../COOLSTREAM.md)
 
-Coolstream HD2 devices require a uClibc toolchain. We encapsulate this in
-`meta-coolstream` (machines/BSP) plus `meta-tuxbox-toolchain`
+Coolstream HD2-Geraete benoetigen eine uClibc-Toolchain. Wir kapseln das in
+`meta-coolstream` (Maschinen/BSP) plus `meta-tuxbox-toolchain`
 (TCMODE `external-coolstream`).
 
-Status: **experimental / proof of concept**. This is feasibility work and not
-production-ready.
+Status: **experimentell / Proof of Concept**. Diese Inhalte sind eine
+Machbarkeitsforschung und noch nicht produktiv.
 
-See also:
+Siehe auch:
 - [QUICKSTART.md](QUICKSTART.md)
 - [SUBMODULES.md](SUBMODULES.md)
-- [README.md](../README.md)
+- [README.de.md](../../README.de.md)
 
-## Contents
+## Inhalt
 
 - [Layer](#layer)
 - [Toolchain](#toolchain)
-- [Build (Tank example)](#build-tank-example)
-- [Notes](#notes)
-- [Coolstream Machine Configuration](#coolstream-machine-configuration)
-- [Image Customization](#image-customization)
-- [Build Workflow](#build-workflow)
-- [Troubleshooting](#troubleshooting)
-- [Advanced Topics](#advanced-topics)
-- [Testing](#testing)
-- [References](#references)
+- [Build (Beispiel Tank)](#build-beispiel-tank)
+- [Hinweise](#hinweise)
+- [Coolstream Maschinenkonfiguration](#coolstream-maschinenkonfiguration)
+- [Image-Anpassung](#image-anpassung)
+- [Build-Workflow](#build-workflow)
+- [Fehlersuche](#fehlersuche)
+- [Fortgeschrittene Themen](#fortgeschrittene-themen)
+- [Testen](#testen)
+- [Referenzen](#referenzen)
 
 ## Layer
-- `meta-coolstream`: machine definitions, flash/layout, BSP adjustments.
-  Add to `bblayers.conf`:
+- `meta-coolstream`: Maschinenbeschreibungen, Flash/Layout, BSP-Anpassungen.
+  In `bblayers.conf` hinzufuegen:
   ```
   BBLAYERS += "${TOPDIR}/../meta-coolstream"
   ```
-- `meta-coolstream` now contains the binary puller `libcoolstream-bin`.
-  `meta-libcoolstream` stays optional for future source builds, but no longer
-  ships a binary recipe.
-- Binary drivers/firmware: `cst-drivers` (modules + FW for HD1/HD2), optional
-  `cst-drivers-extra` (rt5572sta for nevis).
-- `meta-tuxbox-toolchain`: external uClibc toolchain.
-- **Sources (derived from ni-buildsystem, must be cloned/adjusted):**
-  - `ni-linux-kernel` (2.6.34.15 HD1 / 3.10.108 HD2, incl. defconfigs)
-  - `ni-drivers-bin` (kernel modules, DTBs hd849x/en75x1, firmware, bootloader/uldr)
-  - `ni-libcoolstream` (libcoolstream, libnxp for HD1)
-  - Toolchain: prebuilt uClibc tarball (see below) or CT-NG configs (hd1/hd2)
-  - **No** libstb-hal required on Coolstream devices.
+- `meta-coolstream` enthaelt jetzt den Binaer-Puller `libcoolstream-bin`.
+  `meta-libcoolstream` bleibt optional fuer kuenftige Source-Builds, enthaelt
+  kein binaeres Rezept mehr.
+- Binaere Treiber/Firmware: `cst-drivers` (Module + FW fuer HD1/HD2), optional
+  `cst-drivers-extra` (rt5572sta fuer nevis).
+- `meta-tuxbox-toolchain`: Externe uClibc-Toolchain.
+- **Quellen (aus ni-buildsystem ableitbar, muessen geklont/angepasst werden):**
+  - `ni-linux-kernel` (2.6.34.15 HD1 / 3.10.108 HD2, inkl. defconfigs)
+  - `ni-drivers-bin` (Kernel-Module, DTBs hd849x/en75x1, Firmware, Bootloader/uldr)
+  - `ni-libcoolstream` (libcoolstream, libnxp fuer HD1)
+  - Toolchain: fertiges uClibc-Tarball (s. unten) bzw. CT-NG-Configs (hd1/hd2)
+  - **Kein** libstb-hal auf Coolstream-Geraeten erforderlich.
 
 ## Toolchain
 **URL**: https://sourceforge.net/projects/n4k/files/toolchains/
 **File**: `toolchain-coolstream-uclibc-armv7.tar.bz2`
 **SHA256**: `b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6`
 
-Layout (shortened):
+Layout (gekuerzt):
 ```
 toolchain-coolstream-uclibc-armv7/
 +-- cross/arm-linux-3.10.93/
@@ -60,32 +60,31 @@ toolchain-coolstream-uclibc-armv7/
     +-- arm-cortex-linux-uclibcgnueabi/sys-root/...
 ```
 
-## Build (Tank example)
+## Build (Beispiel Tank)
 ```
-# local/conf
+# lokale/conf
 MACHINE = "coolstream-apollo"
 MACHINEBUILD = "coolstream-apollo"
 TCMODE = "external-coolstream"
 TCLIBC = "uclibc"
 
-# Add layer (bblayers.conf)
+# Layer hinzufuegen (bblayers.conf)
 BBLAYERS += "${TOPDIR}/../meta-coolstream"
 
-# Build
+# Bauen
 bitbake tuxbox-image
 ```
 
-## Notes
-- DISTRO stays `tuxbox`; set libc/TCMODE explicitly for Coolstream machines.
-- Kernel/bootloader/driver still need migration from ni-buildsystem.
-- MACHINE names (mapping to NI BOXMODEL):
+## Hinweise
+- DISTRO bleibt `tuxbox`; libc/TCMODE fuer Coolstream-Maschinen explizit setzen.
+- Kernel/Bootloader/Driver muessen noch aus dem ni-buildsystem migriert werden.
+- MACHINE-Namen (Mapping zu NI BOXMODEL):
   - `coolstream-nevis` (HD1 glibc): HD1/BSE/NEO/NEO2/NEO2 Twin/ZEE
   - `coolstream-apollo` (HD2 uClibc): Tank
   - `coolstream-shiner` (HD2 uClibc): Trinity V1
   - `coolstream-kronos` (HD2 uClibc): Zee2 / Trinity V2
   - `coolstream-kronos-v2` (HD2 uClibc): Link / Trinity Duo
-- HD1/Nevis devices (arm1176) use glibc; uClibc applies to HD2
-  (apollo/shiner/kronos/kronos_v2).
+- HD1/Nevis-Geraete (arm1176) glibc; uClibc gilt fuer HD2 (apollo/shiner/kronos/kronos_v2).
 
 ### Distribution Config
 
@@ -156,9 +155,9 @@ FILES_${PN} = "${datadir}/coolstream-toolchain"
 INHIBIT_DEFAULT_DEPS = "1"
 ```
 
-## Coolstream Machine Configuration
+## Coolstream Maschinenkonfiguration
 
-### Machine Config
+### Maschinen-Config
 
 **File**: `meta-tuxbox-toolchain/conf/machine/tank.conf`
 
@@ -194,9 +193,9 @@ FLASHSIZE = "128"  # MB
 KERNEL_DEVICETREE = "coolstream-tank.dtb"
 ```
 
-## Image Customization
+## Image-Anpassung
 
-### Coolstream-Specific Package Group
+### Coolstream-spezifische Packagegroup
 
 **File**: `meta-tuxbox-toolchain/recipes-core/packagegroups/packagegroup-coolstream.bb`
 
@@ -238,7 +237,7 @@ IMAGE_INSTALL_remove = " \
 "
 ```
 
-## Build Workflow
+## Build-Workflow
 
 ### 1. Full Build
 
@@ -281,7 +280,7 @@ make image MACHINE=tank DISTRO=tuxbox-uclibc
 bitbake neutrino -c compile -f
 ```
 
-## Troubleshooting
+## Fehlersuche
 
 ### Toolchain Download Fails
 
@@ -347,7 +346,7 @@ bitbake linux-coolstream -c cleansstate
 bitbake linux-coolstream
 ```
 
-## Advanced Topics
+## Fortgeschrittene Themen
 
 ### Custom Toolchain
 
@@ -387,7 +386,7 @@ bitbake neutrino -e | grep ^CFLAGS=
 bitbake neutrino -e | grep ^LDFLAGS=
 ```
 
-### Migrating from ni-buildsystem
+### Migration vom ni-buildsystem
 
 If you have Coolstream-specific recipes from the old ni-buildsystem:
 
@@ -408,7 +407,7 @@ If you have Coolstream-specific recipes from the old ni-buildsystem:
    bitbake <package-name>
    ```
 
-## Testing
+## Testen
 
 ### QEMU Testing
 
@@ -431,7 +430,7 @@ make image MACHINE=tank DISTRO=tuxbox-uclibc
 4. **Check boot log** via serial console
 5. **Verify Neutrino starts**
 
-## References
+## Referenzen
 
 - **Coolstream Wiki**: https://wiki.coolstream.info/
 - **n4k Project**: https://sourceforge.net/projects/n4k/
@@ -440,4 +439,4 @@ make image MACHINE=tank DISTRO=tuxbox-uclibc
 
 ---
 
-**Need help?** Ask on the Tuxbox forum or open an issue.
+**Need help?** Ask on Tuxbox forum or open an issue.

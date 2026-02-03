@@ -1,5 +1,7 @@
 # Layers and Submodules (Beginner Guide)
 
+Deutsch: [de/SUBMODULES.md](de/SUBMODULES.md)
+
 This project keeps the build layers in their own Git repositories:
 
 - `meta-neutrino`

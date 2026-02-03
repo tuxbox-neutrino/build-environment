@@ -1,5 +1,7 @@
 # Tuxbox-OS Architecture
 
+Deutsch: [de/ARCHITECTURE.md](de/ARCHITECTURE.md)
+
 Understanding the build system architecture and design decisions.
 
 ## Contents

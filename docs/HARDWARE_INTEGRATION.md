@@ -6,6 +6,7 @@ OE-Alliance machine is ready for Neutrino out of the box.
 ## Contents
 
 - [Reality Check](#reality-check)
+- [Quick Glossary](#quick-glossary)
 - [Where Hardware Support Lives](#where-hardware-support-lives)
 - [OE-Alliance References](#oe-alliance-references)
 - [libstb-hal Selection and Boxmodel Mapping](#libstb-hal-selection-and-boxmodel-mapping)
@@ -26,6 +27,16 @@ OE-Alliance machine is ready for Neutrino out of the box.
 - Neutrino requires `libstb-hal` support. If a machine is not in the supported
   `boxmodel` list, builds or runtime behavior will break.
 - Adding support is possible and welcome, but it is real bring-up work.
+- For real integration you need hardware access (serial/SSH and a working
+  kernel/DTB). Without a box, you can only do a best-effort build.
+
+## Quick Glossary
+
+- `MACHINE`: the OE-Alliance machine name you pass to the build.
+- `MACHINEBUILD`: optional OEM variant for the same base machine.
+- `boxtype`: coarse family (`generic`, `armbox`, `mipsbox`).
+- `boxmodel`: the exact string libstb-hal expects for a box (often = `MACHINE`).
+- `libstb-hal`: hardware abstraction layer used by Neutrino.
 
 ## Where Hardware Support Lives
 
@@ -69,7 +80,8 @@ Neutrino itself uses the same flags (see
 `meta-neutrino/recipes-neutrino/neutrino/*.inc`). Ensure both recipes agree. If
 machine naming differs, override `EXTRA_OECONF` via a bbappend.
 
-Valid boxtype values are `generic`, `armbox`, `mipsbox`. The `boxmodel` list is
+Valid boxtype values are `generic`, `armbox`, `mipsbox`. Boxtype is a broad
+hardware family, boxmodel is the exact per-device string. The `boxmodel` list is
 defined in `library-stb-hal/acinclude.m4` (and similar in the other flavours).
 
 Current boxmodels (library-stb-hal):
@@ -81,7 +93,8 @@ Current boxmodels (library-stb-hal):
 - mipsbox: `vuduo`, `vuduo2`, `gb800se`, `osnino`, `osninoplus`, `osninopro`
 
 If your machine name is not in this list, `configure` will fail and Neutrino
-cannot run. You must add the boxmodel and hardware caps.
+cannot run. You must add the boxmodel and hardware caps (or map `MACHINE` to an
+existing boxmodel via bbappend).
 
 ## Integration Flow (Decision)
 
@@ -196,6 +209,9 @@ Where to get values:
 - Existing similar models in `hardware_caps.c` (same SoC/brand)
 - Device nodes (`/dev/dvb/*`, `/dev/fb*`) and frontpanel drivers
 
+Tip for newcomers: start from a known similar model and then verify the values
+on real hardware. Wrong caps can hide features or trigger wrong code paths.
+
 ## Reducing BOXMODEL Branches in Neutrino
 
 libstb-hal was designed to isolate hardware specifics so Neutrino can stay
@@ -218,6 +234,8 @@ Practical migration steps:
    `libarmbox/` or `libmipsbox/`.
 4) Replace the compile-time branch with a runtime check (caps or helper).
 5) Keep compile-time branching only for true boxtype backends, not UI logic.
+
+If you are new, you can postpone this refactor and just add missing caps first.
 
 ## Example: Add a New Boxmodel
 

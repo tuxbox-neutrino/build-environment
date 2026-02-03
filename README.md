@@ -126,6 +126,9 @@ make machine-info MACHINE=hd51
 MACHINEBUILD=mutant51 ./cli.py build --machine hd51
 ```
 
+Image target: `tuxbox-image` is the canonical image recipe. Legacy targets
+`neutrino-image` and `noneutrino-image` are aliases to the same recipe.
+
 `make show-config` reports where values come from (local.conf vs include
 files) and lists layers with their source file.
 

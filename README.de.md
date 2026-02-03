@@ -129,6 +129,10 @@ make machine-info MACHINE=hd51
 MACHINEBUILD=mutant51 ./cli.py build --machine hd51
 ```
 
+Image-Target: `tuxbox-image` ist das kanonische Image-Rezept. Die alten
+Targets `neutrino-image` und `noneutrino-image` sind Aliasnamen zum selben
+Rezept.
+
 `make show-config` zeigt, woher Werte kommen (local.conf vs include
 files) und listet die Layer inkl. der Quelldatei.
 

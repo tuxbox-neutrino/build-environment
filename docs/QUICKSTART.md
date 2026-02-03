@@ -171,6 +171,9 @@ It will reuse the existing config (and prompt if multiple build dirs exist).
 make image MACHINE=zgemmah7
 ```
 
+Note: The canonical image target is `tuxbox-image`. Legacy targets
+`neutrino-image` and `noneutrino-image` are aliases for compatibility.
+
 ### Prepare Configuration Only
 
 Use the same parameters as `make image`, but it will only generate config files:

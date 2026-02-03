@@ -173,6 +173,9 @@ Build-Verzeichnisse existieren).
 make image MACHINE=zgemmah7
 ```
 
+Hinweis: Das kanonische Image-Target ist `tuxbox-image`. Die alten Targets
+`neutrino-image` und `noneutrino-image` sind Aliasnamen für die Kompatibilität.
+
 ### Nur Konfiguration vorbereiten
 
 Nutze die gleichen Parameter wie bei `make image`, aber es werden nur

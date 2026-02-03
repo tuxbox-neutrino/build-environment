@@ -7,6 +7,7 @@ OE-Alliance machine is ready for Neutrino out of the box.
 
 - [Reality Check](#reality-check)
 - [Where Hardware Support Lives](#where-hardware-support-lives)
+- [OE-Alliance References](#oe-alliance-references)
 - [libstb-hal Selection and Boxmodel Mapping](#libstb-hal-selection-and-boxmodel-mapping)
 - [Integration Flow (Decision)](#integration-flow-decision)
 - [MACHINE vs MACHINEBUILD](#machine-vs-machinebuild)
@@ -35,6 +36,14 @@ OE-Alliance machine is ready for Neutrino out of the box.
   `meta-tuxbox` (image/packagegroups, distro config)
 - **Neutrino and hardware abstraction**:
   `meta-neutrino` (Neutrino, `libstb-hal`)
+
+## OE-Alliance References
+
+OE-Alliance keeps a public inventory of machine names and vendors. It is a
+useful starting point, but not a guarantee that Neutrino integration exists.
+
+- Local (if submodule is checked out): `oe-alliance/README.md`
+- Upstream: `https://github.com/oe-alliance/oe-alliance-core/blob/master/README.md`
 
 ## libstb-hal Selection and Boxmodel Mapping
 
@@ -104,6 +113,8 @@ How to find valid `MACHINEBUILD` values:
 
 - Inspect the machine file and its includes for `MACHINEBUILD` usage or
   `MACHINEOVERRIDES`.
+- In many OE-A layers, OEM variants are defined in
+  `conf/machine/include/*-oem.inc` or `*oem*.inc` files.
 - Quick search:
 
 ```bash

@@ -30,6 +30,13 @@ else
 fi
 
 # Initialize build environment so runqemu can infer paths.
-source "${TOPDIR}/poky/oe-init-build-env" "${BUILD_DIR}" >/dev/null
+# oe-init-build-env is not nounset-safe, so guard against unset vars.
+{
+  set +u
+  : "${BBSERVER:=}"
+  : "${ZSH_NAME:=}"
+  source "${TOPDIR}/poky/oe-init-build-env" "${BUILD_DIR}" >/dev/null
+  set -u
+}
 
 exec "${RUNQEMU}" "${target_args[@]}" "$@"

@@ -10,6 +10,7 @@ OE-Alliance machine is ready for Neutrino out of the box.
 - [libstb-hal Selection and Boxmodel Mapping](#libstb-hal-selection-and-boxmodel-mapping)
 - [Hardware Caps: Where to Find Them](#hardware-caps-where-to-find-them)
 - [Example: Add a New Boxmodel](#example-add-a-new-boxmodel)
+- [Existing Machine in meta-brands: Integration Steps](#existing-machine-in-meta-brands-integration-steps)
 - [Workflow: Add a New Machine](#workflow-add-a-new-machine)
 - [Verification Checklist](#verification-checklist)
 - [Contributing Upstream](#contributing-upstream)
@@ -64,6 +65,18 @@ Current boxmodels (library-stb-hal):
 
 If your machine name is not in this list, `configure` will fail and Neutrino
 cannot run. You must add the boxmodel and hardware caps.
+
+Integration map (existing meta-brands machine):
+
+```
+OE-A machine.conf -> MACHINE -> libstb-hal configure -> hardware_caps -> Neutrino
+        |                |             |                    |            |
+        |                |             |                    |            └─ uses libstb-hal headers/libs
+        |                |             |                    └─ model-specific caps
+        |                |             └─ --with-boxtype/--with-boxmodel
+        |                └─ name must match a known boxmodel (or override)
+        └─ kernel/DTB/drivers already exist
+```
 
 ## Hardware Caps: Where to Find Them
 
@@ -134,6 +147,35 @@ bitbake tuxbox-image
 ```
 
 If it boots, validate HDMI, audio, demux, PIP, frontpanel, and standby.
+
+## Existing Machine in meta-brands: Integration Steps
+
+If a box already exists in `oe-alliance/meta-brands`, you can skip the machine
+definition work and focus on Neutrino integration:
+
+1) **Confirm the MACHINE name.**
+   - Use `make list-machines` and `make machine-info MACHINE=<name>`.
+   - The machine name must match a libstb-hal boxmodel or be mapped.
+
+2) **Make libstb-hal accept the machine.**
+   - Add the boxmodel to `library-stb-hal/acinclude.m4`.
+   - Add caps in `libarmbox/` or `libmipsbox/` (see example above).
+   - If the machine name differs, add a bbappend to override:
+     - `EXTRA_OECONF:append = " --with-boxmodel=<boxmodel> --with-boxtype=armbox"`
+     - Apply the same override in Neutrino (`neutrino_*.bbappend`), so both
+       use identical boxtype/boxmodel.
+
+3) **Verify Neutrino build flags.**
+   - Neutrino uses `--with-boxtype=${TARGET_ARCH}box` and
+     `--with-boxmodel=${MACHINE}` (see `meta-neutrino/recipes-neutrino/neutrino/*.inc`).
+   - If your target arch is `aarch64`, you must override boxtype to `armbox`
+     (libstb-hal only accepts `generic|armbox|mipsbox`).
+
+4) **Build and smoke-test on hardware.**
+   - `bitbake libstb-hal -c compile`
+   - `bitbake neutrino`
+   - `bitbake tuxbox-image`
+   - Validate `/proc/stb/info/*`, video/audio, demux, frontpanel, standby.
 
 ## Workflow: Add a New Machine
 

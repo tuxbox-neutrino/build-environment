@@ -488,6 +488,13 @@ make qemu-run
 make qemu-smoke
 ```
 
+Beispiele:
+
+```bash
+make qemu-run QEMU_BUILD_DIR=build-qemu
+SSH_PORT=2223 make qemu-smoke
+```
+
 ### GitHub Actions (manuell)
 
 Workflows sind standardmäßigig manuell, damit private Submodule während des

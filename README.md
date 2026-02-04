@@ -153,6 +153,13 @@ make qemu-run
 make qemu-smoke
 ```
 
+Examples:
+
+```bash
+make qemu-run QEMU_BUILD_DIR=build-qemu
+SSH_PORT=2223 make qemu-smoke
+```
+
 ### Persistent Local Overrides (Beginner Friendly)
 
 `make config` generates `local.conf` and `bblayers.conf`. To keep personal changes

@@ -38,6 +38,21 @@ Hinweise:
 - User-Networking (slirp). SSH ist auf `127.0.0.1:2222` weitergeleitet.
 - Wenn `2222` belegt ist, verschiebt runqemu den Port; `SSH_PORT=...` nutzen.
 
+## Makefile-Shortcuts
+
+```bash
+make qemu-run
+make qemu-smoke
+```
+
+Häufige Overrides:
+
+```bash
+make qemu-run QEMU_BUILD_DIR=build-qemu
+make qemu-run QEMU_ARGS="nographic slirp"
+SSH_PORT=2223 make qemu-smoke
+```
+
 ### SSH Login
 
 ```bash

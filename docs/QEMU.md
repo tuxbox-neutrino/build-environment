@@ -38,6 +38,21 @@ Notes:
 - Uses user networking (slirp). SSH is forwarded to `127.0.0.1:2222`.
 - If `2222` is busy, runqemu shifts the port; use `SSH_PORT=...` in tests.
 
+## Makefile Shortcuts
+
+```bash
+make qemu-run
+make qemu-smoke
+```
+
+Common overrides:
+
+```bash
+make qemu-run QEMU_BUILD_DIR=build-qemu
+make qemu-run QEMU_ARGS="nographic slirp"
+SSH_PORT=2223 make qemu-smoke
+```
+
 ### SSH Login
 
 ```bash

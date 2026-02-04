@@ -68,8 +68,8 @@ Nützliche Variablen:
 
 Logs liegen unter `build/qemu-logs/`.
 
-Erwartete failed Units in QEMU (default):
-`firstboot.service`, `local.service`, `nmb.service`, `smb.service`.
+Erwartete failed Units in QEMU (default): keine.
+Falls failed Units auftreten, bitte als Regression ansehen und prüfen.
 
 ## opkg Feeds
 

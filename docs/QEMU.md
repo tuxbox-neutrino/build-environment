@@ -68,8 +68,8 @@ Useful environment variables:
 
 Logs are written to `build/qemu-logs/`.
 
-Expected failed units in QEMU (default):
-`firstboot.service`, `local.service`, `nmb.service`, `smb.service`.
+Expected failed units in QEMU (default): none.
+If you see failed units, treat them as regressions to investigate.
 
 ## opkg Feeds
 

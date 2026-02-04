@@ -33,10 +33,6 @@ fi
 if [[ -z "${REQUIRED_SERVICES+x}" ]]; then
   REQUIRED_SERVICES="sshd"
 fi
-if [[ -z "${EXPECTED_FAILED_UNITS+x}" && "${is_qemu_slirp}" == "1" ]]; then
-  EXPECTED_FAILED_UNITS="firstboot.service local.service nmb.service smb.service"
-fi
-
 ssh_opts=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5)
 if [[ -n "${SSH_OPTS:-}" ]]; then
   read -r -a extra_opts <<< "${SSH_OPTS}"

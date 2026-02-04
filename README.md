@@ -211,8 +211,10 @@ across machines. To disable the WiFi package group per build, set this in
 TUXBOX_WIFI = "0"
 ```
 
-Driver/firmware packages are only pulled for machines that advertise WiFi
-features in their `MACHINE_FEATURES`.
+Firmware packages are included by default as well. Kernel modules come from the
+machine kernel (and its modules tarball), so if a stick needs a missing driver
+you must enable it in the kernel config. For a minimal image or custom
+selection, set `TUXBOX_WIFI = "0"` and add packages explicitly.
 
 ### Source Download Mirror (Optional)
 

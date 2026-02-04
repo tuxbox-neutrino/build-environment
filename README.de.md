@@ -216,8 +216,11 @@ zu deaktivieren, setze dies in `build/conf/local.conf.user.inc`:
 TUXBOX_WIFI = "0"
 ```
 
-Treiber/Firmware-Pakete werden nur für Maschinen eingebunden, die WiFi-Features
-in ihren `MACHINE_FEATURES` ausweisen.
+Firmware-Pakete werden ebenfalls standardmäßig eingebunden. Kernel-Module
+kommen aus dem Maschinen-Kernel (und dem modules-Tarball). Fehlt ein Treiber
+für einen Stick, muss er in der Kernel-Konfiguration aktiviert werden. Für ein
+minimales Image oder eine eigene Auswahl setze `TUXBOX_WIFI = "0"` und füge die
+Pakete gezielt hinzu.
 
 ### Source Download Mirror (optional)
 

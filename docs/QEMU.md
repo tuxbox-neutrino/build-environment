@@ -61,6 +61,11 @@ ssh -p 2222 root@127.0.0.1
 
 The root password is empty unless you set `ROOTPW` at build time.
 
+Notes:
+- SSH host keys persist across reboots when the rootfs is writable.
+- If you run QEMU with `snapshot` or a tmpfs rootfs, host keys are regenerated
+  on every boot and the fingerprint changes.
+
 ## Webmin
 
 In QEMU images, Webmin listens on port `10001` to avoid conflicts with a host

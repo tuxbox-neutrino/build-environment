@@ -61,6 +61,11 @@ ssh -p 2222 root@127.0.0.1
 
 Das Root-Passwort ist leer, außer du setzt `ROOTPW` beim Build.
 
+Hinweise:
+- SSH-Host-Keys bleiben über Reboots erhalten, wenn das Rootfs beschreibbar ist.
+- Wenn QEMU mit `snapshot` oder einem tmpfs-Rootfs läuft, werden die Host-Keys
+  bei jedem Boot neu erzeugt und der Fingerprint ändert sich.
+
 ## Webmin
 
 In QEMU-Images lauscht Webmin auf Port `10001`, damit es keinen Konflikt mit

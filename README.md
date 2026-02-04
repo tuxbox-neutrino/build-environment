@@ -201,6 +201,19 @@ keeps multiple locales for convenience. Override per build in
 IMAGE_LINGUAS = "en-us"
 ```
 
+### WiFi Packages (Optional)
+
+WiFi user-space tools are included by default so USB WiFi sticks can be used
+across machines. To disable the WiFi package group per build, set this in
+`build/conf/local.conf.user.inc`:
+
+```conf
+TUXBOX_WIFI = "0"
+```
+
+Driver/firmware packages are only pulled for machines that advertise WiFi
+features in their `MACHINE_FEATURES`.
+
 ### Source Download Mirror (Optional)
 
 You can use the public source mirror for faster downloads. Generated configs

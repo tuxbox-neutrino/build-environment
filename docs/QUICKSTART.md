@@ -456,6 +456,19 @@ or as part of a release feed pipeline.
 make feeds MACHINE=hd51
 ```
 
+### WiFi Packages
+
+WiFi user-space tools are included by default so USB WiFi sticks can be used
+across machines. To disable them for a specific build, set this in
+`build/conf/local.conf.user.inc`:
+
+```conf
+TUXBOX_WIFI = "0"
+```
+
+Driver/firmware packages are only pulled for machines that advertise WiFi
+features in their `MACHINE_FEATURES`.
+
 ### QEMU Smoke Tests (qemux86-64)
 
 Full guide: `docs/QEMU.md` (EN) / `docs/de/QEMU.md` (DE).

@@ -206,6 +206,19 @@ in `build/conf/local.conf.user.inc` überschreiben:
 IMAGE_LINGUAS = "en-us"
 ```
 
+### WLAN-Pakete (optional)
+
+WLAN-User-Space-Tools sind standardmäßig enthalten, damit USB-WLAN-Sticks
+maschinenübergreifend genutzt werden können. Um die WLAN-Paketgruppe pro Build
+zu deaktivieren, setze dies in `build/conf/local.conf.user.inc`:
+
+```conf
+TUXBOX_WIFI = "0"
+```
+
+Treiber/Firmware-Pakete werden nur für Maschinen eingebunden, die WiFi-Features
+in ihren `MACHINE_FEATURES` ausweisen.
+
 ### Source Download Mirror (optional)
 
 Du kannst den öffentlichen Source-Mirror nutzen, um Downloads zu beschleunigen.

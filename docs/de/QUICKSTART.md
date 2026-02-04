@@ -469,6 +469,19 @@ oder als Teil einer Release-Pipeline.
 make feeds MACHINE=hd51
 ```
 
+### WLAN-Pakete
+
+WLAN-User-Space-Tools sind standardmäßig enthalten, damit USB-WLAN-Sticks
+maschinenübergreifend genutzt werden können. Um sie für einen Build zu
+deaktivieren, setze dies in `build/conf/local.conf.user.inc`:
+
+```conf
+TUXBOX_WIFI = "0"
+```
+
+Treiber/Firmware-Pakete werden nur für Maschinen eingebunden, die WiFi-Features
+in ihren `MACHINE_FEATURES` ausweisen.
+
 ### QEMU Smoke-Tests (qemux86-64)
 
 Vollständige Anleitung: `docs/de/QEMU.md` (DE) / `docs/QEMU.md` (EN).

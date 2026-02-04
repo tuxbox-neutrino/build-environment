@@ -481,6 +481,13 @@ Quick-Start:
 ./scripts/qemu/smoke-test.sh
 ```
 
+Makefile-Shortcuts:
+
+```bash
+make qemu-run
+make qemu-smoke
+```
+
 ### GitHub Actions (manuell)
 
 Workflows sind standardmäßigig manuell, damit private Submodule während des

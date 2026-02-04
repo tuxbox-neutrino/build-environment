@@ -146,6 +146,13 @@ Quick start:
 ./scripts/qemu/smoke-test.sh
 ```
 
+Makefile shortcuts:
+
+```bash
+make qemu-run
+make qemu-smoke
+```
+
 ### Persistent Local Overrides (Beginner Friendly)
 
 `make config` generates `local.conf` and `bblayers.conf`. To keep personal changes

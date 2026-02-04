@@ -60,6 +60,10 @@ BB_TASK ?=
 BB_ARGS ?=
 BB_CMD = $(strip $(BB_ARGS) $(if $(BB_TASK),-c $(BB_TASK),) $(BB_TARGET))
 DEVTOOL_ARGS ?= $(ARGS)
+QEMU_MACHINE ?= qemux86-64
+QEMU_IMAGE ?= tuxbox-qemu-image
+QEMU_ARGS ?= nographic slirp
+QEMU_BUILD_DIR ?= $(BUILDDIR)
 
 # Build directories
 BUILDDIR := $(TOPDIR)/build
@@ -112,6 +116,8 @@ help:
 	@echo -e "  $(COLOR_GREEN)make edit-conf MACHINE=hd51$(COLOR_RESET)          Edit config files"
 	@echo -e "  $(COLOR_GREEN)make feeds MACHINE=hd51$(COLOR_RESET)              Build package feeds"
 	@echo -e "  $(COLOR_GREEN)make sdk MACHINE=hd51$(COLOR_RESET)                Build SDK for development"
+	@echo -e "  $(COLOR_GREEN)make qemu-run$(COLOR_RESET)                         Run QEMU (qemux86-64)"
+	@echo -e "  $(COLOR_GREEN)make qemu-smoke$(COLOR_RESET)                       Run QEMU smoke test (needs QEMU running)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Maintenance:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
@@ -146,6 +152,10 @@ help:
 	@echo -e "  DISTRO       Distribution (default: tuxbox)"
 	@echo -e "  DISTRO_TYPE  Build type: release|development (default: release)"
 	@echo -e "  FORCE_INIT   Force re-run init (default: 0)"
+	@echo -e "  QEMU_MACHINE QEMU machine (default: qemux86-64)"
+	@echo -e "  QEMU_IMAGE   QEMU image name (default: tuxbox-qemu-image)"
+	@echo -e "  QEMU_ARGS    Extra args for run-qemu.sh (default: nographic slirp)"
+	@echo -e "  QEMU_BUILD_DIR Build dir for QEMU (default: build)"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
@@ -154,6 +164,8 @@ help:
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=zgemmah7 DISTRO_TYPE=development$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make qemu-run$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make qemu-smoke$(COLOR_RESET)"
 	@echo ""
 
 .PHONY: check
@@ -198,6 +210,16 @@ endif
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
 	@exit 1
 endif
+
+.PHONY: qemu-run
+qemu-run:
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(QEMU_MACHINE) IMAGE=$(QEMU_IMAGE) BUILD_DIR=$(QEMU_BUILD_DIR) ./scripts/qemu/run-qemu.sh $(QEMU_ARGS)"
+	@MACHINE=$(QEMU_MACHINE) IMAGE=$(QEMU_IMAGE) BUILD_DIR=$(QEMU_BUILD_DIR) ./scripts/qemu/run-qemu.sh $(QEMU_ARGS)
+
+.PHONY: qemu-smoke
+qemu-smoke:
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) ./scripts/qemu/smoke-test.sh"
+	@./scripts/qemu/smoke-test.sh
 
 .PHONY: config
 config: init

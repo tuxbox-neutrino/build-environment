@@ -8,6 +8,7 @@ MACHINE="${MACHINE:-qemux86-64}"
 IMAGE="${IMAGE:-tuxbox-qemu-image}"
 FSTYPE="${FSTYPE:-wic}"
 RUNQEMU="${RUNQEMU:-${TOPDIR}/poky/scripts/runqemu}"
+QEMU_STATIC_RES="${QEMU_STATIC_RES:-1280x720}"
 
 if [[ ! -x "${RUNQEMU}" ]]; then
   echo "runqemu not found at ${RUNQEMU}" >&2
@@ -52,4 +53,20 @@ fi
   set -u
 }
 
-exec "${RUNQEMU}" "${target_args[@]}" "$@"
+args=("$@")
+
+if [[ "${QEMU_STATIC_RES}" != "off" ]]; then
+  have_qemuparams=0
+  for a in "${args[@]}"; do
+    if [[ "${a}" == qemuparams=* ]]; then
+      have_qemuparams=1
+      break
+    fi
+  done
+  if [[ "${have_qemuparams}" -eq 0 ]]; then
+    # Force a stable window size; disable GTK auto-resize.
+    args+=( "qemuparams=-device virtio-vga,edid=on,xres=1280,yres=720 -display gtk,zoom-to-fit=off" )
+  fi
+fi
+
+exec "${RUNQEMU}" "${target_args[@]}" "${args[@]}"

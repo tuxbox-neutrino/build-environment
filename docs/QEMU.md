@@ -109,6 +109,18 @@ opkg update
 opkg install <pkg>
 ```
 
+## Rootfs Size (opkg Testing)
+
+The QEMU image ships with extra rootfs space so you can install larger
+packages (e.g. Neutrino) during testing. If you still hit `No space left
+on device`, increase the extra space in your local config:
+
+```conf
+TUXBOX_QEMU_ROOTFS_EXTRA_SPACE = "2097152"
+```
+
+Value is in KB (the example adds ~2 GB).
+
 ## Troubleshooting
 
 - QEMU window stays black: use `nographic` and check

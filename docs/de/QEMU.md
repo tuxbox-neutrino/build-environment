@@ -6,7 +6,7 @@ Entwicklung und CI gedacht, nicht für produktive Images.
 ## Umfang
 
 - Aktuelles Target: nur `qemux86-64`.
-- Image: `tuxbox-qemu-image` (minimal, ohne Neutrino/Multimedia-Stack).
+- Image: `tuxbox-qemu-image` (inklusive Neutrino + X11 für GUI-Tests).
 
 ## Build
 
@@ -30,6 +30,14 @@ BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
 
 ## QEMU starten
 
+GUI (empfohlen für Neutrino):
+
+```bash
+./scripts/qemu/run-qemu.sh slirp
+```
+
+Headless (keine sichtbare Neutrino-GUI):
+
 ```bash
 ./scripts/qemu/run-qemu.sh nographic slirp
 ```
@@ -37,6 +45,7 @@ BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
 Hinweise:
 - User-Networking (slirp). SSH ist auf `127.0.0.1:2222` weitergeleitet.
 - Wenn `2222` belegt ist, verschiebt runqemu den Port; `SSH_PORT=...` nutzen.
+ - Neutrino startet in der GUI-Variante automatisch auf dem QEMU-Display.
 
 ## Makefile-Shortcuts
 

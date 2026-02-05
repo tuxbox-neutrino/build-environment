@@ -479,7 +479,7 @@ Quick start:
 
 ```bash
 ./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
-./scripts/qemu/run-qemu.sh nographic slirp
+./scripts/qemu/run-qemu.sh slirp
 ./scripts/qemu/smoke-test.sh
 ```
 

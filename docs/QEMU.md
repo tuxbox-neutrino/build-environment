@@ -45,7 +45,9 @@ Headless (no visible Neutrino UI):
 Notes:
 - Uses user networking (slirp). SSH is forwarded to `127.0.0.1:2222`.
 - If `2222` is busy, runqemu shifts the port; use `SSH_PORT=...` in tests.
- - Neutrino starts automatically on the QEMU display in GUI mode.
+- Neutrino starts automatically on the QEMU display in GUI mode.
+- Bluetooth power-on is skipped in VMs to avoid boot delays; test Bluetooth on
+  real hardware.
 
 ## Makefile Shortcuts
 

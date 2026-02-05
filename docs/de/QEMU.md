@@ -45,7 +45,9 @@ Headless (keine sichtbare Neutrino-GUI):
 Hinweise:
 - User-Networking (slirp). SSH ist auf `127.0.0.1:2222` weitergeleitet.
 - Wenn `2222` belegt ist, verschiebt runqemu den Port; `SSH_PORT=...` nutzen.
- - Neutrino startet in der GUI-Variante automatisch auf dem QEMU-Display.
+- Neutrino startet in der GUI-Variante automatisch auf dem QEMU-Display.
+- Bluetooth-Power-On wird in VMs übersprungen, um Boot-Delays zu vermeiden;
+  Bluetooth bitte auf echter Hardware testen.
 
 ## Makefile-Shortcuts
 

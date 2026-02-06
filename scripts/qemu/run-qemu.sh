@@ -64,8 +64,8 @@ if [[ "${QEMU_STATIC_RES}" != "off" ]]; then
     fi
   done
   if [[ "${have_qemuparams}" -eq 0 ]]; then
-    # Force a stable window size; disable GTK auto-resize.
-    args+=( "qemuparams=-device virtio-vga,edid=on,xres=1280,yres=720 -display gtk,zoom-to-fit=off -device qemu-xhci -device usb-kbd -device usb-tablet" )
+    # Force a stable window size without pinning the display backend.
+    args+=( "qemuparams=-global virtio-vga.xres=1280 -global virtio-vga.yres=720 -global virtio-vga.edid=on -device qemu-xhci -device usb-kbd -device usb-tablet" )
   fi
 fi
 

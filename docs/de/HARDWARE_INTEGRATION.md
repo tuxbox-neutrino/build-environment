@@ -63,17 +63,18 @@ existiert.
 
 ## libstb-hal Auswahl und Boxmodel Mapping
 
-`meta-tuxbox/conf/distro/tuxbox.conf` setzt `FLAVOUR` (default: `tuxbox`). Das
-`libstb-hal` Recipe includiert `${FLAVOUR}.inc`, das den Upstream Repo wählt:
+`meta-tuxbox/conf/distro/tuxbox.conf` setzt `FLAVOUR` (default: `tuxbox`). Dieses
+Repo unterstützt in-tree nur den `tuxbox`‑Flavour. Die `libstb-hal`‑ und
+Neutrino‑Rezepte includieren `tuxbox.inc` direkt.
 
-- `tuxbox.inc` -> `tuxbox-neutrino/library-stb-hal`
-- `ni.inc` -> `neutrino-images/ni-libstb-hal`
-- `tango.inc` -> `TangoCash/libstb-hal-tangos`
+Wenn du einen Fork bauen willst (z. B. NI/Tango), halte das lokal:
 
-Hinweis: Diese Forks sind nicht garantiert kompatibel zueinander. Dieser Guide
-fokussiert `library-stb-hal` (tuxbox flavour). Die Community teilt Wissen
-über Forks, aber Stil und Commit-Kultur können abweichen. Ändere nur in dem
-Fork, gegen den du wirklich baust.
+1. `devtool modify neutrino` und/oder `devtool modify libstb-hal`
+2. `SRC_URI` auf deinen Fork umstellen und ggf. fork‑spezifische Configure‑Flags
+   ergänzen
+3. Aus dem Workspace bauen oder in einen privaten Layer übernehmen
+
+So bleibt der Main‑Tree sauber und Fork‑Builds bleiben möglich.
 
 Der Build übergibt:
 
@@ -87,7 +88,7 @@ Recipes übereinstimmen. Wenn die Namen abweichen, überschreibe
 
 Gültige boxtype Werte sind `generic`, `armbox`, `mipsbox`. Boxtype ist eine
 breite Familie, boxmodel ist der exakte Geräte-String. Die `boxmodel` Liste ist
-in `library-stb-hal/acinclude.m4` definiert (und ähnlich in anderen Forks).
+in `library-stb-hal/acinclude.m4` definiert.
 
 Aktuelle boxmodels (library-stb-hal):
 

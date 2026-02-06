@@ -138,6 +138,13 @@ files) und listet die Layer inkl. der Quelldatei.
 
 Gebautes Image liegt in `build/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
 
+### Neutrino‑Flavour (nur tuxbox)
+
+Der Main‑Tree unterstützt nur den `tuxbox`‑Flavour. Wenn du einen Fork
+(NI/Tango) bauen willst, nutze `devtool modify` in einem lokalen Workspace und
+setze `SRC_URI` auf deinen Fork (oder lege die Änderungen in einen privaten
+Layer).
+
 ### QEMU Smoke-Tests (qemux86-64)
 
 Vollständige Anleitung: [docs/de/QEMU.md](docs/de/QEMU.md) (DE) /

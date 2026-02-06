@@ -134,6 +134,12 @@ files) and lists layers with their source file.
 
 Built images will be in `build/tmp/deploy/images/<machine>/` (e.g. `hd51/`).
 
+### Neutrino Flavour (tuxbox only)
+
+The main tree supports only the `tuxbox` flavour. If you need a fork (NI/Tango),
+use `devtool modify` to work in a local workspace and point `SRC_URI` to your
+fork (or move the changes into a private layer).
+
 ### QEMU Smoke Tests (qemux86-64)
 
 Full guide: [docs/QEMU.md](docs/QEMU.md) (EN) / [docs/de/QEMU.md](docs/de/QEMU.md) (DE).

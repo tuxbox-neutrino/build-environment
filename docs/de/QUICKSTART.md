@@ -176,6 +176,13 @@ make image MACHINE=zgemmah7
 Hinweis: Das kanonische Image-Target ist `tuxbox-image`. Die alten Targets
 `neutrino-image` und `noneutrino-image` sind Aliasnamen für die Kompatibilität.
 
+### Neutrino‑Flavour (nur tuxbox)
+
+Der Main‑Tree unterstützt nur den `tuxbox`‑Flavour. Wenn du einen Fork
+(NI/Tango) bauen willst, nutze `devtool modify` in einem lokalen Workspace und
+setze `SRC_URI` auf deinen Fork (oder lege die Änderungen in einen privaten
+Layer).
+
 ### Nur Konfiguration vorbereiten
 
 Nutze die gleichen Parameter wie bei `make image`, aber es werden nur

@@ -67,12 +67,20 @@ existiert.
 Repo unterstützt in-tree nur den `tuxbox`‑Flavour. Die `libstb-hal`‑ und
 Neutrino‑Rezepte includieren `tuxbox.inc` direkt.
 
-Wenn du einen Fork bauen willst (z. B. NI/Tango), halte das lokal:
+Wenn du einen Fork bauen willst (z. B. NI/Tango), halte das lokal. Es gibt zwei
+Wege:
 
-1. `devtool modify neutrino` und/oder `devtool modify libstb-hal`
-2. `SRC_URI` auf deinen Fork umstellen und ggf. fork‑spezifische Configure‑Flags
-   ergänzen
-3. Aus dem Workspace bauen oder in einen privaten Layer übernehmen
+1. Workspace (temporär, `devtool`).
+Nutze `devtool modify neutrino` und/oder `devtool modify libstb-hal`. Stelle
+dann die Git‑Remotes/Branches in `workspace/sources/<recipe>` auf deinen Fork.
+Solange das devtool‑Workspace aktiv ist, baut BitBake aus diesem lokalen
+Source‑Tree (`EXTERNALSRC`), d. h. Änderungen an `SRC_URI` greifen erst nach
+`devtool reset`.
+
+2. Lokaler Layer (dauerhaft, `meta-local`).
+Lege ein bbappend (oder kopiere das Rezept) unter `meta-local` an, setze
+`SRC_URI` auf deinen Fork und ergänze fork‑spezifische Configure‑Flags, dann
+`PR` bumpen und bauen.
 
 So bleibt der Main‑Tree sauber und Fork‑Builds bleiben möglich.
 

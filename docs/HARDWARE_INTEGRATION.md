@@ -65,12 +65,19 @@ useful starting point, but not a guarantee that Neutrino integration exists.
 repo only supports the upstream `tuxbox` flavour in-tree. The `libstb-hal` and
 Neutrino recipes include `tuxbox.inc` directly.
 
-If you want to build a fork (e.g. NI/Tango), keep it local:
+If you want to build a fork (e.g. NI/Tango), keep it local. There are two
+supported paths:
 
-1. `devtool modify neutrino` and/or `devtool modify libstb-hal`
-2. Replace `SRC_URI` with your fork repo and add any fork-specific configure
-   flags
-3. Build from the workspace, or move the patch/recipe into a private layer
+1. Workspace (temporary, `devtool`).
+Use `devtool modify neutrino` and/or `devtool modify libstb-hal`. Then adjust
+the git remotes/branches inside `workspace/sources/<recipe>` to point at your
+fork. While a devtool workspace is active, builds use that local source tree
+(`EXTERNALSRC`), so recipe `SRC_URI` changes do not apply until you
+`devtool reset`.
+
+2. Local layer (persistent, `meta-local`).
+Add a bbappend (or copy the recipe) under `meta-local`, set `SRC_URI` to your
+fork and add any fork-specific configure flags, then bump `PR` and build.
 
 This keeps the main tree clean while still allowing fork builds.
 

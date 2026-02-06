@@ -75,6 +75,39 @@ fork. While a devtool workspace is active, builds use that local source tree
 (`EXTERNALSRC`), so recipe `SRC_URI` changes do not apply until you
 `devtool reset`.
 
+Example (Neutrino fork via workspace):
+
+```bash
+# Get a workspace checkout
+make devtool ARGS="modify neutrino"
+
+# Switch the workspace repo to your fork
+cd build/workspace/sources/neutrino
+git remote add fork git@github.com:<you>/<your-neutrino-fork>.git
+git fetch fork
+git checkout -b fork-work fork/<branch>
+
+# Build using the workspace tree
+cd -
+make bb TARGET=neutrino
+
+# When done
+make devtool ARGS="reset neutrino"
+```
+
+Example (libstb-hal fork via workspace):
+
+```bash
+make devtool ARGS="modify libstb-hal"
+cd build/workspace/sources/libstb-hal
+git remote add fork git@github.com:<you>/<your-libstb-hal-fork>.git
+git fetch fork
+git checkout -b fork-work fork/<branch>
+cd -
+make bb TARGET=libstb-hal
+make devtool ARGS="reset libstb-hal"
+```
+
 2. Local layer (persistent, `meta-local`).
 Add a bbappend (or copy the recipe) under `meta-local`, set `SRC_URI` to your
 fork and add any fork-specific configure flags, then bump `PR` and build.

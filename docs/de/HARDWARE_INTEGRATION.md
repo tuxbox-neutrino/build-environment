@@ -77,6 +77,39 @@ Solange das devtool‑Workspace aktiv ist, baut BitBake aus diesem lokalen
 Source‑Tree (`EXTERNALSRC`), d. h. Änderungen an `SRC_URI` greifen erst nach
 `devtool reset`.
 
+Beispiel (Neutrino‑Fork via Workspace):
+
+```bash
+# Workspace auschecken
+make devtool ARGS="modify neutrino"
+
+# Workspace‑Repo auf den Fork umstellen
+cd build/workspace/sources/neutrino
+git remote add fork git@github.com:<you>/<your-neutrino-fork>.git
+git fetch fork
+git checkout -b fork-work fork/<branch>
+
+# Build mit Workspace‑Tree
+cd -
+make bb TARGET=neutrino
+
+# Danach zurücksetzen
+make devtool ARGS="reset neutrino"
+```
+
+Beispiel (libstb‑hal‑Fork via Workspace):
+
+```bash
+make devtool ARGS="modify libstb-hal"
+cd build/workspace/sources/libstb-hal
+git remote add fork git@github.com:<you>/<your-libstb-hal-fork>.git
+git fetch fork
+git checkout -b fork-work fork/<branch>
+cd -
+make bb TARGET=libstb-hal
+make devtool ARGS="reset libstb-hal"
+```
+
 2. Lokaler Layer (dauerhaft, `meta-local`).
 Lege ein bbappend (oder kopiere das Rezept) unter `meta-local` an, setze
 `SRC_URI` auf deinen Fork und ergänze fork‑spezifische Configure‑Flags, dann

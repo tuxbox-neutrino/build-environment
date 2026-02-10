@@ -3,9 +3,24 @@ set -euo pipefail
 
 TOPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFLIGHT_SCRIPT="${TOPDIR}/meta-tuxbox/recipes-local/flash-script/files/flash-ofgwrite-preflight.sh"
+DISPATCH_SCRIPT="${TOPDIR}/meta-tuxbox/recipes-local/flash-script/files/flash-dispatch.sh"
+BACKEND_SCRIPT="${TOPDIR}/meta-tuxbox/recipes-local/flash-script/files/flash-backend-script.sh"
+BACKEND_OFGWRITE_SCRIPT="${TOPDIR}/meta-tuxbox/recipes-local/flash-script/files/flash-backend-ofgwrite.sh"
 
 if [[ ! -f "${PREFLIGHT_SCRIPT}" ]]; then
   echo "ERROR: preflight script not found: ${PREFLIGHT_SCRIPT}" >&2
+  exit 1
+fi
+if [[ ! -f "${DISPATCH_SCRIPT}" ]]; then
+  echo "ERROR: dispatch script not found: ${DISPATCH_SCRIPT}" >&2
+  exit 1
+fi
+if [[ ! -f "${BACKEND_SCRIPT}" ]]; then
+  echo "ERROR: script backend handler not found: ${BACKEND_SCRIPT}" >&2
+  exit 1
+fi
+if [[ ! -f "${BACKEND_OFGWRITE_SCRIPT}" ]]; then
+  echo "ERROR: ofgwrite backend handler not found: ${BACKEND_OFGWRITE_SCRIPT}" >&2
   exit 1
 fi
 
@@ -20,27 +35,59 @@ fake_ofgwrite_log="${tmpdir}/ofgwrite-args.log"
 image_dir="${tmpdir}/image"
 backend_conf="${tmpdir}/flash-backend.conf"
 profile_conf="${tmpdir}/flash-machine-profile.conf"
+dispatch_log="${tmpdir}/dispatch.log"
+preflight_log="${tmpdir}/preflight.log"
+fake_preflight="${tmpdir}/flash-backend-preflight"
+fake_legacy="${tmpdir}/flash-legacy"
+fake_handler_script="${tmpdir}/handler-script.sh"
+fake_handler_ofgwrite="${tmpdir}/handler-ofgwrite.sh"
 
 cat >"${fake_ofgwrite}" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "${FAKE_OFGWRITE_LOG:?}"
-case " $* " in
-  *" -n "*|*" --nowrite "*)
-    ;;
-  *)
-    echo "missing --nowrite/-n option" >&2
-    exit 31
-    ;;
-esac
 exit 0
 EOF
 chmod +x "${fake_ofgwrite}"
+
+cat >"${fake_preflight}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "${FAKE_PREFLIGHT_LOG:?}"
+exit 0
+EOF
+chmod +x "${fake_preflight}"
+
+cat >"${fake_legacy}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'legacy:%s\n' "$*" >> "${FAKE_DISPATCH_LOG:?}"
+exit 0
+EOF
+chmod +x "${fake_legacy}"
+
+cat >"${fake_handler_script}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'script-handler:%s\n' "$*" >> "${FAKE_DISPATCH_LOG:?}"
+exit 0
+EOF
+chmod +x "${fake_handler_script}"
+
+cat >"${fake_handler_ofgwrite}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'ofgwrite-handler:%s\n' "$*" >> "${FAKE_DISPATCH_LOG:?}"
+exit 0
+EOF
+chmod +x "${fake_handler_ofgwrite}"
 
 mkdir -p "${image_dir}"
 touch "${image_dir}/kernel.bin" "${image_dir}/rootfs.tar.bz2"
 
 export FAKE_OFGWRITE_LOG="${fake_ofgwrite_log}"
+export FAKE_PREFLIGHT_LOG="${preflight_log}"
+export FAKE_DISPATCH_LOG="${dispatch_log}"
 cat >"${backend_conf}" <<'EOF'
 FLASH_BACKEND=ofgwrite
 EOF
@@ -80,4 +127,63 @@ if FLASH_BACKEND_CONF_PATH="${backend_conf}" \
   exit 1
 fi
 
-echo "Flash backend preflight smoke checks passed."
+cat >"${backend_conf}" <<'EOF'
+FLASH_BACKEND=script
+EOF
+FLASH_BACKEND_CONF_PATH="${backend_conf}" \
+FLASH_BACKEND_SCRIPT_HANDLER="${fake_handler_script}" \
+FLASH_BACKEND_OFGWRITE_HANDLER="${fake_handler_ofgwrite}" \
+sh "${DISPATCH_SCRIPT}" 2 /tmp/demo-image
+
+if ! grep -q '^script-handler:' "${dispatch_log}"; then
+  echo "ERROR: dispatcher did not route script backend correctly" >&2
+  cat "${dispatch_log}" >&2
+  exit 1
+fi
+
+cat >"${backend_conf}" <<'EOF'
+FLASH_BACKEND=ofgwrite
+EOF
+FLASH_BACKEND_CONF_PATH="${backend_conf}" \
+FLASH_BACKEND_SCRIPT_HANDLER="${fake_handler_script}" \
+FLASH_BACKEND_OFGWRITE_HANDLER="${fake_handler_ofgwrite}" \
+sh "${DISPATCH_SCRIPT}" 2 /tmp/demo-image
+
+if ! grep -q '^ofgwrite-handler:' "${dispatch_log}"; then
+  echo "ERROR: dispatcher did not route ofgwrite backend correctly" >&2
+  cat "${dispatch_log}" >&2
+  exit 1
+fi
+
+FAKE_OFGWRITE_LOG="${fake_ofgwrite_log}" \
+FAKE_PREFLIGHT_LOG="${preflight_log}" \
+FLASH_BACKEND_PREFLIGHT_BIN="${fake_preflight}" \
+FLASH_BACKEND_OFGWRITE_BIN="${fake_ofgwrite}" \
+sh "${BACKEND_OFGWRITE_SCRIPT}" 2 "${image_dir}"
+
+if ! grep -q -- '--backend ofgwrite' "${preflight_log}"; then
+  echo "ERROR: ofgwrite backend did not invoke preflight with backend marker" >&2
+  cat "${preflight_log}" >&2
+  exit 1
+fi
+if ! grep -Eq '(^|[[:space:]])-m([[:space:]]|$)2' "${fake_ofgwrite_log}"; then
+  echo "ERROR: ofgwrite backend did not invoke slot mapping correctly" >&2
+  cat "${fake_ofgwrite_log}" >&2
+  exit 1
+fi
+
+if FLASH_BACKEND_PREFLIGHT_BIN="${fake_preflight}" \
+   FLASH_BACKEND_OFGWRITE_BIN="${fake_ofgwrite}" \
+   sh "${BACKEND_OFGWRITE_SCRIPT}" 2 restore; then
+  echo "ERROR: ofgwrite backend accepted unsupported restore mode" >&2
+  exit 1
+fi
+
+FLASH_LEGACY_BIN="${fake_legacy}" sh "${BACKEND_SCRIPT}" 1 /tmp/legacy-image
+if ! grep -q '^legacy:' "${dispatch_log}"; then
+  echo "ERROR: script backend handler did not invoke legacy binary" >&2
+  cat "${dispatch_log}" >&2
+  exit 1
+fi
+
+echo "Flash backend preflight/dispatch smoke checks passed."

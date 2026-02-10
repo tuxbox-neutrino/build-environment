@@ -118,6 +118,7 @@ help:
 	@echo -e "  $(COLOR_GREEN)make sdk MACHINE=hd51$(COLOR_RESET)                Build SDK for development"
 	@echo -e "  $(COLOR_GREEN)make qemu-run$(COLOR_RESET)                         Run QEMU (qemux86-64)"
 	@echo -e "  $(COLOR_GREEN)make qemu-smoke$(COLOR_RESET)                       Run QEMU smoke test (needs QEMU running)"
+	@echo -e "  $(COLOR_GREEN)make stb-smoke MACHINE=qemux86-64$(COLOR_RESET)     Run stb-* plugin unpack/install smoke checks"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Maintenance:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
@@ -166,6 +167,7 @@ help:
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=zgemmah7 DISTRO_TYPE=development$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make qemu-run$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make qemu-smoke$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make stb-smoke MACHINE=qemux86-64$(COLOR_RESET)"
 	@echo ""
 
 .PHONY: check
@@ -220,6 +222,11 @@ qemu-run:
 qemu-smoke:
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) ./scripts/qemu/smoke-test.sh"
 	@./scripts/qemu/smoke-test.sh
+
+.PHONY: stb-smoke
+stb-smoke:
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) BUILD_DIR=$(BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh"
+	@MACHINE=$(MACHINE) BUILD_DIR=$(BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh
 
 .PHONY: config
 config: init

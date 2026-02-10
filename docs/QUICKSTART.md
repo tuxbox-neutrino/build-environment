@@ -218,6 +218,19 @@ For devtool:
 make devtool ARGS="modify freetype"
 ```
 
+STB Lua plugin smoke check (`stb-*`, tasks: `unpack` + `install`):
+
+```bash
+make stb-smoke MACHINE=qemux86-64
+```
+
+Optional overrides:
+
+```bash
+TASKS="unpack" make stb-smoke MACHINE=qemux86-64
+STB_PLUGIN_RECIPES="stb-flash stb-startup" make stb-smoke MACHINE=qemux86-64
+```
+
 These wrappers use your current config. Pass `MACHINE`/`MACHINEBUILD` if you
 want a specific build directory.
 

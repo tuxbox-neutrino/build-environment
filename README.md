@@ -166,6 +166,24 @@ make qemu-run QEMU_BUILD_DIR=build-qemu
 SSH_PORT=2223 make qemu-smoke
 ```
 
+### STB Lua Plugin Smoke Checks
+
+Run a fast recipe smoke check for `stb-*` Lua plugins (`unpack` + `install`):
+
+```bash
+make stb-smoke MACHINE=qemux86-64
+```
+
+Useful overrides:
+
+```bash
+# Only unpack check
+TASKS="unpack" make stb-smoke MACHINE=qemux86-64
+
+# Custom recipe subset
+STB_PLUGIN_RECIPES="stb-flash stb-startup" make stb-smoke MACHINE=qemux86-64
+```
+
 ### Persistent Local Overrides (Beginner Friendly)
 
 `make config` generates `local.conf` and `bblayers.conf`. To keep personal changes

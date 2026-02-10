@@ -45,6 +45,9 @@ fake_curl="${tmpdir}/curl"
 fake_curl_log="${tmpdir}/curl.log"
 fake_unzip="${tmpdir}/unzip"
 fake_unzip_log="${tmpdir}/unzip.log"
+fake_backup="${tmpdir}/backup.sh"
+fake_backup_log="${tmpdir}/backup.log"
+fake_cmdline="${tmpdir}/cmdline"
 version_file="${tmpdir}/image-version"
 image_base="${tmpdir}/image-base"
 machine_name="qemux86-64"
@@ -162,6 +165,17 @@ touch "${dest}/${FAKE_MACHINE_NAME}/kernel.bin" "${dest}/${FAKE_MACHINE_NAME}/ro
 EOF
 chmod +x "${fake_unzip}"
 
+cat >"${fake_backup}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+dest="${1:?}"
+name="${2:?}"
+mkdir -p "${dest}"
+printf 'backup:%s|%s\n' "${dest}" "${name}" >> "${FAKE_BACKUP_LOG:?}"
+printf 'dummy-backup\n' > "${dest}/${name}.tar.gz"
+EOF
+chmod +x "${fake_backup}"
+
 mkdir -p "${image_dir}"
 touch "${image_dir}/kernel.bin" "${image_dir}/rootfs.tar.bz2"
 
@@ -170,6 +184,7 @@ export FAKE_PREFLIGHT_LOG="${preflight_log}"
 export FAKE_DISPATCH_LOG="${dispatch_log}"
 export FAKE_CURL_LOG="${fake_curl_log}"
 export FAKE_UNZIP_LOG="${fake_unzip_log}"
+export FAKE_BACKUP_LOG="${fake_backup_log}"
 export FAKE_MACHINE_NAME="${machine_name}"
 cat >"${backend_conf}" <<'EOF'
 FLASH_BACKEND=ofgwrite
@@ -187,8 +202,21 @@ sh "${PREFLIGHT_SCRIPT}" \
   --ofgwrite-bin "${fake_ofgwrite}" \
   --image-dir "${image_dir}"
 
+if [[ -s "${fake_ofgwrite_log}" ]]; then
+  echo "ERROR: preflight unexpectedly called ofgwrite no-write probe by default" >&2
+  cat "${fake_ofgwrite_log}" >&2
+  exit 1
+fi
+
+FLASH_PREFLIGHT_RUN_OFGWRITE_NOWRITE=1 \
+FLASH_BACKEND_CONF_PATH="${backend_conf}" \
+FLASH_MACHINE_PROFILE_PATH="${profile_conf}" \
+sh "${PREFLIGHT_SCRIPT}" \
+  --ofgwrite-bin "${fake_ofgwrite}" \
+  --image-dir "${image_dir}"
+
 if [[ ! -s "${fake_ofgwrite_log}" ]]; then
-  echo "ERROR: fake ofgwrite did not capture any invocation" >&2
+  echo "ERROR: no-write probe did not call ofgwrite when explicitly enabled" >&2
   exit 1
 fi
 
@@ -240,10 +268,12 @@ fi
 
 : > "${fake_ofgwrite_log}"
 : > "${preflight_log}"
+printf 'console=ttyS0 root=/dev/vda rootsubdir=linuxrootfs4 rw\n' > "${fake_cmdline}"
 FAKE_OFGWRITE_LOG="${fake_ofgwrite_log}" \
 FAKE_PREFLIGHT_LOG="${preflight_log}" \
 FLASH_BACKEND_PREFLIGHT_BIN="${fake_preflight}" \
 FLASH_BACKEND_OFGWRITE_BIN="${fake_ofgwrite}" \
+FLASH_PROC_CMDLINE_FILE="${fake_cmdline}" \
 sh "${BACKEND_OFGWRITE_SCRIPT}" 2 "${image_dir}"
 
 if ! grep -q -- '--backend ofgwrite' "${preflight_log}"; then
@@ -254,6 +284,37 @@ fi
 if ! grep -Eq '(^|[[:space:]])-m([[:space:]]|$)2' "${fake_ofgwrite_log}"; then
   echo "ERROR: ofgwrite backend did not invoke slot mapping correctly" >&2
   cat "${fake_ofgwrite_log}" >&2
+  exit 1
+fi
+
+printf 'console=ttyS0 root=/dev/vda rootsubdir=linuxrootfs2 rw\n' > "${fake_cmdline}"
+if FAKE_OFGWRITE_LOG="${fake_ofgwrite_log}" \
+   FAKE_PREFLIGHT_LOG="${preflight_log}" \
+   FLASH_BACKEND_PREFLIGHT_BIN="${fake_preflight}" \
+   FLASH_BACKEND_OFGWRITE_BIN="${fake_ofgwrite}" \
+   FLASH_PROC_CMDLINE_FILE="${fake_cmdline}" \
+   sh "${BACKEND_OFGWRITE_SCRIPT}" 2 "${image_dir}"; then
+  echo "ERROR: expected active-slot protection to block slot 2" >&2
+  exit 1
+fi
+
+: > "${fake_ofgwrite_log}"
+: > "${preflight_log}"
+: > "${fake_backup_log}"
+FAKE_OFGWRITE_LOG="${fake_ofgwrite_log}" \
+FAKE_PREFLIGHT_LOG="${preflight_log}" \
+FAKE_BACKUP_LOG="${fake_backup_log}" \
+FLASH_BACKEND_PREFLIGHT_BIN="${fake_preflight}" \
+FLASH_BACKEND_OFGWRITE_BIN="${fake_ofgwrite}" \
+FLASH_PROC_CMDLINE_FILE="${fake_cmdline}" \
+FLASH_OFGWRITE_ALLOW_ACTIVE_SLOT_DEFAULT=1 \
+FLASH_OFGWRITE_ACTIVE_SLOT_REQUIRE_BACKUP_DEFAULT=1 \
+FLASH_OFGWRITE_ACTIVE_SLOT_BACKUP_DIR_DEFAULT="${tmpdir}/backups" \
+FLASH_BACKUP_BIN="${fake_backup}" \
+sh "${BACKEND_OFGWRITE_SCRIPT}" 2 "${image_dir}"
+
+if [[ ! -s "${fake_backup_log}" ]]; then
+  echo "ERROR: active-slot allow path did not run backup hook" >&2
   exit 1
 fi
 
@@ -271,12 +332,14 @@ touch "${image_base}/backup/partition_2/${machine_name}/rootfs.tar.bz2"
 
 : > "${fake_ofgwrite_log}"
 : > "${preflight_log}"
+printf 'console=ttyS0 root=/dev/vda rootsubdir=linuxrootfs4 rw\n' > "${fake_cmdline}"
 FLASH_VERSION_FILE_PATH="${version_file}" \
 FLASH_IMAGE_BASE_OVERRIDE="${image_base}" \
 FAKE_OFGWRITE_LOG="${fake_ofgwrite_log}" \
 FAKE_PREFLIGHT_LOG="${preflight_log}" \
 FLASH_BACKEND_PREFLIGHT_BIN="${fake_preflight}" \
 FLASH_BACKEND_OFGWRITE_BIN="${fake_ofgwrite}" \
+FLASH_PROC_CMDLINE_FILE="${fake_cmdline}" \
 sh "${BACKEND_OFGWRITE_SCRIPT}" 2 restore
 
 if ! grep -Eq '(^|[[:space:]])-m([[:space:]]|$)2' "${fake_ofgwrite_log}"; then
@@ -304,6 +367,7 @@ FAKE_OFGWRITE_LOG="${fake_ofgwrite_log}" \
 FAKE_PREFLIGHT_LOG="${preflight_log}" \
 FLASH_BACKEND_PREFLIGHT_BIN="${fake_preflight}" \
 FLASH_BACKEND_OFGWRITE_BIN="${fake_ofgwrite}" \
+FLASH_PROC_CMDLINE_FILE="${fake_cmdline}" \
 sh "${BACKEND_OFGWRITE_SCRIPT}" 2 force
 
 if ! grep -q 'https://example.invalid/images/imageversion' "${fake_curl_log}"; then

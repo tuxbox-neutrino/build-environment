@@ -125,6 +125,11 @@ Runtime flash dispatcher installed by `flash-script`:
   - dispatches by `FLASH_BACKEND`
   - `script` backend delegates to `/usr/bin/flash-legacy`
   - `ofgwrite` backend delegates to `/usr/libexec/tuxbox/flash-backend-ofgwrite.sh`
+  - `ofgwrite` supports:
+    - `flash <slot>` (download/check mode)
+    - `flash <slot> force` (force download)
+    - `flash <slot> restore` (restore path)
+    - `flash <slot> /absolute/path [force]` (local path mode)
 
 Dependency behavior:
 
@@ -134,8 +139,8 @@ Dependency behavior:
 
 Host-side smoke helper:
 
-- `make flash-preflight-smoke` validates that the preflight path invokes
-  `ofgwrite` in no-write mode.
+- `make flash-preflight-smoke` validates preflight, backend dispatch routing,
+  and ofgwrite backend invocation modes.
 
 ## Notes
 

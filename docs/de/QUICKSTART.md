@@ -208,7 +208,7 @@ Maschinenprofil-Metadaten liegen unter:
 Aktuelle `ofgwrite`-Aufrufform:
 
 ```bash
-flash <slot> <absoluter-image-pfad> [force]
+flash <slot> [<absoluter-image-pfad>|restore|force] [force]
 ```
 
 ### Nur Konfiguration vorbereiten

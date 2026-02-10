@@ -166,7 +166,7 @@ Machine profile metadata is shipped in:
 Current `ofgwrite` backend call shape:
 
 ```bash
-flash <slot> <absolute-image-dir> [force]
+flash <slot> [<absolute-image-dir>|restore|force] [force]
 ```
 
 Host-side smoke check for the no-write invocation path:

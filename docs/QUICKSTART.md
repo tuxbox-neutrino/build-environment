@@ -205,7 +205,7 @@ Machine profile metadata is available in:
 Current `ofgwrite` backend invocation:
 
 ```bash
-flash <slot> <absolute-image-dir> [force]
+flash <slot> [<absolute-image-dir>|restore|force] [force]
 ```
 
 ### Prepare Configuration Only

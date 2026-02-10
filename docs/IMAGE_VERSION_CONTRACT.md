@@ -6,7 +6,9 @@ This document defines the metadata contract written by
 The file is generated as:
 
 - `/etc/image-version`
-- `/.version -> /etc/image-version` (compatibility link, current behavior)
+- `/.version` symlink target is controlled by class toggle:
+  - default: `/etc/image-version`
+  - optional: `/etc/os-release`
 
 ## Purpose
 
@@ -70,6 +72,8 @@ The class supports these optional overrides:
 - `TUXBOX_IMAGE_UPDATE_INFO_FILE` (default `imageversion`)
 - `TUXBOX_IMAGE_FILE_NAME` (default `${IMAGE_NAME}_usb.zip`)
 - `TUXBOX_VERSION_STAMP` (default `${TUXBOX_IMAGEBUILD}`)
+- `TUXBOX_VERSION_LINK_OS_RELEASE` (default `0`)
+- `TUXBOX_VERSION_LEGACY_LINK_TARGET` (default `/etc/image-version`)
 - `TUXBOX_VERSION_GIT_PATH` (optional explicit git repo)
 - `TUXBOX_VERSION_GIT_REF` (default `HEAD`)
 

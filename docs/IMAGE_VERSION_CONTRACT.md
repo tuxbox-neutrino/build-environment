@@ -95,6 +95,12 @@ Runtime marker file installed by `flash-script`:
 - `/etc/tuxbox/flash-backend.conf`
   - `FLASH_BACKEND=<value>`
 
+Dependency behavior:
+
+- `flash-script` adds runtime dependency `ofgwrite` only when
+  `TUXBOX_FLASH_BACKEND = "ofgwrite"`.
+- `tuxbox-image-base.inc` installs `ofgwrite` only in `ofgwrite` backend mode.
+
 ## Notes
 
 - Keep key names stable. Existing plugins parse names literally.

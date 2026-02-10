@@ -156,6 +156,9 @@ flash-backend-preflight
 flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
 ```
 
+Machine profile metadata is shipped in:
+`/etc/tuxbox/flash-machine-profile.conf`.
+
 Host-side smoke check for the no-write invocation path:
 
 ```bash

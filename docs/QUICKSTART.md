@@ -195,6 +195,9 @@ flash-backend-preflight
 flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
 ```
 
+Machine profile metadata is available in:
+`/etc/tuxbox/flash-machine-profile.conf`.
+
 ### Prepare Configuration Only
 
 Use the same parameters as `make image`, but it will only generate config files:

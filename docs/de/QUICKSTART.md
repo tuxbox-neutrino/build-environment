@@ -198,6 +198,9 @@ flash-backend-preflight
 flash-backend-preflight --backend ofgwrite --image-dir /pfad/zum/entpackten/image
 ```
 
+Maschinenprofil-Metadaten liegen unter:
+`/etc/tuxbox/flash-machine-profile.conf`.
+
 ### Nur Konfiguration vorbereiten
 
 Nutze die gleichen Parameter wie bei `make image`, aber es werden nur

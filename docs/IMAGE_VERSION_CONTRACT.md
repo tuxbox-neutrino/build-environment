@@ -84,6 +84,7 @@ The class supports these optional overrides:
 Global distro variable:
 
 - `TUXBOX_FLASH_BACKEND` (default `script`)
+- `TUXBOX_FLASH_MACHINE_CAP_OFGWRITE` (default `0` on `qemu*`, else `1`)
 
 Currently supported values:
 
@@ -94,12 +95,27 @@ Runtime marker file installed by `flash-script`:
 
 - `/etc/tuxbox/flash-backend.conf`
   - `FLASH_BACKEND=<value>`
+- `/etc/tuxbox/flash-machine-profile.conf`
+  - `FLASH_MACHINE`
+  - `FLASH_MACHINEBUILD`
+  - `FLASH_MACHINE_DRIVER`
+  - `FLASH_IMAGE_DIR`
+  - `FLASH_MTD_KERNEL`
+  - `FLASH_MTD_ROOTFS`
+  - `FLASH_KERNEL_FILE`
+  - `FLASH_ROOTFS_FILE`
+  - `FLASH_IMAGE_FSTYPES`
+  - `FLASH_MACHINE_CAP_OFGWRITE`
 
 Runtime preflight command installed by `flash-script`:
 
 - `flash-backend-preflight`
   - default mode checks configured backend from
     `/etc/tuxbox/flash-backend.conf`.
+  - loads machine capabilities from
+    `/etc/tuxbox/flash-machine-profile.conf`.
+  - fails early for `ofgwrite` when
+    `FLASH_MACHINE_CAP_OFGWRITE=0`.
   - for `ofgwrite`, use `--image-dir <dir>` to execute explicit no-write mode:
     `ofgwrite -n -q <dir>`.
 

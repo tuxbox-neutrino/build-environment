@@ -29,6 +29,7 @@ The file is generated as:
 - `image_update_url`: update feed base URL.
 - `image_update_info_file`: update info filename (default `imageversion`).
 - `image_file_name`: update image archive filename.
+- `flash_backend`: flash backend capability (`script` or `ofgwrite`).
 - `builddate`: compatibility build date value.
 - `creator`: image creator/vendor string.
 
@@ -46,6 +47,7 @@ The file is generated as:
 - `image_name`
 - `image_version`
 - `image_file_name`
+- `flash_backend`
 - `image_update_url`
 - `image_update_info_file`
 - `build_date`
@@ -76,6 +78,22 @@ The class supports these optional overrides:
 - `TUXBOX_VERSION_LEGACY_LINK_TARGET` (default `/etc/image-version`)
 - `TUXBOX_VERSION_GIT_PATH` (optional explicit git repo)
 - `TUXBOX_VERSION_GIT_REF` (default `HEAD`)
+
+## Flash backend model
+
+Global distro variable:
+
+- `TUXBOX_FLASH_BACKEND` (default `script`)
+
+Currently supported values:
+
+- `script`
+- `ofgwrite`
+
+Runtime marker file installed by `flash-script`:
+
+- `/etc/tuxbox/flash-backend.conf`
+  - `FLASH_BACKEND=<value>`
 
 ## Notes
 

@@ -185,6 +185,9 @@ fork (or move the changes into a private layer).
 For flash/update metadata keys written to `/etc/image-version`, see:
 `docs/IMAGE_VERSION_CONTRACT.md`.
 
+Flash backend capability is controlled by `TUXBOX_FLASH_BACKEND`
+(`script` or `ofgwrite`).
+
 ### Prepare Configuration Only
 
 Use the same parameters as `make image`, but it will only generate config files:

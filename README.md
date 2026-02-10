@@ -146,6 +146,9 @@ fork (or move the changes into a private layer).
 `flash-script` and STB Lua plugins. Contract and override variables:
 `docs/IMAGE_VERSION_CONTRACT.md`.
 
+Flash backend capability is modeled via `TUXBOX_FLASH_BACKEND`
+(`script` or `ofgwrite`).
+
 ### QEMU Smoke Tests (qemux86-64)
 
 Full guide: [docs/QEMU.md](docs/QEMU.md) (EN) / [docs/de/QEMU.md](docs/de/QEMU.md) (DE).

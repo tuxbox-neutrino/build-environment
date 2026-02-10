@@ -190,6 +190,10 @@ Für Flash-/Update-Metadaten in `/etc/image-version` siehe:
 
 Das Flash-Backend wird über `TUXBOX_FLASH_BACKEND` gesteuert
 (`script` oder `ofgwrite`).
+Der `flash-script`-Quellbranch wird über `TUXBOX_FLASH_SCRIPT_GIT_BRANCH`
+gesteuert (Standard: `master`).
+Der Script-Backend-Modus wird über `TUXBOX_FLASH_SCRIPT_MODE` gesteuert
+(Standard/aktuell gültiger Modus: `legacy`).
 
 Runtime-Preflight aus `flash-script`:
 
@@ -200,9 +204,11 @@ flash-backend-preflight --backend ofgwrite --image-dir /pfad/zum/entpackten/imag
 
 Maschinenprofil-Metadaten liegen unter:
 `/etc/tuxbox/flash-machine-profile.conf`.
+Dieses Profil enthält `FLASH_SCRIPT_MODE` für die Script-Backend-Weiterleitung.
 
 `/usr/bin/flash` verzweigt jetzt per Backend:
-- `script` delegiert an `/usr/bin/flash-legacy`
+- `script` delegiert an `/usr/libexec/tuxbox/flash-backend-script.sh`
+- das Script-Backend delegiert aktuell im Modus `legacy` an `/usr/bin/flash-legacy`
 - `ofgwrite` delegiert an einen ofgwrite-Backend-Handler
 
 Aktuelle `ofgwrite`-Aufrufform:

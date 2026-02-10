@@ -85,6 +85,8 @@ Global distro variable:
 
 - `TUXBOX_FLASH_BACKEND` (default `script`)
 - `TUXBOX_FLASH_MACHINE_CAP_OFGWRITE` (default `0` on `qemu*`, else `1`)
+- `TUXBOX_FLASH_SCRIPT_MODE` (default `legacy`)
+- `TUXBOX_FLASH_SCRIPT_GIT_BRANCH` (default `master`)
 
 Currently supported values:
 
@@ -106,6 +108,7 @@ Runtime marker file installed by `flash-script`:
   - `FLASH_ROOTFS_FILE`
   - `FLASH_IMAGE_FSTYPES`
   - `FLASH_MACHINE_CAP_OFGWRITE`
+  - `FLASH_SCRIPT_MODE`
 
 Runtime preflight command installed by `flash-script`:
 
@@ -123,7 +126,9 @@ Runtime flash dispatcher installed by `flash-script`:
 
 - `/usr/bin/flash`
   - dispatches by `FLASH_BACKEND`
-  - `script` backend delegates to `/usr/bin/flash-legacy`
+  - `script` backend delegates to `/usr/libexec/tuxbox/flash-backend-script.sh`
+    (which reads `FLASH_SCRIPT_MODE` from the machine profile and currently
+    supports `legacy` -> `/usr/bin/flash-legacy`)
   - `ofgwrite` backend delegates to `/usr/libexec/tuxbox/flash-backend-ofgwrite.sh`
   - `ofgwrite` supports:
     - `flash <slot>` (download/check mode)

@@ -148,6 +148,10 @@ fork (or move the changes into a private layer).
 
 Flash backend capability is modeled via `TUXBOX_FLASH_BACKEND`
 (`script` or `ofgwrite`).
+`flash-script` source branch is controlled by `TUXBOX_FLASH_SCRIPT_GIT_BRANCH`
+(default: `master`).
+Script backend mode is controlled by `TUXBOX_FLASH_SCRIPT_MODE`
+(default/current valid mode: `legacy`).
 
 Runtime preflight command from `flash-script`:
 
@@ -158,9 +162,12 @@ flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
 
 Machine profile metadata is shipped in:
 `/etc/tuxbox/flash-machine-profile.conf`.
+This profile now includes `FLASH_SCRIPT_MODE` and is consumed by the script
+backend handler.
 
 `/usr/bin/flash` now dispatches by backend:
-- `script`: delegates to legacy `flash` logic (`/usr/bin/flash-legacy`)
+- `script`: delegates to `/usr/libexec/tuxbox/flash-backend-script.sh`
+- script backend currently supports `legacy` mode (`/usr/bin/flash-legacy`)
 - `ofgwrite`: delegates to ofgwrite backend handler
 
 Current `ofgwrite` backend call shape:

@@ -333,4 +333,21 @@ if ! grep -q '^legacy:' "${dispatch_log}"; then
   exit 1
 fi
 
+cat > "${profile_conf}" <<'EOF'
+FLASH_SCRIPT_MODE=legacy
+EOF
+FLASH_LEGACY_BIN="${fake_legacy}" \
+FLASH_MACHINE_PROFILE_PATH="${profile_conf}" \
+sh "${BACKEND_SCRIPT}" 3 /tmp/legacy-image-profile
+
+cat > "${profile_conf}" <<'EOF'
+FLASH_SCRIPT_MODE=invalid-mode
+EOF
+if FLASH_LEGACY_BIN="${fake_legacy}" \
+   FLASH_MACHINE_PROFILE_PATH="${profile_conf}" \
+   sh "${BACKEND_SCRIPT}" 3 /tmp/legacy-image-profile; then
+  echo "ERROR: script backend handler accepted invalid FLASH_SCRIPT_MODE" >&2
+  exit 1
+fi
+
 echo "Flash backend preflight/dispatch smoke checks passed."

@@ -180,6 +180,11 @@ The main tree supports only the `tuxbox` flavour. If you need a fork (NI/Tango),
 use `devtool modify` to work in a local workspace and point `SRC_URI` to your
 fork (or move the changes into a private layer).
 
+### Image Metadata Contract
+
+For flash/update metadata keys written to `/etc/image-version`, see:
+`docs/IMAGE_VERSION_CONTRACT.md`.
+
 ### Prepare Configuration Only
 
 Use the same parameters as `make image`, but it will only generate config files:

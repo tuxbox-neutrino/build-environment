@@ -140,6 +140,12 @@ The main tree supports only the `tuxbox` flavour. If you need a fork (NI/Tango),
 use `devtool modify` to work in a local workspace and point `SRC_URI` to your
 fork (or move the changes into a private layer).
 
+### Image Metadata Contract
+
+`/etc/image-version` is the canonical flash/update metadata file used by
+`flash-script` and STB Lua plugins. Contract and override variables:
+`docs/IMAGE_VERSION_CONTRACT.md`.
+
 ### QEMU Smoke Tests (qemux86-64)
 
 Full guide: [docs/QEMU.md](docs/QEMU.md) (EN) / [docs/de/QEMU.md](docs/de/QEMU.md) (DE).

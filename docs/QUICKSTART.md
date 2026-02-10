@@ -116,10 +116,10 @@ make init   # Initialize environment
 If you prefer the classic Yocto workflow inside the build directory:
 
 ```bash
-. poky/oe-init-build-env build
+. poky/oe-init-build-env builds
 ```
 
-Then edit `build/conf/local.conf`:
+Then edit `builds/conf/local.conf`:
 
 ```bash
 MACHINE = "hd60"
@@ -157,13 +157,15 @@ make image MACHINE=hd60 MACHINEBUILD=ax60   # or mutant60
 make image MACHINE=hd61 MACHINEBUILD=ax61
 ```
 
-If `build/conf/local.conf` already exists, you can also run just:
+If `builds/conf/local.conf` already exists, you can also run just:
 
 ```bash
 make image
 ```
 
 It will reuse the existing config (and prompt if multiple build dirs exist).
+Default shared build dir is `builds/`. If a legacy `build/conf/local.conf`
+already exists, the tooling auto-detects and reuses `build/`.
 
 ### For Zgemma H7
 
@@ -276,18 +278,18 @@ want a specific build directory.
 
 ### Persistent Local Overrides (Recommended)
 
-Avoid editing `build/conf/local.conf` directly. Use the include files instead:
+Avoid editing `builds/conf/local.conf` directly. Use the include files instead:
 
-- `build/conf/local.conf.user.inc` (personal defaults)
-- `build/conf/local.conf.<machine>.inc` (machine-specific tweaks)
-- `build/conf/bblayers.conf.user.inc` (extra layers/masks)
+- `builds/conf/local.conf.user.inc` (personal defaults)
+- `builds/conf/local.conf.<machine>.inc` (machine-specific tweaks)
+- `builds/conf/bblayers.conf.user.inc` (extra layers/masks)
 
 These files are created automatically by `make config` and are safe from regeneration.
 
 By default, `local.conf.<machine>.inc` includes a per-machine TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
 ```
 
 (Coolstream defaults to `build-${MACHINE}/tmp`.) Edit as needed.
@@ -298,7 +300,7 @@ We intentionally **do not set** `BB_NUMBER_THREADS` or `PARALLEL_MAKE` in
 `local.conf`. BitBake already defaults both values to your CPU count
 (see `poky/meta/conf/bitbake.conf`).  
 
-If you want to override, do it in `build/conf/local.conf.user.inc`:
+If you want to override, do it in `builds/conf/local.conf.user.inc`:
 
 ```conf
 BB_NUMBER_THREADS = "8"
@@ -313,12 +315,12 @@ revisions.
 
 By default, generated configs point at the public mirror:
 `https://sstate.tuxbox-neutrino.org/kirkstone/release`. You can disable it by
-setting `SSTATE_MIRRORS = ""` in `build/conf/local.conf.user.inc`.
+setting `SSTATE_MIRRORS = ""` in `builds/conf/local.conf.user.inc`.
 
 Hash equivalence is disabled by default when using the public mirror. A local
 hash server (unix socket) uses a different unihash context, which would make
 mirror hits very rare. If you run a shared hash server, you can enable it in
-`build/conf/local.conf.user.inc`:
+`builds/conf/local.conf.user.inc`:
 
 ```conf
 BB_HASHSERVE = "auto"
@@ -334,7 +336,7 @@ If you disable hash equivalence (default), the signature handler falls back to
 The public source mirror provides pre-fetched downloads. It is separate from
 the sstate cache and only affects `DL_DIR` fetches.
 
-Generated configs enable the public mirror in `build/conf/local.conf.user.inc`
+Generated configs enable the public mirror in `builds/conf/local.conf.user.inc`
 so downloads still work if upstream is flaky. Remove the lines below to use
 upstream-only fetches:
 
@@ -400,13 +402,13 @@ Notes:
 - Keep separate server paths for different branches/distro types to avoid
   mixing incompatible caches.
 - Consumers can point to your server with `SSTATE_MIRRORS` in
-  `build/conf/local.conf.user.inc`.
+  `builds/conf/local.conf.user.inc`.
 - If you use `$HOME` in this file, escape it as `$${HOME}` (Make expands `$`).
 - `SSTATE_RSYNC_EXCLUDE` accepts space or comma-separated patterns. Quotes are optional.
 
 ### Image Naming Overrides (Optional)
 
-`build/conf/local.conf.user.inc` includes a commented template for image naming
+`builds/conf/local.conf.user.inc` includes a commented template for image naming
 variables and examples. Uncomment what you need.
 
 Avoid these pitfalls:
@@ -421,7 +423,7 @@ Avoid these pitfalls:
 
 Default images ship only `en-us` to keep footprints small. The QEMU smoke image
 keeps multiple locales for convenience. Override per build in
-`build/conf/local.conf.user.inc`:
+`builds/conf/local.conf.user.inc`:
 
 ```conf
 IMAGE_LINGUAS = "en-us"
@@ -436,12 +438,12 @@ IMAGE_LINGUAS = "en-us"
 Built images are in:
 
 ```
-build/tmp/deploy/images/<machine>/
+builds/tmp/deploy/images/<machine>/
 ```
 
 Example for HD51:
 ```
-build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
+builds/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
 ```
 
 ## Step 6: Flash Image
@@ -519,7 +521,7 @@ make feeds MACHINE=hd51
 
 WiFi user-space tools are included by default so USB WiFi sticks can be used
 across machines. To disable them for a specific build, set this in
-`build/conf/local.conf.user.inc`:
+`builds/conf/local.conf.user.inc`:
 
 ```conf
 TUXBOX_WIFI = "0"

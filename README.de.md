@@ -136,7 +136,10 @@ Rezept.
 `make show-config` zeigt, woher Werte kommen (local.conf vs include
 files) und listet die Layer inkl. der Quelldatei.
 
-Gebautes Image liegt in `build/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
+Gebautes Image liegt in `builds/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
+Standardmäßiges gemeinsames Build-Verzeichnis ist `builds/`. Falls bereits eine
+alte `build/conf/local.conf` existiert, nutzen CLI und Hilfsskripte weiter
+automatisch `build/`.
 
 ### Neutrino‑Flavour (nur tuxbox)
 
@@ -177,23 +180,23 @@ SSH_PORT=2223 make qemu-smoke
 `make config` erzeugt `local.conf` und `bblayers.conf`. Für persönliche
 Änderungen, die Updates überstehen sollen, nutze diese Files:
 
-- `build/conf/local.conf.user.inc` (persönliche Defaults)
-- `build/conf/local.conf.<machine>.inc` (maschinen-spezifische Tweaks)
-- `build/conf/bblayers.conf.user.inc` (extra Layer / masks)
+- `builds/conf/local.conf.user.inc` (persönliche Defaults)
+- `builds/conf/local.conf.<machine>.inc` (maschinen-spezifische Tweaks)
+- `builds/conf/bblayers.conf.user.inc` (extra Layer / masks)
 
 Diese Dateien werden automatisch erzeugt und nie überschrieben.
 
 Standardmäßigig setzt `local.conf.<machine>.inc` ein per-Maschine TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
 ```
 
 (Coolstream nutzt standardmäßigig `build-${MACHINE}/tmp`.) Bei Bedarf anpassen.
 
 ### Image Naming Overrides (optional)
 
-`build/conf/local.conf.user.inc` enthält eine kommentierte Vorlage für
+`builds/conf/local.conf.user.inc` enthält eine kommentierte Vorlage für
 Image-Namen-Variablen und Beispiele. Aktiviere nur, was du brauchst.
 
 Diese Stolperfallen vermeiden:
@@ -207,7 +210,7 @@ Diese Stolperfallen vermeiden:
 
 Standard-Images liefern nur `en-us`, um den Footprint klein zu halten. Das QEMU
 Smoke-Image behält mehrere Locales zur Bequemlichkeit. Pro Build kannst du das
-in `build/conf/local.conf.user.inc` überschreiben:
+in `builds/conf/local.conf.user.inc` überschreiben:
 
 ```conf
 IMAGE_LINGUAS = "en-us"
@@ -217,7 +220,7 @@ IMAGE_LINGUAS = "en-us"
 
 WLAN-User-Space-Tools sind standardmäßig enthalten, damit USB-WLAN-Sticks
 maschinenübergreifend genutzt werden können. Um die WLAN-Paketgruppe pro Build
-zu deaktivieren, setze dies in `build/conf/local.conf.user.inc`:
+zu deaktivieren, setze dies in `builds/conf/local.conf.user.inc`:
 
 ```conf
 TUXBOX_WIFI = "0"
@@ -232,7 +235,7 @@ Pakete gezielt hinzu.
 ### Source Download Mirror (optional)
 
 Du kannst den öffentlichen Source-Mirror nutzen, um Downloads zu beschleunigen.
-Generierte Configs aktivieren das in `build/conf/local.conf.user.inc`. Entferne
+Generierte Configs aktivieren das in `builds/conf/local.conf.user.inc`. Entferne
 folgende Zeilen, wenn du nur Upstream nutzen willst:
 
 ```conf

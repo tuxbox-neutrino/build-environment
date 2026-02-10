@@ -132,7 +132,9 @@ Image target: `tuxbox-image` is the canonical image recipe. Legacy targets
 `make show-config` reports where values come from (local.conf vs include
 files) and lists layers with their source file.
 
-Built images will be in `build/tmp/deploy/images/<machine>/` (e.g. `hd51/`).
+Built images will be in `builds/tmp/deploy/images/<machine>/` (e.g. `hd51/`).
+Default shared build dir is `builds/`. If an existing `build/conf/local.conf`
+is present, CLI and helper scripts keep using legacy `build/`.
 
 ### Neutrino Flavour (tuxbox only)
 
@@ -237,16 +239,16 @@ make flash-preflight-smoke
 `make config` generates `local.conf` and `bblayers.conf`. To keep personal changes
 across updates, edit these files instead:
 
-- `build/conf/local.conf.user.inc` (your personal defaults)
-- `build/conf/local.conf.<machine>.inc` (per-machine tweaks)
-- `build/conf/bblayers.conf.user.inc` (extra layers / masks)
+- `builds/conf/local.conf.user.inc` (your personal defaults)
+- `builds/conf/local.conf.<machine>.inc` (per-machine tweaks)
+- `builds/conf/bblayers.conf.user.inc` (extra layers / masks)
 
 These files are created automatically and are never overwritten by regeneration.
 
 By default, `local.conf.<machine>.inc` sets a per-machine TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
 ```
 
 (Coolstream defaults to `build-${MACHINE}/tmp`.) Edit the file if you want a
@@ -254,7 +256,7 @@ single shared TMPDIR.
 
 ### Image Naming Overrides (Optional)
 
-`build/conf/local.conf.user.inc` includes a commented template for image naming
+`builds/conf/local.conf.user.inc` includes a commented template for image naming
 variables and examples. Uncomment what you need.
 
 Avoid these pitfalls:
@@ -267,7 +269,7 @@ Avoid these pitfalls:
 
 Default images ship only `en-us` to keep footprints small. The QEMU smoke image
 keeps multiple locales for convenience. Override per build in
-`build/conf/local.conf.user.inc`:
+`builds/conf/local.conf.user.inc`:
 
 ```conf
 IMAGE_LINGUAS = "en-us"
@@ -277,7 +279,7 @@ IMAGE_LINGUAS = "en-us"
 
 WiFi user-space tools are included by default so USB WiFi sticks can be used
 across machines. To disable the WiFi package group per build, set this in
-`build/conf/local.conf.user.inc`:
+`builds/conf/local.conf.user.inc`:
 
 ```conf
 TUXBOX_WIFI = "0"
@@ -291,7 +293,7 @@ selection, set `TUXBOX_WIFI = "0"` and add packages explicitly.
 ### Source Download Mirror (Optional)
 
 You can use the public source mirror for faster downloads. Generated configs
-enable it in `build/conf/local.conf.user.inc`. Remove the lines below if you
+enable it in `builds/conf/local.conf.user.inc`. Remove the lines below if you
 want upstream-only fetches:
 
 ```conf

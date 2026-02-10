@@ -3,7 +3,19 @@ set -euo pipefail
 
 TOPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-BUILD_DIR="${BUILD_DIR:-${TOPDIR}/build}"
+resolve_default_build_dir() {
+  if [[ -d "${TOPDIR}/builds/conf" ]]; then
+    echo "${TOPDIR}/builds"
+  elif [[ -d "${TOPDIR}/build/conf" ]]; then
+    echo "${TOPDIR}/build"
+  elif [[ -d "${TOPDIR}/builds" ]]; then
+    echo "${TOPDIR}/builds"
+  else
+    echo "${TOPDIR}/builds"
+  fi
+}
+
+BUILD_DIR="${BUILD_DIR:-$(resolve_default_build_dir)}"
 MACHINE="${MACHINE:-qemux86-64}"
 IMAGE="${IMAGE:-tuxbox-qemu-image}"
 FSTYPE="${FSTYPE:-wic}"

@@ -33,7 +33,9 @@ class TuxboxBuilder:
     def __init__(self):
         self.topdir = Path(__file__).parent.resolve()
         self.state_file = self.topdir / '.tuxbox' / 'state.json'
-        self.builddir = self.topdir / 'build'
+        self.preferred_builddir = self.topdir / 'builds'
+        self.legacy_builddir = self.topdir / 'build'
+        self.builddir = self._default_non_coolstream_builddir()
         self.dl_dir = self.topdir / 'downloads'
         self.sstate_dir = self.topdir / 'sstate-cache'
         self._brand_machine_cache: Optional[Dict[str, List[str]]] = None
@@ -62,6 +64,43 @@ class TuxboxBuilder:
     def info(self, message: str):
         """Info logging."""
         self.log(message, Colors.CYAN)
+
+    def _default_non_coolstream_builddir(self) -> Path:
+        """Return shared build dir default with legacy fallback."""
+        if self.preferred_builddir.exists():
+            return self.preferred_builddir
+        if (self.legacy_builddir / 'conf' / 'local.conf').exists():
+            return self.legacy_builddir
+        return self.preferred_builddir
+
+    def _default_builddir_for_machine(self, machine: str) -> Path:
+        """Return default build dir for a machine."""
+        if machine.startswith('coolstream'):
+            return self.topdir / f"build-{machine}"
+        return self._default_non_coolstream_builddir()
+
+    def _discover_builddirs(self) -> List[Path]:
+        """Return candidate build dirs ordered by preference."""
+        builddirs: List[Path] = []
+        for candidate in (self.preferred_builddir, self.legacy_builddir):
+            if candidate.is_dir() and candidate not in builddirs:
+                builddirs.append(candidate)
+        if not builddirs:
+            builddirs.append(self.preferred_builddir)
+        for path in sorted(p for p in self.topdir.glob('build-*') if p.is_dir()):
+            if path not in builddirs:
+                builddirs.append(path)
+        return builddirs
+
+    def _tmpdir_override_value(self, target_builddir: Path, machine: str) -> str:
+        """Return TMPDIR override string for machine include file examples."""
+        if machine.startswith('coolstream'):
+            return f"${{TOPDIR}}/build-{machine}/tmp"
+        try:
+            rel = target_builddir.relative_to(self.topdir).as_posix()
+            return f"${{TOPDIR}}/{rel}/tmp-{machine}"
+        except ValueError:
+            return f"{target_builddir}/tmp-{machine}"
 
     def run_cmd(self, cmd: List[str], cwd: Optional[Path] = None,
                 check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
@@ -561,9 +600,7 @@ class TuxboxBuilder:
         if builddir_hint:
             builddirs = [builddir_hint]
         else:
-            builddirs = [self.topdir / 'build'] + sorted(
-                path for path in self.topdir.glob('build-*') if path.is_dir()
-            )
+            builddirs = self._discover_builddirs()
 
         configs = []
         for builddir in builddirs:
@@ -828,8 +865,8 @@ class TuxboxBuilder:
             else:
                 self.info(f"No MACHINEBUILD variants listed for {machine}; defaulting to MACHINEBUILD={machine}")
 
-        # Create build/conf directory
-        target_builddir = Path(builddir) if builddir else self.builddir
+        # Create conf directory in selected build dir
+        target_builddir = Path(builddir) if builddir else self._default_builddir_for_machine(machine)
         conf_dir = target_builddir / 'conf'
         conf_dir.mkdir(parents=True, exist_ok=True)
 
@@ -840,7 +877,7 @@ class TuxboxBuilder:
         self.generate_local_conf(conf_dir, machine, distro, distro_type, machinebuild, target_builddir)
 
         # Ensure user override include files exist
-        self.ensure_user_overrides(conf_dir, machine)
+        self.ensure_user_overrides(conf_dir, machine, target_builddir)
 
         self.success("Configuration generated")
 
@@ -932,12 +969,9 @@ class TuxboxBuilder:
         self.info("  Threads: default (auto)")
         self.info("  Parallel: default (auto)")
 
-    def ensure_user_overrides(self, conf_dir: Path, machine: str):
+    def ensure_user_overrides(self, conf_dir: Path, machine: str, target_builddir: Path):
         """Create optional local override files if missing."""
-        if machine.startswith('coolstream'):
-            tmpdir = f"build-{machine}/tmp"
-        else:
-            tmpdir = f"build/tmp-{machine}"
+        tmpdir_value = self._tmpdir_override_value(target_builddir, machine)
         overrides = {
             conf_dir / 'local.conf.user.inc': (
                 "# Local overrides (not tracked)\n"
@@ -987,7 +1021,7 @@ class TuxboxBuilder:
                 f"# Local overrides for MACHINE={machine} (not tracked)\n"
                 "# Use this file for machine-specific tweaks.\n"
                 "# Default TMPDIR uses per-machine subdirs for safer multi-machine builds.\n"
-                f"TMPDIR = \"${{TOPDIR}}/{tmpdir}\"\n"
+                f"TMPDIR = \"{tmpdir_value}\"\n"
             ),
             conf_dir / 'bblayers.conf.user.inc': (
                 "# Local layer overrides (not tracked)\n"
@@ -1012,7 +1046,7 @@ class TuxboxBuilder:
         distro_type = args.distro_type
 
         target_builddir = Path(args.builddir) if args.builddir else (
-            self.topdir / f"build-{machine}" if machine.startswith('coolstream') else self.builddir
+            self._default_builddir_for_machine(machine)
         )
         conf_dir = target_builddir / 'conf'
         local_conf = conf_dir / 'local.conf'
@@ -1251,9 +1285,7 @@ class TuxboxBuilder:
 
         # Select per-machine build directory (isolate Coolstream builds)
         if not target_builddir:
-            target_builddir = (
-                self.topdir / f"build-{machine}" if machine.startswith('coolstream') else self.builddir
-            )
+            target_builddir = self._default_builddir_for_machine(machine)
         self.builddir = target_builddir
 
         # Check if initialized
@@ -1395,7 +1427,7 @@ bitbake -c devshell {target}
 
         self.log(f"Cleaning build for {machine}...", Colors.BOLD, bold=True)
 
-        # TODO: Remove build/tmp for specific machine
+        # TODO: Remove tmp artifacts for specific machine
         self.success("Build cleaned")
 
     def fetch_only(self, args):
@@ -1450,7 +1482,10 @@ def main():
     build_parser.add_argument('-m', '--machine', help='Target machine (auto-detect from config if omitted)')
     build_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
     build_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
-    build_parser.add_argument('--builddir', help='Custom build directory (default: build or build-<machine> for coolstream)')
+    build_parser.add_argument(
+        '--builddir',
+        help='Custom build directory (default: builds, legacy build fallback, or build-<machine> for coolstream)'
+    )
     build_parser.add_argument('-t', '--target', help='Build target (default: tuxbox-image)')
     build_parser.add_argument('--offline', action='store_true', help='Offline build mode')
     build_parser.add_argument('--no-sstate', action='store_true', help='Disable sstate cache')
@@ -1465,7 +1500,10 @@ def main():
     config_parser.add_argument('-m', '--machine', required=True, help='Target machine')
     config_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
     config_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
-    config_parser.add_argument('--builddir', help='Custom build directory (default: build or build-<machine> for coolstream)')
+    config_parser.add_argument(
+        '--builddir',
+        help='Custom build directory (default: builds, legacy build fallback, or build-<machine> for coolstream)'
+    )
     config_parser.add_argument('--distro-type', choices=['release', 'development'],
                             default='release', help='Build type')
 
@@ -1474,7 +1512,10 @@ def main():
     show_config_parser.add_argument('-m', '--machine', required=True, help='Target machine')
     show_config_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
     show_config_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
-    show_config_parser.add_argument('--builddir', help='Custom build directory (default: build or build-<machine> for coolstream)')
+    show_config_parser.add_argument(
+        '--builddir',
+        help='Custom build directory (default: builds, legacy build fallback, or build-<machine> for coolstream)'
+    )
     show_config_parser.add_argument('--distro-type', choices=['release', 'development'],
                                     default='release', help='Build type')
 
@@ -1519,7 +1560,7 @@ def main():
         builder.build(args)
     elif args.command == 'config':
         target_builddir = Path(args.builddir) if args.builddir else (
-            builder.topdir / f"build-{args.machine}" if args.machine.startswith('coolstream') else builder.builddir
+            builder._default_builddir_for_machine(args.machine)
         )
         builder.generate_config(args.machine, args.distro, args.distro_type, args.machinebuild, target_builddir)
         builder.success(f"Config generated at {target_builddir}/conf")

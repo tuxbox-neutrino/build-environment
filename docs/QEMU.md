@@ -10,10 +10,10 @@ development and CI, not for production images.
 
 ## Build
 
-If your `build/conf` already targets another machine, either regenerate config
+If your `builds/conf` already targets another machine, either regenerate config
 or use a separate build dir.
 
-Option A (reuse `build/`):
+Option A (reuse `builds/`):
 
 ```bash
 make config MACHINE=qemux86-64
@@ -97,7 +97,7 @@ Useful environment variables:
 - `FAIL_ON_UNEXPECTED_FAILED_UNITS=1` fail on extra failed units.
 - `SSH_PORT=...` if runqemu shifted the port.
 
-Logs are written to `build/qemu-logs/`.
+Logs are written to `builds/qemu-logs/`.
 
 Expected failed units in QEMU (default): none.
 If you see failed units, treat them as regressions to investigate.
@@ -135,7 +135,7 @@ Value is in KB (the example adds ~2 GB).
 ## Troubleshooting
 
 - QEMU window stays black: use `nographic` and check
-  `build/qemu-logs/runqemu-*.log`.
+  `builds/qemu-logs/runqemu-*.log`.
 - SSH refused early: wait 20-60s for boot/sshd.
 - `base-feeds.conf` missing: ensure `tuxbox-feed-config` is installed and
   rebuild the image.

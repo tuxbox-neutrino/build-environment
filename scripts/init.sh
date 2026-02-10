@@ -48,7 +48,7 @@ git submodule init
 git submodule update --recursive
 
 # Create build directories
-mkdir -p "$TOPDIR/build"
+mkdir -p "$TOPDIR/builds"
 mkdir -p "$TOPDIR/downloads"
 mkdir -p "$TOPDIR/sstate-cache"
 mkdir -p "$TOPDIR/.tuxbox"

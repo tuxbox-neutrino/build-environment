@@ -82,7 +82,7 @@ Example (Neutrino fork via workspace):
 make devtool ARGS="modify neutrino"
 
 # Switch the workspace repo to your fork
-cd build/workspace/sources/neutrino
+cd builds/workspace/sources/neutrino
 git remote add fork git@github.com:<you>/<your-neutrino-fork>.git
 git fetch fork
 git checkout -b fork-work fork/<branch>
@@ -99,7 +99,7 @@ Example (libstb-hal fork via workspace):
 
 ```bash
 make devtool ARGS="modify libstb-hal"
-cd build/workspace/sources/libstb-hal
+cd builds/workspace/sources/libstb-hal
 git remote add fork git@github.com:<you>/<your-libstb-hal-fork>.git
 git fetch fork
 git checkout -b fork-work fork/<branch>

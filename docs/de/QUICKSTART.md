@@ -116,10 +116,10 @@ make init   # Umgebung initialisieren
 Wenn du den klassischen Yocto-Workflow im Build-Verzeichnis bevorzugst:
 
 ```bash
-. poky/oe-init-build-env build
+. poky/oe-init-build-env builds
 ```
 
-Dann `build/conf/local.conf` anpassen:
+Dann `builds/conf/local.conf` anpassen:
 
 ```bash
 MACHINE = "hd60"
@@ -158,7 +158,7 @@ make image MACHINE=hd60 MACHINEBUILD=ax60   # oder mutant60
 make image MACHINE=hd61 MACHINEBUILD=ax61
 ```
 
-Wenn `build/conf/local.conf` bereits existiert, kannst du auch nur:
+Wenn `builds/conf/local.conf` bereits existiert, kannst du auch nur:
 
 ```bash
 make image
@@ -166,6 +166,9 @@ make image
 
 Es nutzt die bestehende Konfiguration (und fragt nach, falls mehrere
 Build-Verzeichnisse existieren).
+Standardmäßig wird `builds/` als gemeinsames Build-Verzeichnis genutzt. Falls
+bereits eine alte `build/conf/local.conf` existiert, erkennt das Tooling das
+automatisch und nutzt weiter `build/`.
 
 ### Für Zgemma H7
 
@@ -268,12 +271,12 @@ Diese Wrapper verwenden die aktuelle Konfiguration. Übergib
 
 ### Dauerhafte lokale Overrides (empfohlen)
 
-Bearbeite `build/conf/local.conf` nicht direkt. Verwende stattdessen die
+Bearbeite `builds/conf/local.conf` nicht direkt. Verwende stattdessen die
 Include-Dateien:
 
-- `build/conf/local.conf.user.inc` (persönliche Defaults)
-- `build/conf/local.conf.<machine>.inc` (maschinenspezifische Tweaks)
-- `build/conf/bblayers.conf.user.inc` (zusätzliche Layer/Masks)
+- `builds/conf/local.conf.user.inc` (persönliche Defaults)
+- `builds/conf/local.conf.<machine>.inc` (maschinenspezifische Tweaks)
+- `builds/conf/bblayers.conf.user.inc` (zusätzliche Layer/Masks)
 
 Diese Dateien werden durch `make config` automatisch erzeugt und bleiben bei
 Regeneration erhalten.
@@ -282,7 +285,7 @@ Standardmäßigig enthält `local.conf.<machine>.inc` ein maschinenspezifisches
 TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
 ```
 
 (Coolstream nutzt standardmäßigig `build-${MACHINE}/tmp`.) Nach Bedarf anpassen.
@@ -293,7 +296,7 @@ Wir setzen **absichtlich keine** `BB_NUMBER_THREADS` oder `PARALLEL_MAKE` in
 `local.conf`. BitBake nutzt bereits per Default die CPU-Anzahl
 (siehe `poky/meta/conf/bitbake.conf`).
 
-Wenn du überschreiben willst, setze es in `build/conf/local.conf.user.inc`:
+Wenn du überschreiben willst, setze es in `builds/conf/local.conf.user.inc`:
 
 ```conf
 BB_NUMBER_THREADS = "8"
@@ -308,14 +311,14 @@ alle die gleichen gepinnten Layer-Revs nutzen.
 
 Standardmäßigig zeigen die generierten Konfigs auf den öffentlichen Mirror:
 `https://sstate.tuxbox-neutrino.org/kirkstone/release`. Du kannst ihn
-abschalten, indem du `SSTATE_MIRRORS = ""` in `build/conf/local.conf.user.inc`
+abschalten, indem du `SSTATE_MIRRORS = ""` in `builds/conf/local.conf.user.inc`
 setzt.
 
 Hash-Equivalence ist standardmäßigig deaktiviert, wenn der öffentliche Mirror
 verwendet wird. Ein lokaler Hash-Server (unix socket) nutzt einen anderen
 unihash-Kontext, was Mirror-Treffer sehr selten macht. Wenn du einen
 geteilten Hash-Server betreibst, kannst du ihn in
-`build/conf/local.conf.user.inc` aktivieren:
+`builds/conf/local.conf.user.inc` aktivieren:
 
 ```conf
 BB_HASHSERVE = "auto"
@@ -331,7 +334,7 @@ auf `OEBasicHash` zurück.
 Der öffentliche Source-Mirror liefert vorab geladene Downloads. Er ist
 getrennt vom sstate-Cache und betrifft nur `DL_DIR` Fetches.
 
-Generierte Konfigs aktivieren den Mirror in `build/conf/local.conf.user.inc`,
+Generierte Konfigs aktivieren den Mirror in `builds/conf/local.conf.user.inc`,
 so dass Downloads auch funktionieren, wenn Upstream wackelt. Entferne die
 Zeilen unten, wenn du nur Upstream nutzen willst:
 
@@ -397,7 +400,7 @@ Hinweise:
 - Verwende getrennte Server-Pfade für verschiedene Branches/Distro-Typen, um
   inkompatible Caches nicht zu vermischen.
 - Nutzer können auf deinen Server mit `SSTATE_MIRRORS` in
-  `build/conf/local.conf.user.inc` zeigen.
+  `builds/conf/local.conf.user.inc` zeigen.
 - Wenn du `$HOME` in dieser Datei nutzt, maskiere es als `$${HOME}` (Make
   expandiert `$`).
 - `SSTATE_RSYNC_EXCLUDE` akzeptiert Patterns getrennt durch Leerzeichen oder
@@ -405,7 +408,7 @@ Hinweise:
 
 ### Image-Namens-Overrides (optional)
 
-`build/conf/local.conf.user.inc` enthält eine kommentierte Vorlage für
+`builds/conf/local.conf.user.inc` enthält eine kommentierte Vorlage für
 Image-Namen-Variablen und Beispiele. Aktiviere nur, was du brauchst.
 
 Diese Stolperfallen vermeiden:
@@ -421,7 +424,7 @@ Diese Stolperfallen vermeiden:
 
 Standard-Images liefern nur `en-us`, um den Footprint klein zu halten. Das QEMU
 Smoke-Image behält mehrere Locales zur Bequemlichkeit. Pro Build kannst du das
-in `build/conf/local.conf.user.inc` überschreiben:
+in `builds/conf/local.conf.user.inc` überschreiben:
 
 ```conf
 IMAGE_LINGUAS = "en-us"
@@ -436,12 +439,12 @@ IMAGE_LINGUAS = "en-us"
 Gebautes Image findest du hier:
 
 ```
-build/tmp/deploy/images/<machine>/
+builds/tmp/deploy/images/<machine>/
 ```
 
 Beispiel für HD51:
 ```
-build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
+builds/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
 ```
 
 ## Schritt 6: Image flashen
@@ -520,7 +523,7 @@ make feeds MACHINE=hd51
 
 WLAN-User-Space-Tools sind standardmäßig enthalten, damit USB-WLAN-Sticks
 maschinenübergreifend genutzt werden können. Um sie für einen Build zu
-deaktivieren, setze dies in `build/conf/local.conf.user.inc`:
+deaktivieren, setze dies in `builds/conf/local.conf.user.inc`:
 
 ```conf
 TUXBOX_WIFI = "0"

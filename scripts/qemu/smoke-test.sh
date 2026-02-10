@@ -3,12 +3,22 @@ set -euo pipefail
 
 TOPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+resolve_default_log_dir() {
+  if [[ -d "${TOPDIR}/builds/conf" || -d "${TOPDIR}/builds" ]]; then
+    echo "${TOPDIR}/builds/qemu-logs"
+  elif [[ -d "${TOPDIR}/build/conf" || -d "${TOPDIR}/build" ]]; then
+    echo "${TOPDIR}/build/qemu-logs"
+  else
+    echo "${TOPDIR}/builds/qemu-logs"
+  fi
+}
+
 SSH_HOST="${SSH_HOST:-127.0.0.1}"
 SSH_PORT="${SSH_PORT:-2222}"
 SSH_USER="${SSH_USER:-root}"
 TIMEOUT="${TIMEOUT:-180}"
 SHUTDOWN="${SHUTDOWN:-1}"
-LOG_DIR="${LOG_DIR:-${TOPDIR}/build/qemu-logs}"
+LOG_DIR="${LOG_DIR:-$(resolve_default_log_dir)}"
 PING_TARGET="${PING_TARGET:-192.168.7.1}"
 
 is_qemu_slirp=0

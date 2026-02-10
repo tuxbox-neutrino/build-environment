@@ -56,9 +56,9 @@ Neutrino-fokussierte Distribution bereitstellt.
     - recipes-core/external-toolchain/
       |
 [Build-Artefakte]
-  - Images: build/tmp/deploy/images/<machine>/
-  - Packages: build/tmp/deploy/ipk/
-  - SDK: build/tmp/deploy/sdk/
+  - Images: builds/tmp/deploy/images/<machine>/
+  - Packages: builds/tmp/deploy/ipk/
+  - SDK: builds/tmp/deploy/sdk/
 ```
 
 ## Grundkonzepte
@@ -215,7 +215,7 @@ sich ändern.
    +- Image zusammenbauen
 
 7. Artefakte bereitstellen
-   +- build/tmp/deploy/images/hd51/
+   +- builds/tmp/deploy/images/hd51/
        +- tuxbox-image-hd51.zip
        +- bzImage (Kernel)
        +- rootfs.tar.bz2
@@ -238,7 +238,7 @@ build-environment/               # Orchestrator-Repository
 |   +-- local.conf.template
 +-- .tuxbox/                     # State-Tracking
 |   +-- state.json               # Build-Status
-+-- build/                       # Build-Output (generiert)
++-- builds/                       # Build-Output (generiert)
 |   +-- conf/                    # Generierte Configs
 |   +-- tmp/                     # Build-Artefakte
 +-- downloads/                   # Source-Downloads (geteilt)

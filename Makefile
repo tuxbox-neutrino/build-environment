@@ -66,7 +66,15 @@ QEMU_ARGS ?= slirp
 QEMU_BUILD_DIR ?= $(BUILDDIR)
 
 # Build directories
-BUILDDIR := $(TOPDIR)/build
+DEFAULT_BUILDDIR := $(TOPDIR)/builds
+ifneq ($(wildcard $(TOPDIR)/builds/conf/local.conf),)
+DEFAULT_BUILDDIR := $(TOPDIR)/builds
+else ifneq ($(wildcard $(TOPDIR)/build/conf/local.conf),)
+DEFAULT_BUILDDIR := $(TOPDIR)/build
+else ifneq ($(wildcard $(TOPDIR)/builds),)
+DEFAULT_BUILDDIR := $(TOPDIR)/builds
+endif
+BUILDDIR := $(DEFAULT_BUILDDIR)
 DL_DIR := $(TOPDIR)/downloads
 SSTATE_DIR := $(TOPDIR)/sstate-cache
 CONF_BUILDDIR = $(if $(filter coolstream%,$(MACHINE)),$(TOPDIR)/build-$(MACHINE),$(BUILDDIR))
@@ -157,7 +165,7 @@ help:
 	@echo -e "  QEMU_MACHINE QEMU machine (default: qemux86-64)"
 	@echo -e "  QEMU_IMAGE   QEMU image name (default: tuxbox-qemu-image)"
 	@echo -e "  QEMU_ARGS    Extra args for run-qemu.sh (default: slirp)"
-	@echo -e "  QEMU_BUILD_DIR Build dir for QEMU (default: build)"
+	@echo -e "  QEMU_BUILD_DIR Build dir for QEMU (default: builds, legacy: build)"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"

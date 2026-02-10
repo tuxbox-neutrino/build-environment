@@ -78,9 +78,9 @@ Tuxbox-OS Builder is a **parasitic integration** system that leverages OE-Allian
                       ▼
 ┌──────────────────────────────────────────────────────────┐
 │ Build Artifacts                                          │
-│  • Images: build/tmp/deploy/images/<machine>/            │
-│  • Packages: build/tmp/deploy/ipk/                       │
-│  • SDK: build/tmp/deploy/sdk/                            │
+│  • Images: builds/tmp/deploy/images/<machine>/            │
+│  • Packages: builds/tmp/deploy/ipk/                       │
+│  • SDK: builds/tmp/deploy/sdk/                            │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -237,7 +237,7 @@ Configurations are **hash-tracked** - regenerated only when variables change.
    └─ Assemble image
 
 7. Deploy artifacts
-   └─ build/tmp/deploy/images/hd51/
+   └─ builds/tmp/deploy/images/hd51/
        ├─ tuxbox-image-hd51.zip
        ├─ bzImage (kernel)
        └─ rootfs.tar.bz2
@@ -260,7 +260,7 @@ build-environment/               # Orchestrator repository
 │   └── local.conf.template
 ├── .tuxbox/                     # State tracking
 │   └── state.json               # Build state
-├── build/                       # Build output (generated)
+├── builds/                       # Build output (generated)
 │   ├── conf/                    # Generated configs
 │   └── tmp/                     # Build artifacts
 ├── downloads/                   # Source downloads (shared)

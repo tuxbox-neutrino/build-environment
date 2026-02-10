@@ -159,6 +159,16 @@ flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
 Machine profile metadata is shipped in:
 `/etc/tuxbox/flash-machine-profile.conf`.
 
+`/usr/bin/flash` now dispatches by backend:
+- `script`: delegates to legacy `flash` logic (`/usr/bin/flash-legacy`)
+- `ofgwrite`: delegates to ofgwrite backend handler
+
+Current `ofgwrite` backend call shape:
+
+```bash
+flash <slot> <absolute-image-dir> [force]
+```
+
 Host-side smoke check for the no-write invocation path:
 
 ```bash

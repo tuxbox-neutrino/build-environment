@@ -201,6 +201,16 @@ flash-backend-preflight --backend ofgwrite --image-dir /pfad/zum/entpackten/imag
 Maschinenprofil-Metadaten liegen unter:
 `/etc/tuxbox/flash-machine-profile.conf`.
 
+`/usr/bin/flash` verzweigt jetzt per Backend:
+- `script` delegiert an `/usr/bin/flash-legacy`
+- `ofgwrite` delegiert an einen ofgwrite-Backend-Handler
+
+Aktuelle `ofgwrite`-Aufrufform:
+
+```bash
+flash <slot> <absoluter-image-pfad> [force]
+```
+
 ### Nur Konfiguration vorbereiten
 
 Nutze die gleichen Parameter wie bei `make image`, aber es werden nur

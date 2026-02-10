@@ -119,6 +119,13 @@ Runtime preflight command installed by `flash-script`:
   - for `ofgwrite`, use `--image-dir <dir>` to execute explicit no-write mode:
     `ofgwrite -n -q <dir>`.
 
+Runtime flash dispatcher installed by `flash-script`:
+
+- `/usr/bin/flash`
+  - dispatches by `FLASH_BACKEND`
+  - `script` backend delegates to `/usr/bin/flash-legacy`
+  - `ofgwrite` backend delegates to `/usr/libexec/tuxbox/flash-backend-ofgwrite.sh`
+
 Dependency behavior:
 
 - `flash-script` adds runtime dependency `ofgwrite` only when

@@ -198,6 +198,16 @@ flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
 Machine profile metadata is available in:
 `/etc/tuxbox/flash-machine-profile.conf`.
 
+`/usr/bin/flash` dispatches by configured backend:
+- `script` delegates to `/usr/bin/flash-legacy`
+- `ofgwrite` delegates to an ofgwrite backend handler
+
+Current `ofgwrite` backend invocation:
+
+```bash
+flash <slot> <absolute-image-dir> [force]
+```
+
 ### Prepare Configuration Only
 
 Use the same parameters as `make image`, but it will only generate config files:

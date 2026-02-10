@@ -183,6 +183,21 @@ Der Main‑Tree unterstützt nur den `tuxbox`‑Flavour. Wenn du einen Fork
 setze `SRC_URI` auf deinen Fork (oder lege die Änderungen in einen privaten
 Layer).
 
+### Image-Metadaten und Flash-Backend
+
+Für Flash-/Update-Metadaten in `/etc/image-version` siehe:
+`docs/IMAGE_VERSION_CONTRACT.md`.
+
+Das Flash-Backend wird über `TUXBOX_FLASH_BACKEND` gesteuert
+(`script` oder `ofgwrite`).
+
+Runtime-Preflight aus `flash-script`:
+
+```bash
+flash-backend-preflight
+flash-backend-preflight --backend ofgwrite --image-dir /pfad/zum/entpackten/image
+```
+
 ### Nur Konfiguration vorbereiten
 
 Nutze die gleichen Parameter wie bei `make image`, aber es werden nur
@@ -221,6 +236,12 @@ Für devtool:
 
 ```bash
 make devtool ARGS="modify freetype"
+```
+
+Flash-Backend-Preflight-Smoke-Check (gemockter `ofgwrite -n` Aufruf):
+
+```bash
+make flash-preflight-smoke
 ```
 
 Diese Wrapper verwenden die aktuelle Konfiguration. Übergib

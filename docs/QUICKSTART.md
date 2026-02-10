@@ -188,6 +188,13 @@ For flash/update metadata keys written to `/etc/image-version`, see:
 Flash backend capability is controlled by `TUXBOX_FLASH_BACKEND`
 (`script` or `ofgwrite`).
 
+Runtime preflight command from `flash-script`:
+
+```bash
+flash-backend-preflight
+flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
+```
+
 ### Prepare Configuration Only
 
 Use the same parameters as `make image`, but it will only generate config files:
@@ -237,6 +244,12 @@ Optional overrides:
 ```bash
 TASKS="unpack" make stb-smoke MACHINE=qemux86-64
 STB_PLUGIN_RECIPES="stb-flash stb-startup" make stb-smoke MACHINE=qemux86-64
+```
+
+Flash backend preflight smoke check (mocked `ofgwrite -n` call):
+
+```bash
+make flash-preflight-smoke
 ```
 
 These wrappers use your current config. Pass `MACHINE`/`MACHINEBUILD` if you

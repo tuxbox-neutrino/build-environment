@@ -149,6 +149,19 @@ fork (or move the changes into a private layer).
 Flash backend capability is modeled via `TUXBOX_FLASH_BACKEND`
 (`script` or `ofgwrite`).
 
+Runtime preflight command from `flash-script`:
+
+```bash
+flash-backend-preflight
+flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
+```
+
+Host-side smoke check for the no-write invocation path:
+
+```bash
+make flash-preflight-smoke
+```
+
 ### QEMU Smoke Tests (qemux86-64)
 
 Full guide: [docs/QEMU.md](docs/QEMU.md) (EN) / [docs/de/QEMU.md](docs/de/QEMU.md) (DE).
@@ -191,6 +204,12 @@ TASKS="unpack" make stb-smoke MACHINE=qemux86-64
 
 # Custom recipe subset
 STB_PLUGIN_RECIPES="stb-flash stb-startup" make stb-smoke MACHINE=qemux86-64
+```
+
+Flash backend preflight smoke check (mocked `ofgwrite -n` call):
+
+```bash
+make flash-preflight-smoke
 ```
 
 ### Persistent Local Overrides (Beginner Friendly)

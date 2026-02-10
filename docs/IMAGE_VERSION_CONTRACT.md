@@ -95,11 +95,24 @@ Runtime marker file installed by `flash-script`:
 - `/etc/tuxbox/flash-backend.conf`
   - `FLASH_BACKEND=<value>`
 
+Runtime preflight command installed by `flash-script`:
+
+- `flash-backend-preflight`
+  - default mode checks configured backend from
+    `/etc/tuxbox/flash-backend.conf`.
+  - for `ofgwrite`, use `--image-dir <dir>` to execute explicit no-write mode:
+    `ofgwrite -n -q <dir>`.
+
 Dependency behavior:
 
 - `flash-script` adds runtime dependency `ofgwrite` only when
   `TUXBOX_FLASH_BACKEND = "ofgwrite"`.
 - `tuxbox-image-base.inc` installs `ofgwrite` only in `ofgwrite` backend mode.
+
+Host-side smoke helper:
+
+- `make flash-preflight-smoke` validates that the preflight path invokes
+  `ofgwrite` in no-write mode.
 
 ## Notes
 

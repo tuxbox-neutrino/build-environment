@@ -119,6 +119,7 @@ help:
 	@echo -e "  $(COLOR_GREEN)make qemu-run$(COLOR_RESET)                         Run QEMU (qemux86-64)"
 	@echo -e "  $(COLOR_GREEN)make qemu-smoke$(COLOR_RESET)                       Run QEMU smoke test (needs QEMU running)"
 	@echo -e "  $(COLOR_GREEN)make stb-smoke MACHINE=qemux86-64$(COLOR_RESET)     Run stb-* plugin unpack/install smoke checks"
+	@echo -e "  $(COLOR_GREEN)make flash-preflight-smoke$(COLOR_RESET)            Run flash backend preflight smoke check"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Maintenance:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
@@ -168,6 +169,7 @@ help:
 	@echo -e "  $(COLOR_YELLOW)make qemu-run$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make qemu-smoke$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make stb-smoke MACHINE=qemux86-64$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make flash-preflight-smoke$(COLOR_RESET)"
 	@echo ""
 
 .PHONY: check
@@ -227,6 +229,11 @@ qemu-smoke:
 stb-smoke:
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) BUILD_DIR=$(BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh"
 	@MACHINE=$(MACHINE) BUILD_DIR=$(BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh
+
+.PHONY: flash-preflight-smoke
+flash-preflight-smoke:
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) ./scripts/flash-backend-preflight-smoke.sh"
+	@./scripts/flash-backend-preflight-smoke.sh
 
 .PHONY: config
 config: init

@@ -96,11 +96,45 @@ class TuxboxBuilder:
         """Return TMPDIR override string for machine include file examples."""
         if machine.startswith('coolstream'):
             return f"${{TOPDIR}}/build-{machine}/tmp"
-        try:
-            rel = target_builddir.relative_to(self.topdir).as_posix()
-            return f"${{TOPDIR}}/{rel}/tmp-{machine}"
-        except ValueError:
-            return f"{target_builddir}/tmp-{machine}"
+        # Keep historic layout for non-coolstream builds:
+        # TOPDIR is the selected build dir, so this resolves to
+        # <builddir>/build/tmp-<machine> (e.g. builds/build/tmp-hd60).
+        return f"${{TOPDIR}}/build/tmp-{machine}"
+
+    def _migrate_saved_tmpdir_markers(self, target_builddir: Path) -> int:
+        """Rewrite saved_tmpdir markers after one-time build->builds migration."""
+        if target_builddir != self.preferred_builddir:
+            return 0
+        if self.legacy_builddir.exists():
+            return 0
+
+        old_prefix = f"{self.legacy_builddir}/"
+        new_prefix = f"{self.preferred_builddir}/"
+        changed = 0
+
+        markers = list(target_builddir.glob("build/tmp*/saved_tmpdir"))
+        markers += list(target_builddir.glob("tmp*/saved_tmpdir"))
+        markers += [target_builddir / "tmp/saved_tmpdir"]
+
+        seen: Set[Path] = set()
+        for marker in markers:
+            if marker in seen or not marker.exists() or not marker.is_file():
+                continue
+            seen.add(marker)
+            try:
+                saved = marker.read_text(errors='ignore').strip()
+            except OSError:
+                continue
+            if not saved.startswith(old_prefix):
+                continue
+            migrated = saved.replace(old_prefix, new_prefix, 1)
+            try:
+                marker.write_text(f"{migrated}\n")
+            except OSError:
+                continue
+            changed += 1
+
+        return changed
 
     def run_cmd(self, cmd: List[str], cwd: Optional[Path] = None,
                 check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
@@ -1287,6 +1321,11 @@ class TuxboxBuilder:
         if not target_builddir:
             target_builddir = self._default_builddir_for_machine(machine)
         self.builddir = target_builddir
+        migrated_markers = self._migrate_saved_tmpdir_markers(target_builddir)
+        if migrated_markers:
+            self.info(
+                f"Migrated {migrated_markers} TMPDIR marker(s) for builddir rename (build -> builds)"
+            )
 
         # Check if initialized
         state = self.load_state()

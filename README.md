@@ -132,7 +132,7 @@ Image target: `tuxbox-image` is the canonical image recipe. Legacy targets
 `make show-config` reports where values come from (local.conf vs include
 files) and lists layers with their source file.
 
-Built images will be in `builds/tmp/deploy/images/<machine>/` (e.g. `hd51/`).
+Built images will be in `builds/build/tmp/deploy/images/<machine>/` (e.g. `hd51/`).
 Default shared build dir is `builds/`. If an existing `build/conf/local.conf`
 is present, CLI and helper scripts keep using legacy `build/`.
 
@@ -248,7 +248,7 @@ These files are created automatically and are never overwritten by regeneration.
 By default, `local.conf.<machine>.inc` sets a per-machine TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
 ```
 
 (Coolstream defaults to `build-${MACHINE}/tmp`.) Edit the file if you want a

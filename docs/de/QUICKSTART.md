@@ -285,7 +285,7 @@ Standardmäßigig enthält `local.conf.<machine>.inc` ein maschinenspezifisches
 TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
 ```
 
 (Coolstream nutzt standardmäßigig `build-${MACHINE}/tmp`.) Nach Bedarf anpassen.
@@ -439,12 +439,12 @@ IMAGE_LINGUAS = "en-us"
 Gebautes Image findest du hier:
 
 ```
-builds/tmp/deploy/images/<machine>/
+builds/build/tmp/deploy/images/<machine>/
 ```
 
 Beispiel für HD51:
 ```
-builds/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
+builds/build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
 ```
 
 ## Schritt 6: Image flashen

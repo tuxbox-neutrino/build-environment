@@ -136,7 +136,7 @@ Rezept.
 `make show-config` zeigt, woher Werte kommen (local.conf vs include
 files) und listet die Layer inkl. der Quelldatei.
 
-Gebautes Image liegt in `builds/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
+Gebautes Image liegt in `builds/build/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
 Standardmäßiges gemeinsames Build-Verzeichnis ist `builds/`. Falls bereits eine
 alte `build/conf/local.conf` existiert, nutzen CLI und Hilfsskripte weiter
 automatisch `build/`.
@@ -189,7 +189,7 @@ Diese Dateien werden automatisch erzeugt und nie überschrieben.
 Standardmäßigig setzt `local.conf.<machine>.inc` ein per-Maschine TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
 ```
 
 (Coolstream nutzt standardmäßigig `build-${MACHINE}/tmp`.) Bei Bedarf anpassen.

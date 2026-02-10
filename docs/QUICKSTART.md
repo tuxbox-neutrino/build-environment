@@ -289,7 +289,7 @@ These files are created automatically by `make config` and are safe from regener
 By default, `local.conf.<machine>.inc` includes a per-machine TMPDIR:
 
 ```
-TMPDIR = "${TOPDIR}/builds/tmp-${MACHINE}"
+TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
 ```
 
 (Coolstream defaults to `build-${MACHINE}/tmp`.) Edit as needed.
@@ -438,12 +438,12 @@ IMAGE_LINGUAS = "en-us"
 Built images are in:
 
 ```
-builds/tmp/deploy/images/<machine>/
+builds/build/tmp/deploy/images/<machine>/
 ```
 
 Example for HD51:
 ```
-builds/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
+builds/build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
 ```
 
 ## Step 6: Flash Image

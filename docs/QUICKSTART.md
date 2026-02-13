@@ -14,6 +14,7 @@ Get started building Neutrino images in under 10 minutes.
 - [Step 5: Find Your Image](#step-5-find-your-image)
 - [Step 6: Flash Image](#step-6-flash-image)
 - [Common Tasks](#common-tasks)
+- [Build Log Scan](#build-log-scan)
 - [Troubleshooting](#troubleshooting)
 - [Next Steps](#next-steps)
 - [Getting Help](#getting-help)
@@ -275,6 +276,23 @@ make flash-preflight-smoke
 
 These wrappers use your current config. Pass `MACHINE`/`MACHINEBUILD` if you
 want a specific build directory.
+
+## Build Log Scan
+
+Use the build-log scanner to detect critical build failures and unstable
+metadata patterns from cooker logs:
+
+```bash
+./scripts/scan-build-log.sh \
+  --glob "build*/build/tmp-*/log/cooker/*/*.log" \
+  --report /tmp/build-log-scan.md \
+  --metrics /tmp/build-log-scan.env
+```
+
+Useful options:
+
+- `--allow-missing`: return success if no log file exists yet
+- `--no-fail-on-critical`: report findings without non-zero exit code
 
 ### Persistent Local Overrides (Recommended)
 

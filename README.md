@@ -383,6 +383,34 @@ setup. Trigger runs from the Actions tab after configuring repository secrets
 or SSH access for submodules. To automate, re-enable `push`/`schedule` in
 `.github/workflows/*.yml` once submodule authentication is working.
 
+### Critical Build-Log Detection
+
+`Build Test` and `Nightly Build` now run a lightweight build-log scan and
+upload a report artifact (`build-log-scan-*`).
+
+If critical patterns are found (e.g. `ERROR: Task ... failed`, basehash
+non-determinism), CI can open or update a GitHub issue labeled
+`build-log-critical`.
+
+Auto-issue creation is currently opt-in and disabled by default.
+Enable it only when desired:
+
+```text
+Repository Variable: ENABLE_AUTO_ISSUES=1
+```
+
+Run the same scan locally:
+
+```bash
+./scripts/scan-build-log.sh \
+  --glob "build*/build/tmp-*/log/cooker/*/*.log" \
+  --report /tmp/build-log-scan.md \
+  --metrics /tmp/build-log-scan.env
+```
+
+Set `--allow-missing` to treat missing logs as success, and
+`--no-fail-on-critical` to only report without failing the command.
+
 ## Project Structure
 
 ```

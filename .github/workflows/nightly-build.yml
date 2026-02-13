@@ -8,6 +8,10 @@ on:
         required: false
         default: 'hd51,hd60,zgemmah7'
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   build-matrix:
     name: Build ${{ matrix.machine }}
@@ -108,6 +112,105 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: build/tmp/deploy/images/${{ matrix.machine }}/*.zip
+
+      - name: Scan build logs for critical patterns
+        if: always()
+        id: scan_logs
+        run: |
+          set -euo pipefail
+          ./scripts/scan-build-log.sh \
+            --glob "build*/build/tmp-*/log/cooker/*/*.log" \
+            --report "build-log-scan-${{ matrix.machine }}.md" \
+            --metrics "build-log-scan-${{ matrix.machine }}.env" \
+            --allow-missing \
+            --no-fail-on-critical
+          critical_count="$(awk -F= '/^critical_count=/{print $2}' "build-log-scan-${{ matrix.machine }}.env")"
+          critical_fingerprint="$(awk -F= '/^critical_fingerprint=/{print $2}' "build-log-scan-${{ matrix.machine }}.env")"
+          log_path="$(awk -F= '/^log_path=/{print $2}' "build-log-scan-${{ matrix.machine }}.env")"
+          echo "critical_count=${critical_count}" >> "${GITHUB_OUTPUT}"
+          echo "critical_fingerprint=${critical_fingerprint}" >> "${GITHUB_OUTPUT}"
+          echo "log_path=${log_path}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload build log scan report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-log-scan-${{ matrix.machine }}-${{ github.run_number }}
+          path: |
+            build-log-scan-${{ matrix.machine }}.md
+            build-log-scan-${{ matrix.machine }}.env
+          retention-days: 30
+
+      - name: Open issue for critical build log findings
+        if: always() && vars.ENABLE_AUTO_ISSUES == '1' && steps.scan_logs.outputs.critical_count != '0'
+        uses: actions/github-script@v7
+        env:
+          MACHINE: ${{ matrix.machine }}
+          CRITICAL_COUNT: ${{ steps.scan_logs.outputs.critical_count }}
+          CRITICAL_FINGERPRINT: ${{ steps.scan_logs.outputs.critical_fingerprint }}
+          LOG_PATH: ${{ steps.scan_logs.outputs.log_path }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const fp = process.env.CRITICAL_FINGERPRINT || "none";
+            const labelName = "build-log-critical";
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const title = `[build-log-critical] ${process.env.MACHINE} ${fp.slice(0, 12)}`;
+            const body = [
+              "Critical build log patterns were detected.",
+              "",
+              `- workflow: ${context.workflow}`,
+              `- job: ${context.job}`,
+              `- machine: ${process.env.MACHINE}`,
+              `- critical_count: ${process.env.CRITICAL_COUNT}`,
+              `- fingerprint: ${fp}`,
+              `- log_path: ${process.env.LOG_PATH}`,
+              `- run: ${runUrl}`
+            ].join("\n");
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: labelName });
+            } catch (error) {
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                name: labelName,
+                color: "B60205",
+                description: "Critical patterns detected in build logs"
+              });
+            }
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              labels: labelName,
+              per_page: 100
+            });
+
+            const existing = issues.find((issue) =>
+              issue.body && issue.body.includes(`- fingerprint: ${fp}`)
+            );
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `New detection in run ${runUrl}`
+              });
+              core.info(`Existing issue found: #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+                labels: [labelName]
+              });
+              core.info(`Created issue #${created.data.number}`);
+            }
 
   post-build:
     name: Post-Build Report

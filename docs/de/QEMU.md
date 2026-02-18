@@ -8,6 +8,15 @@ Entwicklung und CI gedacht, nicht für produktive Images.
 - Aktuelles Target: nur `qemux86-64`.
 - Image: `tuxbox-qemu-image` (inklusive Neutrino + X11 für GUI-Tests).
 
+## Referenz-Policy
+
+- QEMU dient als primäre Vorab-Referenz für Workflows der realen Boxen.
+- Für möglichst hohe Praxisnähe `bridge` bevorzugen (`bridge=br0`, falls verfügbar).
+- Paket-Install/Update-Flows und Service-Start zuerst in QEMU validieren, dann
+  auf realer Hardware testen.
+- Hardware-spezifische Unterschiede (Tuner, CI, Vendor-Treiber, HDMI-CEC) sind
+  erwartbar und müssen auf echter Box verifiziert werden.
+
 ## Build
 
 Wenn `builds/conf` bereits auf eine andere Maschine zeigt, entweder neu

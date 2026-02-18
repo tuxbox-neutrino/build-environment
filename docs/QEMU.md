@@ -25,7 +25,7 @@ Option B (separate build dir):
 ```bash
 ./cli.py config --machine qemux86-64 --builddir build-qemu
 ./cli.py build --machine qemux86-64 --target tuxbox-qemu-image --builddir build-qemu
-BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
+BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic
 ```
 
 ## Run QEMU
@@ -33,17 +33,20 @@ BUILD_DIR=build-qemu ./scripts/qemu/run-qemu.sh nographic slirp
 GUI (recommended for Neutrino):
 
 ```bash
-./scripts/qemu/run-qemu.sh slirp
+./scripts/qemu/run-qemu.sh
 ```
 
 Headless (no visible Neutrino UI):
 
 ```bash
-./scripts/qemu/run-qemu.sh nographic slirp
+./scripts/qemu/run-qemu.sh nographic
 ```
 
 Notes:
-- Uses user networking (slirp). SSH is forwarded to `127.0.0.1:2222`.
+- Default network mode is automatic:
+  - `bridge=br0` when `br0` exists on the host.
+  - otherwise `slirp` fallback.
+- In `slirp` mode, SSH is forwarded to `127.0.0.1:2222`.
 - If `2222` is busy, runqemu shifts the port; use `SSH_PORT=...` in tests.
 - Neutrino starts automatically on the QEMU display in GUI mode.
 - `tuxbox-qemu-image` disables autostart of `neutrino.service`; Neutrino is
@@ -65,14 +68,23 @@ Common overrides:
 
 ```bash
 make qemu-run QEMU_BUILD_DIR=build-qemu
-make qemu-run QEMU_ARGS="nographic slirp"
+make qemu-run QEMU_ARGS="slirp"
+make qemu-run QEMU_ARGS="nographic bridge=br0"
 SSH_PORT=2223 make qemu-smoke
 ```
 
 ### SSH Login
 
+In `slirp` mode:
+
 ```bash
 ssh -p 2222 root@127.0.0.1
+```
+
+In `bridge` mode:
+
+```bash
+ssh root@<guest-ip-or-hostname>
 ```
 
 The root password is empty unless you set `ROOTPW` at build time.
@@ -85,8 +97,16 @@ Notes:
 ## Webmin
 
 In QEMU images, Webmin listens on port `10001` to avoid conflicts with a host
-Webmin instance. If you want host access with slirp, add a port forward or use
-SSH tunneling.
+Webmin instance.
+
+- In `bridge` mode: open `http://<guest-ip>:10001` directly.
+- In `slirp` mode: use SSH tunneling:
+
+```bash
+ssh -p 2222 -N -L 10001:127.0.0.1:10001 root@127.0.0.1
+```
+
+Then open `http://127.0.0.1:10001`.
 
 ## Smoke Tests
 
@@ -142,6 +162,8 @@ Value is in KB (the example adds ~2 GB).
 
 - QEMU window stays black: use `nographic` and check
   `builds/qemu-logs/runqemu-*.log`.
+- Bridge mode fails early: retry with `QEMU_ARGS="slirp"` and check host bridge
+  setup/permissions.
 - SSH refused early: wait 20-60s for boot/sshd.
 - `base-feeds.conf` missing: ensure `tuxbox-feed-config` is installed and
   rebuild the image.

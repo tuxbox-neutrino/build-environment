@@ -562,6 +562,35 @@ machine kernel (and its modules tarball), so if a stick needs a missing driver
 you must enable it in the kernel config. For a minimal image or custom
 selection, set `TUXBOX_WIFI = "0"` and add packages explicitly.
 
+### Toolset Profile (Image Size vs Convenience)
+
+Default images include the balanced core toolset
+(`packagegroup-tuxbox-tools-core`).
+
+Install optional tools on demand from feeds:
+
+```bash
+opkg update
+opkg install packagegroup-tuxbox-tools-extra
+```
+
+Build-time knobs in `builds/conf/local.conf.user.inc`:
+
+```conf
+# Install optional extra tools into the image:
+TUXBOX_COMMUNITY_PARITY = "0"
+
+# Build optional extra tools for feeds without installing them:
+TUXBOX_PREBUILD_COMMUNITY_PARITY = "0"
+```
+
+Measured reference (`.tuxbox.tar.bz2`, kirkstone 4.0.32):
+- `h7`: `68,477,609` bytes (base) -> `78,321,788` bytes (parity), `+9,844,179`
+- `hd60`: `77,178,123` bytes (base) -> `86,940,570` bytes (parity), `+9,762,447`
+
+Both tested machines stay below 100 MB with parity enabled. Recommended
+default remains: core tools in-image, parity tools opt-in.
+
 ### QEMU Smoke Tests (qemux86-64)
 
 Full guide: `docs/QEMU.md` (EN) / `docs/de/QEMU.md` (DE).

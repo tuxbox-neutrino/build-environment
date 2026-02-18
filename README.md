@@ -290,6 +290,39 @@ machine kernel (and its modules tarball), so if a stick needs a missing driver
 you must enable it in the kernel config. For a minimal image or custom
 selection, set `TUXBOX_WIFI = "0"` and add packages explicitly.
 
+### Toolset Profile (Image Size vs Convenience)
+
+The default image now installs a balanced core toolset via
+`packagegroup-tuxbox-tools-core` (shell/admin essentials plus `jq`, `rsync`,
+`hdparm`, and `mtd-utils`).
+
+Optional tools remain out of the image by default to keep footprint low:
+
+```bash
+opkg update
+opkg install packagegroup-tuxbox-tools-extra
+```
+
+To install that optional group directly into the built image:
+
+```conf
+TUXBOX_COMMUNITY_PARITY = "1"
+```
+
+To prebuild optional tools for feeds without installing them in the image:
+
+```conf
+TUXBOX_PREBUILD_COMMUNITY_PARITY = "1"
+```
+
+Measured reference (`.tuxbox.tar.bz2`, kirkstone 4.0.32):
+- `h7`: `68,477,609` bytes (base) -> `78,321,788` bytes (parity), `+9,844,179`
+- `hd60`: `77,178,123` bytes (base) -> `86,940,570` bytes (parity), `+9,762,447`
+
+Both tested machines stay below 100 MB with parity enabled. Recommended default
+remains: keep `packagegroup-tuxbox-tools-core` in the image and keep parity
+tools opt-in.
+
 ### Minimal Webmin Modules (Runtime)
 
 Install the STB-focused Webmin baseline from feeds:

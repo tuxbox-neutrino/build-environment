@@ -62,7 +62,7 @@ BB_CMD = $(strip $(BB_ARGS) $(if $(BB_TASK),-c $(BB_TASK),) $(BB_TARGET))
 DEVTOOL_ARGS ?= $(ARGS)
 QEMU_MACHINE ?= qemux86-64
 QEMU_IMAGE ?= tuxbox-qemu-image
-QEMU_ARGS ?= slirp
+QEMU_ARGS ?=
 QEMU_BUILD_DIR ?= $(BUILDDIR)
 
 # Build directories
@@ -164,7 +164,7 @@ help:
 	@echo -e "  FORCE_INIT   Force re-run init (default: 0)"
 	@echo -e "  QEMU_MACHINE QEMU machine (default: qemux86-64)"
 	@echo -e "  QEMU_IMAGE   QEMU image name (default: tuxbox-qemu-image)"
-	@echo -e "  QEMU_ARGS    Extra args for run-qemu.sh (default: slirp)"
+	@echo -e "  QEMU_ARGS    Extra args for run-qemu.sh (default: auto net)"
 	@echo -e "  QEMU_BUILD_DIR Build dir for QEMU (default: builds, legacy: build)"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"

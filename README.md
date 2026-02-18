@@ -290,6 +290,18 @@ machine kernel (and its modules tarball), so if a stick needs a missing driver
 you must enable it in the kernel config. For a minimal image or custom
 selection, set `TUXBOX_WIFI = "0"` and add packages explicitly.
 
+### Minimal Webmin Modules (Runtime)
+
+Install the STB-focused Webmin baseline from feeds:
+
+```bash
+opkg update
+opkg install packagegroup-tuxbox-webmin-minimal
+```
+
+This keeps Webmin lean by default while still allowing individual
+`webmin-module-*` packages to be installed later.
+
 ### Source Download Mirror (Optional)
 
 You can use the public source mirror for faster downloads. Generated configs

@@ -232,6 +232,18 @@ für einen Stick, muss er in der Kernel-Konfiguration aktiviert werden. Für ein
 minimales Image oder eine eigene Auswahl setze `TUXBOX_WIFI = "0"` und füge die
 Pakete gezielt hinzu.
 
+### Minimale Webmin-Module (Runtime)
+
+Installiere die STB-orientierte Webmin-Basis aus den Feeds:
+
+```bash
+opkg update
+opkg install packagegroup-tuxbox-webmin-minimal
+```
+
+Damit bleibt Webmin standardmäßig schlank; zusätzliche
+`webmin-module-*` Pakete können bei Bedarf später einzeln installiert werden.
+
 ### Source Download Mirror (optional)
 
 Du kannst den öffentlichen Source-Mirror nutzen, um Downloads zu beschleunigen.

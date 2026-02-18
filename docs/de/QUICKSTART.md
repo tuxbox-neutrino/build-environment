@@ -519,6 +519,19 @@ oder als Teil einer Release-Pipeline.
 make feeds MACHINE=hd51
 ```
 
+### Minimale Webmin-Module installieren (Runtime)
+
+Um Webmin mit einem STB-orientierten Modul-Subset aus den Feeds zu
+installieren:
+
+```bash
+opkg update
+opkg install packagegroup-tuxbox-webmin-minimal
+```
+
+Das installiert nur die kuratierte Basis. Weitere `webmin-module-*` Pakete
+können bei Bedarf einzeln nachinstalliert werden.
+
 ### WLAN-Pakete
 
 WLAN-User-Space-Tools sind standardmäßig enthalten, damit USB-WLAN-Sticks

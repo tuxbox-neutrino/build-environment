@@ -46,6 +46,11 @@ Notes:
 - Uses user networking (slirp). SSH is forwarded to `127.0.0.1:2222`.
 - If `2222` is busy, runqemu shifts the port; use `SSH_PORT=...` in tests.
 - Neutrino starts automatically on the QEMU display in GUI mode.
+- `tuxbox-qemu-image` disables autostart of `neutrino.service`; Neutrino is
+  started by `tuxbox-qemu-neutrino.service` only.
+- Maintainer detail: `systemd_preset_all` in `do_image` can re-enable
+  `neutrino.service`; the QEMU image removes that symlink again in image
+  preprocess.
 - Bluetooth power-on is skipped in VMs to avoid boot delays; test Bluetooth on
   real hardware.
 
@@ -90,6 +95,7 @@ SSH tunneling.
 ```
 
 Useful environment variables:
+- `SHUTDOWN=1` (default) powers off the guest after checks.
 - `SHUTDOWN=0` keep QEMU running after tests.
 - `SKIP_PING=1` skip ping checks.
 - `REQUIRED_UNITS=...` override systemd units to check.

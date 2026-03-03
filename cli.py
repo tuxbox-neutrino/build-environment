@@ -561,6 +561,18 @@ class TuxboxBuilder:
         )
         return build_names, self._format_machinebuild_list(build_info)
 
+    def _validate_machinebuild(self, machine: str, machinebuild: Optional[str]):
+        if not machinebuild:
+            return
+        build_names, build_display = self._machinebuild_candidates(machine)
+        if not build_names:
+            return
+        if machinebuild in build_names:
+            return
+        self.error(f"Invalid MACHINEBUILD '{machinebuild}' for MACHINE '{machine}'.")
+        self.info(f"Available: {', '.join(build_display)}")
+        sys.exit(1)
+
     def _read_conf_value(self, conf_path: Path, key: str) -> Optional[str]:
         if not conf_path.exists():
             return None
@@ -898,6 +910,8 @@ class TuxboxBuilder:
                 sys.exit(1)
             else:
                 self.info(f"No MACHINEBUILD variants listed for {machine}; defaulting to MACHINEBUILD={machine}")
+
+        self._validate_machinebuild(machine, machinebuild)
 
         # Create conf directory in selected build dir
         target_builddir = Path(builddir) if builddir else self._default_builddir_for_machine(machine)
@@ -1371,6 +1385,8 @@ class TuxboxBuilder:
         else:
             self.generate_config(machine, distro, distro_type, machinebuild, target_builddir)
             config_status = "generated"
+
+        self._validate_machinebuild(machine, machinebuild)
 
         self.info("")
         self._print_kv_table("Build summary", [

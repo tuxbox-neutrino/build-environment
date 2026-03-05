@@ -8,7 +8,7 @@ OE-Alliance machine is ready for Neutrino out of the box.
 ## Contents
 
 - [Reality Check](#reality-check)
-- [Quick Glossary](#quick-glossary)
+- [Glossary References](#glossary-references)
 - [Where Hardware Support Lives](#where-hardware-support-lives)
 - [OE-Alliance References](#oe-alliance-references)
 - [libstb-hal Selection and Boxmodel Mapping](#libstb-hal-selection-and-boxmodel-mapping)
@@ -32,13 +32,15 @@ OE-Alliance machine is ready for Neutrino out of the box.
 - For real integration you need hardware access (serial/SSH and a working
   kernel/DTB). Without a box, you can only do a best-effort build.
 
-## Quick Glossary
+## Glossary References
 
-- `MACHINE`: the OE-Alliance machine name you pass to the build.
-- `MACHINEBUILD`: optional OEM variant for the same base machine.
-- `boxtype`: coarse family (`generic`, `armbox`, `mipsbox`).
-- `boxmodel`: the exact string libstb-hal expects for a box (often = `MACHINE`).
-- `libstb-hal`: hardware abstraction layer used by Neutrino.
+Use the central [Glossary](GLOSSARY.md) for short definitions of:
+
+- `MACHINE`
+- `MACHINEBUILD`
+- `boxtype`
+- `boxmodel`
+- `libstb-hal`
 
 ## Where Hardware Support Lives
 

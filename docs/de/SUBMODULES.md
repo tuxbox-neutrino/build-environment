@@ -13,6 +13,8 @@ Dieses Projekt hält die Build-Layer in eigenen Git-Repositories:
 Das `build-environment` Repo orchestriert nur den Build.
 Submodule erlauben es, exakte Versionen zu pinnen und die Layer sauber
 voneinander zu trennen.
+Wenn du kurze Definitionen für Begriffe wie Submodule/Pinning willst, nutze das
+[Glossar](GLOSSARY.md).
 
 ## Inhalt
 
@@ -108,6 +110,7 @@ gehört.
 ## Verwandte Dokus
 
 - [QUICKSTART.md](QUICKSTART.md) - Erste Build-Schritte
+- [GLOSSARY.md](GLOSSARY.md) - Kurze Begriffsdefinitionen
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Systemüberblick
 - [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md) - Neue Hardware integrieren
 - [README.de.md](../../README.de.md) - Projektüberblick und Kommandos

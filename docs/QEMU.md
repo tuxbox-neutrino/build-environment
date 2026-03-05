@@ -1,7 +1,11 @@
 # QEMU Smoke Tests (qemux86-64)
 
+Deutsch: [de/QEMU.md](de/QEMU.md)
+
 This guide covers the QEMU-only smoke test workflow. It is intended for
 development and CI, not for production images.
+
+For short term definitions, see [GLOSSARY.md](GLOSSARY.md).
 
 ## Scope
 

@@ -1,7 +1,11 @@
 # QEMU Smoke-Tests (qemux86-64)
 
+English: [../QEMU.md](../QEMU.md)
+
 Dieses Dokument beschreibt den QEMU-Workflow für Smoke-Tests. Es ist für
 Entwicklung und CI gedacht, nicht für produktive Images.
+
+Kurze Begriffsdefinitionen findest du im [GLOSSARY.md](GLOSSARY.md).
 
 ## Umfang
 

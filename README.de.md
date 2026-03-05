@@ -2,389 +2,108 @@
 
 English: [README.md](README.md)
 
-Produktionsreifes Build-System für Tuxbox-Neutrino basierend auf der
-OE-Alliance Infrastruktur.
+Du baust hier Tuxbox-Neutrino-Images mit einem Yocto/OpenEmbedded-Workflow.
+Dieses Repository ist der Orchestrator um gepinnte Layer-Submodule.
+Die Standard-Kommandos sind sicher und reproduzierbar.
 
-## Schnellstart
+## Starte Hier (Erster Build)
 
-### 1. Voraussetzungen
+Wenn du schnell zum ersten Ergebnis willst, kopiere diesen Block:
 
-```bash
-# Debian/Ubuntu
-sudo apt install -y gawk wget git diffstat unzip texinfo \
-  gcc build-essential chrpath socat cpio python3 python3-pip \
-  python3-pexpect xz-utils debianutils iputils-ping python3-git \
-  python3-jinja2 python3-subunit zstd liblz4-tool file locales \
-  libacl1 curl
-```
-
-Für 32-bit Targets auf einem 64-bit Host (z.B. armhf Maschinen wie HD60/HD61)
-zusatzlich Multilib-Header installieren:
-
-```bash
-sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386
-```
-
-Tipp: Nutze SSH statt HTTPS für GitHub Submodule (keine Login-Prompts).
-
-Wenn Git GitHub Repos/Submodule über **HTTPS** (`https://github.com/...`)
-clont, fragt es nach Credentials (meist ein **Token** statt Passwort).
-Wechsel auf **SSH** (`git@github.com:...`) nutzt deinen **SSH Key** und
-vermeidet wiederholte Prompts. Das ist auch besser für automatisierte
-Builds/CI.
-
-Alle GitHub HTTPS URLs auf SSH umschreiben (empfohlen):
-Das sorgt dafür, dass `https://github.com/` automatisch zu `git@github.com:`
-ersetzt wird:
-
-```bash
-git config --global url."git@github.com:".insteadOf "https://github.com/"
-```
-
-SSH-Agent starten:
-```bash
-eval "$(ssh-agent -s)"
-```
-
-Dann Key hinzufügen:
-```bash
-ssh-add ~/.ssh/id_rsa
-```
-
-### 2. Initialisieren oder aktualisieren
-
-### 2.1. Klonen für erste Initialisierung
 ```bash
 git clone --recurse-submodules https://github.com/tuxbox-neutrino/build-environment.git
 cd build-environment
-make init
-```
-
-### 2.2. Update und Sync (safe/pinned)
-Standard und empfohlen für den täglichen Workflow:
-```bash
+make check
 make update
-# Gleichwertig:
-make sync
+make image MACHINE=hd51 MACHINEBUILD=mutant51
 ```
 
-Optional: große Submodule beim Sync überspringen:
+Das passiert dabei:
+
+1. Du klonst das Repository inklusive Submodule.
+2. Du prüfst Host-Abhängigkeiten.
+3. Du synchronisierst Repository und gepinnte Submodule (`make update`, sicherer Standard).
+4. Du baust dein erstes Image.
+
+Wenn `make check` fehlende Pakete meldet, nutze den Abhängigkeits-Abschnitt in
+[docs/de/QUICKSTART.md](docs/de/QUICKSTART.md).
+
+## Täglicher Workflow (Sicherer Standard)
+
 ```bash
+# Aktuelle Top-Level-Änderungen und gepinnte Submodule holen
+make update
+
+# Image bauen (nutzt vorhandene Konfiguration weiter)
+make image MACHINE=hd51 MACHINEBUILD=mutant51
+
+# Optional: Build-Artefakte löschen, Caches behalten
+make clean
+```
+
+Nützliche Varianten:
+
+```bash
+# Gleiches sicheres Verhalten wie make update
+make sync
+
+# Große Submodule beim Sync auslassen
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
-... oder raw git (nur gepinnte Submodule, kein Top-Level Pull):
-```bash
-git submodule sync --recursive
-git submodule update --init --recursive
-```
-
-### 2.3 Sync mit Upstream (nur für Maintainer)
-
-Nur verwenden, wenn du bewusst Submodule auf Upstream HEAD setzen willst
-(unpinned):
+## Maschine Auswählen
 
 ```bash
-make update-upstream
-# Oder
-./cli.py sync
+make list-machines
+make machine-info MACHINE=hd51
 ```
 
-Warnung: `make update-upstream` und `./cli.py sync` bewegen Submodule auf
-Upstream HEAD
-(unpinned). Das kann Layer auf Branches/REVs setzen, die nicht zum gepinnten
-Build passen, und lässt deinen Tree dirty, bis du neue Submodule-Pointer
-committest. Nur verwenden, wenn du Layer-Pins absichtlich aktualisieren willst.
-Falls du das aus Versehen ausgeführt hast, nutze `make update` (oder
-`make sync`), um auf den gepinnten Stand zurückzugehen:
+Bei vielen Geräten ist `MACHINEBUILD` gleich `MACHINE`.
+Mit `make machine-info` prüfst du die maschinenspezifischen Werte.
+
+## Wo Die Build-Ausgaben Liegen
+
+Standardpfade für Images sind:
+
+- `builds/build/tmp/deploy/images/<machine>/`
+- `build/build/tmp/deploy/images/<machine>/`
+
+Beispiel für `hd51`:
+
+- `builds/build/tmp/deploy/images/hd51/`
+
+## Sicher Vs Fortgeschritten
+
+- Sicherer Standard: `make update` (oder `make sync`) checkt gepinnte Commits aus.
+- Fortgeschritten (nur bewusst): `make update-upstream` oder `./cli.py sync`
+  zieht Submodule auf Upstream HEAD (unpinned). Das kann deinen Tree dirty
+  machen und die Reproduzierbarkeit brechen.
+
+Wenn du den unpinned-Update versehentlich ausgeführt hast:
 
 ```bash
 make update
-# Oder
-make sync
 ```
 
-### 3. Image bauen
+## Doku-Wegweiser
 
-Erster Build: immer `MACHINE` (und `MACHINEBUILD` falls nötig) angeben oder
-zuerst `make config` ausführen. `make image` ohne `MACHINE` funktioniert nur,
-wenn bereits eine Konfiguration existiert.
+Lies am besten in dieser Reihenfolge:
 
-```bash
-# Erster Build (empfohlen): MACHINE (und MACHINEBUILD wenn noetig) angeben.
-# Generiert die Config automatisch, falls sie noch nicht existiert.
-make image MACHINE=hd51 MACHINEBUILD=mutant51
+1. [Detaillierter Quickstart](docs/de/QUICKSTART.md)
+2. [Layer und Submodule](docs/de/SUBMODULES.md)
+3. [Glossar (Yocto/OE Begriffe)](docs/de/GLOSSARY.md)
 
-# Wenn eine Config existiert, kannst du einfach:
-make image
+Danach bei Bedarf tiefer einsteigen:
 
-# Nur Config erzeugen (kein Build)
-make config MACHINE=hd51
-make show-config MACHINE=hd51   # zeigt Werte + Quelldatei
-make edit-conf MACHINE=hd51     # oeffnet die Include-Dateien
+- [Architektur](docs/de/ARCHITECTURE.md)
+- [QEMU Nutzung](docs/de/QEMU.md)
+- [Hardware-Integration](docs/de/HARDWARE_INTEGRATION.md)
+- [Image-Version-Vertrag](docs/de/IMAGE_VERSION_CONTRACT.md)
 
-# Wenn Configs existieren, nutzt make image sie weiter.
-# Bei Bedarf Regeneration erzwingen:
-make image MACHINE=hd51 FORCE_CONFIG=1
+## Englisch?
 
-# OEM/Brand-Varianten (MACHINEBUILD nutzen wenn es von MACHINE abweicht)
-make image MACHINE=hd60 MACHINEBUILD=ax60
-
-# Gueltige MACHINEBUILD Werte finden
-make list-machines
-make machine-info MACHINE=hd51
-
-# Oder mit Python CLI
-./cli.py build --machine hd51
-MACHINEBUILD=mutant51 ./cli.py build --machine hd51
-```
-
-Image-Target: `tuxbox-image` ist das kanonische Image-Rezept. Die alten
-Targets `neutrino-image` und `noneutrino-image` sind Aliasnamen zum selben
-Rezept.
-
-`make show-config` zeigt, woher Werte kommen (local.conf vs include
-files) und listet die Layer inkl. der Quelldatei.
-
-Gebautes Image liegt in `builds/build/tmp/deploy/images/<machine>/` (z.B. `hd51/`).
-Standardmäßiges gemeinsames Build-Verzeichnis ist `builds/`. Falls bereits eine
-alte `build/conf/local.conf` existiert, nutzen CLI und Hilfsskripte weiter
-automatisch `build/`.
-
-### Neutrino‑Flavour (nur tuxbox)
-
-Der Main‑Tree unterstützt nur den `tuxbox`‑Flavour. Wenn du einen Fork
-(NI/Tango) bauen willst, nutze `devtool modify` in einem lokalen Workspace und
-setze `SRC_URI` auf deinen Fork (oder lege die Änderungen in einen privaten
-Layer).
-
-### QEMU Smoke-Tests (qemux86-64)
-
-Vollständige Anleitung: [docs/de/QEMU.md](docs/de/QEMU.md) (DE) /
-[docs/QEMU.md](docs/QEMU.md) (EN).
-
-Quick-Start:
-
-```bash
-./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
-./scripts/qemu/run-qemu.sh
-./scripts/qemu/smoke-test.sh
-```
-
-Makefile-Shortcuts:
-
-```bash
-make qemu-run
-make qemu-smoke
-```
-
-Beispiele:
-
-```bash
-make qemu-run QEMU_BUILD_DIR=build-qemu
-SSH_PORT=2223 make qemu-smoke
-```
-
-### Dauerhafte lokale Overrides (einsteigerfreundlich)
-
-`make config` erzeugt `local.conf` und `bblayers.conf`. Für persönliche
-Änderungen, die Updates überstehen sollen, nutze diese Files:
-
-- `builds/conf/local.conf.user.inc` (persönliche Defaults)
-- `builds/conf/local.conf.<machine>.inc` (maschinen-spezifische Tweaks)
-- `builds/conf/bblayers.conf.user.inc` (extra Layer / masks)
-
-Diese Dateien werden automatisch erzeugt und nie überschrieben.
-
-Standardmäßigig setzt `local.conf.<machine>.inc` ein per-Maschine TMPDIR:
-
-```
-TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
-```
-
-(Coolstream nutzt standardmäßigig `build-${MACHINE}/tmp`.) Bei Bedarf anpassen.
-
-### Image Naming Overrides (optional)
-
-`builds/conf/local.conf.user.inc` enthält eine kommentierte Vorlage für
-Image-Namen-Variablen und Beispiele. Aktiviere nur, was du brauchst.
-
-Diese Stolperfallen vermeiden:
-- Keine Leerzeichen in `IMAGE_VER_STRING` (manche OA-Skripte brechen bei Spaces).
-- `vardepsexclude` beibehalten, wenn `DATE`/`DATETIME` genutzt werden, um
-  Rebuild-Churn zu vermeiden.
-- Keine Slashes in `IMAGE_NAME` (muss ein Dateiname sein).
-- `IMAGE_NAME_SUFFIX` nicht ändern, ausser deine Tools erwarten das.
-
-### Locale-Defaults (optional)
-
-Standard-Images liefern nur `en-us`, um den Footprint klein zu halten. Das QEMU
-Smoke-Image behält mehrere Locales zur Bequemlichkeit. Pro Build kannst du das
-in `builds/conf/local.conf.user.inc` überschreiben:
-
-```conf
-IMAGE_LINGUAS = "en-us"
-```
-
-### WLAN-Pakete (optional)
-
-WLAN-User-Space-Tools sind standardmäßig enthalten, damit USB-WLAN-Sticks
-maschinenübergreifend genutzt werden können. Um die WLAN-Paketgruppe pro Build
-zu deaktivieren, setze dies in `builds/conf/local.conf.user.inc`:
-
-```conf
-TUXBOX_WIFI = "0"
-```
-
-Firmware-Pakete werden ebenfalls standardmäßig eingebunden. Kernel-Module
-kommen aus dem Maschinen-Kernel (und dem modules-Tarball). Fehlt ein Treiber
-für einen Stick, muss er in der Kernel-Konfiguration aktiviert werden. Für ein
-minimales Image oder eine eigene Auswahl setze `TUXBOX_WIFI = "0"` und füge die
-Pakete gezielt hinzu.
-
-### Minimale Webmin-Module (Runtime)
-
-Installiere die STB-orientierte Webmin-Basis aus den Feeds:
-
-```bash
-opkg update
-opkg install packagegroup-tuxbox-webmin-minimal
-```
-
-Damit bleibt Webmin standardmäßig schlank; zusätzliche
-`webmin-module-*` Pakete können bei Bedarf später einzeln installiert werden.
-
-### Source Download Mirror (optional)
-
-Du kannst den öffentlichen Source-Mirror nutzen, um Downloads zu beschleunigen.
-Generierte Configs aktivieren das in `builds/conf/local.conf.user.inc`. Entferne
-folgende Zeilen, wenn du nur Upstream nutzen willst:
-
-```conf
-INHERIT += "own-mirrors"
-SOURCE_MIRROR_URL = "https://archiv.tuxbox-neutrino.org/"
-# Optional: fail if the mirror misses a source (no upstream fetch)
-# BB_FETCH_PREMIRRORONLY = "1"
-```
-
-### Troubleshooting: hdfastboot8gb basehash mismatch
-
-Auf GFutures fastboot Maschinen (hd60/hd61/hd66se) kann ein basehash mismatch
-auftreten, wenn `IMAGE_NAME` `DATETIME` enthält. Stelle sicher, dass Submodule
-aktuell sind; aktuelles `meta-tuxbox` schliesst `IMAGE_NAME` aus der
-Task-Signatur aus.
-
-Wenn du für jeden Build ein frisches Image willst, erzwinge die Task:
-
-```bash
-bitbake -f -c do_image_hdfastboot8gb tuxbox-image
-```
-
-## Dokumentation
-
-- QUICKSTART: [DE](docs/de/QUICKSTART.md), [EN](docs/QUICKSTART.md) - Schnellstart
-- QEMU: [DE](docs/de/QEMU.md), [EN](docs/QEMU.md) - QEMU Smoke-Tests und Dev-Workflow
-- SUBMODULES: [DE](docs/de/SUBMODULES.md), [EN](docs/SUBMODULES.md) - Layer und Submodule
-- ARCHITECTURE: [DE](docs/de/ARCHITECTURE.md), [EN](docs/ARCHITECTURE.md) - Systemarchitektur
-- HARDWARE: [DE](docs/de/HARDWARE_INTEGRATION.md), [EN](docs/HARDWARE_INTEGRATION.md) - Neue Hardware
-- COOLSTREAM: [DE](docs/de/COOLSTREAM.md), [EN](docs/COOLSTREAM.md) - uClibc Builds (experimental/PoC)
-
-## Unterstützte Plattformen
-
-### Prioritätsplattformen (getestet)
-- **GFutures (Mut@nt/AX)**: HD51, HD60, HD61
-- **AirDigital**: ZgemmaH7, H7S, H7C
-- **Coolstream**: Tank (uClibc Toolchain, experimentell/PoC)
-
-### Alle OE-Alliance Plattformen (300+ Geräte)
-Siehe `make list-machines` für die komplette Liste. Nicht alle Maschinen sind
-getestet oder für Neutrino integriert; `libstb-hal` Support ist begrenzt.
-Siehe `docs/de/HARDWARE_INTEGRATION.md` für den Bring-up-Workflow.
-
-## Kernfunktionen
-
-- **OE-Alliance Integration**: Unmodifizierte OE-Alliance Infrastruktur
-- **Neutrino-Only**: Keine Enigma2-Abhängigkeiten
-- **Yocto Kirkstone**: LTS Support bis Mai 2026
-- **Hybrid Build System**: Einfach für Einsteiger, stark für Entwickler
-- **Externe Toolchain**: Coolstream uClibc Support (experimentell/PoC)
-- **QEMU-Tests**: Schnelle Smoke-Tests ohne Hardware
-
-## Build-Kommandos
-
-### Makefile (einfach)
-```bash
-make image MACHINE=hd51           # Image bauen
-make image MACHINE=hd51 FORCE_CONFIG=1  # Config neu erzeugen
-make config MACHINE=hd51          # Nur Config erzeugen
-make show-config MACHINE=hd51     # Config + Checks anzeigen
-make edit-conf MACHINE=hd51       # Config-Dateien bearbeiten
-make feeds MACHINE=hd51           # Package-Feeds bauen (optional; Image-Builds erzeugen Indizes)
-make clean                        # Build aufraeumen (sstate bleibt)
-make distclean                    # Alles bereinigen
-make list-machines                # Alle Maschinen anzeigen
-make machine-info MACHINE=hd51    # Hardware-Details anzeigen
-make help                         # Alle Kommandos anzeigen
-```
-
-### Python CLI (fortgeschritten)
-```bash
-./cli.py init                     # Build-Umgebung initialisieren
-./cli.py build -m hd51            # Image bauen
-./cli.py config -m hd51           # Nur Config erzeugen
-./cli.py show-config -m hd51      # Config + Checks anzeigen
-./cli.py build -m hd51 --offline  # Offline-Build
-./cli.py build -m hd51 --devshell # In Entwickler-Shell wechseln
-./cli.py fetch-only -m hd51       # Nur Sources herunterladen
-./cli.py sync --check             # Upstream-Updates pruefen (keine Aenderungen)
-./cli.py sync                     # Submodule auf Upstream HEAD aktualisieren (unpinned)
-./cli.py clean -m hd51            # Build-Verzeichnis bereinigen
-```
-
-## GitHub Actions (standardmäßigig manuell)
-
-Workflows sind vorerst manuell, damit private Submodule funktionieren.
-Starte Runs im Actions-Tab, nachdem Secrets oder SSH Zugang für Submodule
-konfiguriert sind. Für Automatisierung aktiviere `push`/`schedule` in
-`.github/workflows/*.yml`, sobald die Submodule-Auth funktioniert.
-
-## Projektstruktur
-
-```
-build-environment/           # Orchestrator (dieses Repo)
-+-- Makefile                 # Einfaches Build-Interface
-+-- cli.py                   # Erweiterte Python-CLI
-+-- scripts/                 # Hilfsskripte
-+-- templates/               # Konfigurations-Templates
-+-- docs/                    # Dokumentation
-+-- .tuxbox/                 # State-Tracking
-
-Submodule (auto-managed):
-+-- oe-alliance/             # OE-Alliance (unveraendert)
-+-- meta-neutrino/           # Neutrino Recipes (Kirkstone)
-+-- meta-tuxbox/             # Tuxbox Distribution Layer
-+-- meta-tuxbox-toolchain/   # Externe Toolchains (Coolstream)
-```
-
-## Mitmachen
-
-Dies ist ein Tuxbox-Neutrino Community-Projekt. Beiträge willkommen!
-
-- Issues: https://github.com/tuxbox-neutrino/build-environment/issues
-- PRs: https://github.com/tuxbox-neutrino/build-environment/pulls
-
-## Lizenz
-
-- Orchestrator Code: MIT License
-- OE-Alliance: Various (see upstream)
-- Neutrino: GPL-2.0
-
-## Danksagung
-
-- **Tuxbox-Neutrino Team**: GUI und Integration
-- **OE-Alliance**: Build-Infrastruktur
-- **Yocto Project**: OpenEmbedded core
-
----
-
-Gebaut mit <3 von der Tuxbox-Community
+- [README.md](README.md)
+- [QUICKSTART (EN)](docs/QUICKSTART.md)
+- [SUBMODULES (EN)](docs/SUBMODULES.md)
+- [GLOSSARY (EN)](docs/GLOSSARY.md)
+- [IMAGE VERSION CONTRACT (EN)](docs/IMAGE_VERSION_CONTRACT.md)

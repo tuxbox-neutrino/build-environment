@@ -8,7 +8,7 @@ jede OE-Alliance Maschine sofort für Neutrino funktioniert.
 ## Inhalt
 
 - [Realitätscheck](#realitätscheck)
-- [Kurzglossar](#kurzglossar)
+- [Glossar-Verweise](#glossar-verweise)
 - [Wo Hardware-Support liegt](#wo-hardware-support-liegt)
 - [OE-Alliance Referenzen](#oe-alliance-referenzen)
 - [libstb-hal Auswahl und Boxmodel Mapping](#libstb-hal-auswahl-und-boxmodel-mapping)
@@ -33,13 +33,15 @@ jede OE-Alliance Maschine sofort für Neutrino funktioniert.
 - Für eine echte Integration brauchst du Hardware (seriell/SSH und ein
   funktionierendes Kernel/DTB). Ohne Box geht nur best-effort.
 
-## Kurzglossar
+## Glossar-Verweise
 
-- `MACHINE`: der OE-Alliance Maschinenname, den du für den Build setzt.
-- `MACHINEBUILD`: optionale OEM-Variante für die gleiche Basis-Maschine.
-- `boxtype`: grobe Familie (`generic`, `armbox`, `mipsbox`).
-- `boxmodel`: exakter String, den libstb-hal für die Box erwartet (oft = `MACHINE`).
-- `libstb-hal`: Hardware-Abstraktions-Layer für Neutrino.
+Nutze das zentrale [Glossar](GLOSSARY.md) für kurze Definitionen zu:
+
+- `MACHINE`
+- `MACHINEBUILD`
+- `boxtype`
+- `boxmodel`
+- `libstb-hal`
 
 ## Wo Hardware-Support liegt
 

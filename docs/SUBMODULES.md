@@ -12,6 +12,8 @@ This project keeps the build layers in their own Git repositories:
 
 The `build-environment` repo only orchestrates the build.
 Submodules let us pin exact versions while keeping each layer independent.
+If you want short definitions for terms like submodule/pinning, see the
+[Glossary](GLOSSARY.md).
 
 ## Contents
 
@@ -106,6 +108,7 @@ This makes it easy to see which layer version matches a specific Yocto release.
 ## Related Docs
 
 - [QUICKSTART.md](QUICKSTART.md) - First build steps
+- [GLOSSARY.md](GLOSSARY.md) - Short term definitions
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System overview
 - [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md) - Add new hardware
 - [README.md](../README.md) - Project overview and commands

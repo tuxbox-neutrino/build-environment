@@ -1,5 +1,7 @@
 # /etc/image-version Contract
 
+Deutsch: [de/IMAGE_VERSION_CONTRACT.md](de/IMAGE_VERSION_CONTRACT.md)
+
 This document defines the metadata contract written by
 `meta-tuxbox/classes/tuxbox-version.bbclass`.
 

@@ -2,442 +2,158 @@
 
 Deutsch: [de/COOLSTREAM.md](de/COOLSTREAM.md)
 
-Coolstream HD2 devices require a uClibc toolchain. We encapsulate this in
-`meta-coolstream` (machines/BSP) plus `meta-tuxbox-toolchain`
-(TCMODE `external-coolstream`).
+This guide explains the current Coolstream build path.
+It is an advanced workflow and currently **experimental**.
 
-Status: **experimental / proof of concept**. This is feasibility work and not
-production-ready.
+If you are new to the project, start with [QUICKSTART.md](QUICKSTART.md) first.
 
-See also:
-- [QUICKSTART.md](QUICKSTART.md)
-- [SUBMODULES.md](SUBMODULES.md)
-- [README.md](../README.md)
+## 1. Scope
 
-## Contents
+Coolstream images differ from the regular glibc flow:
 
-- [Layer](#layer)
-- [Toolchain](#toolchain)
-- [Build (Tank example)](#build-tank-example)
-- [Notes](#notes)
-- [Coolstream Machine Configuration](#coolstream-machine-configuration)
-- [Image Customization](#image-customization)
-- [Build Workflow](#build-workflow)
-- [Troubleshooting](#troubleshooting)
-- [Advanced Topics](#advanced-topics)
-- [Testing](#testing)
-- [References](#references)
+- They use an external uClibc toolchain.
+- They require Coolstream-specific machine definitions.
+- They are intended for bring-up/testing, not general newcomer builds.
 
-## Layer
-- `meta-coolstream`: machine definitions, flash/layout, BSP adjustments.
-  Add to `bblayers.conf`:
-  ```
-  BBLAYERS += "${TOPDIR}/../meta-coolstream"
-  ```
-- `meta-coolstream` now contains the binary puller `libcoolstream-bin`.
-  `meta-libcoolstream` stays optional for future source builds, but no longer
-  ships a binary recipe.
-- Binary drivers/firmware: `cst-drivers` (modules + FW for HD1/HD2), optional
-  `cst-drivers-extra` (rt5572sta for nevis).
-- `meta-tuxbox-toolchain`: external uClibc toolchain.
-- **Sources (derived from ni-buildsystem, must be cloned/adjusted):**
-  - `ni-linux-kernel` (2.6.34.15 HD1 / 3.10.108 HD2, incl. defconfigs)
-  - `ni-drivers-bin` (kernel modules, DTBs hd849x/en75x1, firmware, bootloader/uldr)
-  - `ni-libcoolstream` (libcoolstream, libnxp for HD1)
-  - Toolchain: prebuilt uClibc tarball (see below) or CT-NG configs (hd1/hd2)
-  - **No** libstb-hal required on Coolstream devices.
+Known machine mapping (NI box naming):
 
-## Toolchain
-**URL**: https://sourceforge.net/projects/n4k/files/toolchains/
-**File**: `toolchain-coolstream-uclibc-armv7.tar.bz2`
-**SHA256**: `b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6`
+- `coolstream-nevis` (HD1, glibc): HD1/BSE/NEO/NEO2/NEO2 Twin/ZEE
+- `coolstream-apollo` (HD2, uClibc): Tank
+- `coolstream-shiner` (HD2, uClibc): Trinity V1
+- `coolstream-kronos` (HD2, uClibc): Zee2 / Trinity V2
+- `coolstream-kronos-v2` (HD2, uClibc): Link / Trinity Duo
 
-Layout (shortened):
-```
-toolchain-coolstream-uclibc-armv7/
-+-- cross/arm-linux-3.10.93/
-    +-- bin/arm-cortex-linux-uclibcgnueabi-gcc ...
-    +-- arm-cortex-linux-uclibcgnueabi/sys-root/...
+## 2. Required Layers And Components
+
+- `meta-coolstream` (machines/BSP)
+- `meta-tuxbox-toolchain` (external toolchain integration)
+- external toolchain tarball `toolchain-coolstream-uclibc-armv7.tar.bz2`
+
+Related terms are in the [Glossary](GLOSSARY.md).
+
+## 3. Toolchain Source
+
+Reference values:
+
+- URL: `https://sourceforge.net/projects/n4k/files/toolchains/`
+- File: `toolchain-coolstream-uclibc-armv7.tar.bz2`
+- SHA256: `b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6`
+
+Quick integrity check:
+
+```bash
+sha256sum toolchain-coolstream-uclibc-armv7.tar.bz2
 ```
 
-## Build (Tank example)
+## 4. Configure Build
+
+### 4.1 Generate base config
+
+```bash
+make config MACHINE=coolstream-apollo MACHINEBUILD=coolstream-apollo
 ```
-# local/conf
+
+### 4.2 Ensure layer and libc/toolchain settings
+
+Add or verify these values in your active build config files:
+
+```conf
+# local.conf (or local include)
 MACHINE = "coolstream-apollo"
 MACHINEBUILD = "coolstream-apollo"
 TCMODE = "external-coolstream"
 TCLIBC = "uclibc"
+```
 
-# Add layer (bblayers.conf)
+```conf
+# bblayers.conf
 BBLAYERS += "${TOPDIR}/../meta-coolstream"
-
-# Build
-bitbake tuxbox-image
 ```
 
-## Notes
-- DISTRO stays `tuxbox`; set libc/TCMODE explicitly for Coolstream machines.
-- Kernel/bootloader/driver still need migration from ni-buildsystem.
-- MACHINE names (mapping to NI BOXMODEL):
-  - `coolstream-nevis` (HD1 glibc): HD1/BSE/NEO/NEO2/NEO2 Twin/ZEE
-  - `coolstream-apollo` (HD2 uClibc): Tank
-  - `coolstream-shiner` (HD2 uClibc): Trinity V1
-  - `coolstream-kronos` (HD2 uClibc): Zee2 / Trinity V2
-  - `coolstream-kronos-v2` (HD2 uClibc): Link / Trinity Duo
-- HD1/Nevis devices (arm1176) use glibc; uClibc applies to HD2
-  (apollo/shiner/kronos/kronos_v2).
-
-### Distribution Config
-
-**File**: `meta-tuxbox-toolchain/conf/distro/tuxbox-uclibc.conf`
-
-```bitbake
-# Inherit base Tuxbox config
-require conf/distro/tuxbox.conf
-
-# Override C library
-TCLIBC = "uclibc"
-TCMODE = "external-coolstream"
-
-# Toolchain-specific settings
-DISTRO_NAME = "Tuxbox-OS uClibc"
-DISTRO_VERSION_append = "-uclibc"
-
-# Disable packages incompatible with uClibc
-PACKAGECONFIG_remove_pn-systemd = "resolved"  # Example
-```
-
-### External Toolchain Class
-
-**File**: `meta-tuxbox-toolchain/classes/external-toolchain-coolstream.bbclass`
-
-```bitbake
-# Toolchain binary path
-EXTERNAL_TOOLCHAIN = "${WORKDIR}/toolchain-coolstream-uclibc-armv7"
-EXTERNAL_TOOLCHAIN_BIN = "${EXTERNAL_TOOLCHAIN}/cross/arm-linux-3.10.93/bin"
-
-# Cross-compiler settings
-TARGET_PREFIX = "arm-cortex-linux-uclibcgnueabi-"
-CROSS_COMPILE = "${TARGET_PREFIX}"
-
-# Sysroot
-EXTERNAL_TOOLCHAIN_SYSROOT = "${EXTERNAL_TOOLCHAIN}/cross/arm-linux-3.10.93/arm-cortex-linux-uclibcgnueabi/sys-root"
-
-# Skip native toolchain recipes
-ASSUME_PROVIDED += "gcc-cross-${TARGET_ARCH}"
-ASSUME_PROVIDED += "binutils-cross-${TARGET_ARCH}"
-ASSUME_PROVIDED += "uclibc"
-
-# Export environment
-export PATH_prepend = "${EXTERNAL_TOOLCHAIN_BIN}:"
-export CROSS_COMPILE
-```
-
-### External Toolchain Recipe
-
-**File**: `meta-tuxbox-toolchain/recipes-core/external-toolchain/external-toolchain-coolstream.bb`
-
-```bitbake
-DESCRIPTION = "External uClibc toolchain for Coolstream Tank"
-LICENSE = "GPL-2.0 & LGPL-2.1"
-
-SRC_URI = "https://sourceforge.net/projects/n4k/files/toolchains/toolchain-coolstream-uclibc-armv7.tar.bz2"
-SRC_URI[sha256sum] = "b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6"
-
-S = "${WORKDIR}"
-
-do_install() {
-    install -d ${D}${datadir}/coolstream-toolchain
-    cp -r ${S}/toolchain-coolstream-uclibc-armv7 ${D}${datadir}/coolstream-toolchain/
-}
-
-FILES_${PN} = "${datadir}/coolstream-toolchain"
-
-INHIBIT_DEFAULT_DEPS = "1"
-```
-
-## Coolstream Machine Configuration
-
-### Machine Config
-
-**File**: `meta-tuxbox-toolchain/conf/machine/tank.conf`
-
-```bitbake
-#@TYPE: Machine
-#@NAME: Coolstream Tank
-#@DESCRIPTION: Machine configuration for Coolstream Tank (ARM Cortex-A9, uClibc)
-
-require conf/machine/include/coolstream-common.inc
-
-MACHINE_FEATURES = "wifi bluetooth usbhost hdmi dvb-s dvb-s2 ci"
-
-# Kernel
-PREFERRED_PROVIDER_virtual/kernel = "linux-coolstream"
-PREFERRED_VERSION_linux-coolstream = "3.10.93"
-
-# Bootloader
-PREFERRED_PROVIDER_virtual/bootloader = "u-boot-coolstream"
-
-# Architecture
-TARGET_ARCH = "arm"
-DEFAULTTUNE = "armv7ahf-neon"
-
-# Image
-MACHINE_ESSENTIAL_EXTRA_RDEPENDS = "kernel-modules"
-MACHINE_EXTRA_RDEPENDS = "firmware-coolstream"
-
-# Display
-MACHINE_LCD_DISPLAY = "textlcd"
-
-# Flash layout
-FLASHSIZE = "128"  # MB
-KERNEL_DEVICETREE = "coolstream-tank.dtb"
-```
-
-## Image Customization
-
-### Coolstream-Specific Package Group
-
-**File**: `meta-tuxbox-toolchain/recipes-core/packagegroups/packagegroup-coolstream.bb`
-
-```bitbake
-DESCRIPTION = "Coolstream Tank specific packages"
-LICENSE = "MIT"
-
-inherit packagegroup
-
-RDEPENDS_${PN} = " \
-    firmware-coolstream \
-    kernel-module-coolstream-dvb \
-    coolstream-drivers \
-"
-
-# Optional
-RRECOMMENDS_${PN} = " \
-    coolstream-tools \
-"
-```
-
-### Coolstream Image
-
-**File**: `meta-tuxbox-toolchain/recipes-distros/tuxbox/image/tuxbox-image-coolstream.bb`
-
-```bitbake
-require recipes-distros/tuxbox/image/tuxbox-image.inc
-
-DESCRIPTION = "Tuxbox-OS image for Coolstream Tank (uClibc)"
-
-# Add Coolstream-specific packages
-IMAGE_INSTALL_append = " \
-    packagegroup-coolstream \
-"
-
-# Remove packages incompatible with uClibc
-IMAGE_INSTALL_remove = " \
-    systemd-resolved \
-"
-```
-
-## Build Workflow
-
-### 1. Full Build
+If needed, use:
 
 ```bash
-# Initialize (if not done)
-./cli.py init
-
-# Build Coolstream image
-./cli.py build --machine tank --distro tuxbox-uclibc
-
-# Or with Makefile
-make image MACHINE=tank DISTRO=tuxbox-uclibc
+make show-config MACHINE=coolstream-apollo
+make edit-conf MACHINE=coolstream-apollo
 ```
 
-**Build time**: 3-5 hours (first build with toolchain download)
+## 5. Build Workflow
 
-### 2. Incremental Build
+### 5.1 Full build
 
 ```bash
-# Rebuild after changes
-./cli.py build --machine tank --distro tuxbox-uclibc
-
-# Clean and rebuild
-./cli.py clean --machine tank
-./cli.py build --machine tank --distro tuxbox-uclibc
+make update
+make image MACHINE=coolstream-apollo MACHINEBUILD=coolstream-apollo
 ```
 
-### 3. Development Workflow
+### 5.2 Incremental work
 
 ```bash
-# Drop to devshell
-./cli.py build --machine tank --distro tuxbox-uclibc --devshell
+# Rebuild image after recipe/config changes
+make image MACHINE=coolstream-apollo MACHINEBUILD=coolstream-apollo
 
-# Inside devshell, you have access to:
-# - Cross-compiler: $CC, $CXX, $LD
-# - Sysroot: $STAGING_DIR_TARGET
-# - Build tools
-
-# Compile individual package
-bitbake neutrino -c compile -f
+# Clean and rebuild if state is inconsistent
+make clean
+make image MACHINE=coolstream-apollo MACHINEBUILD=coolstream-apollo
 ```
 
-## Troubleshooting
+### 5.3 Low-level BitBake path (optional)
 
-### Toolchain Download Fails
-
-**Symptom**: SHA256 checksum mismatch or download timeout
-
-**Solution 1**: Manual download
 ```bash
-cd downloads/
-wget https://sourceforge.net/projects/n4k/files/toolchains/toolchain-coolstream-uclibc-armv7.tar.bz2
+make bb MACHINE=coolstream-apollo MACHINEBUILD=coolstream-apollo TARGET=tuxbox-image
+```
+
+## 6. Validation
+
+After build, check artifacts:
+
+```bash
+ls -lah builds/build/tmp/deploy/images/coolstream-apollo 2>/dev/null || \
+ls -lah build/build/tmp/deploy/images/coolstream-apollo
+```
+
+Recommended before hardware flash:
+
+- verify generated kernel/rootfs artifacts
+- review flash scripts and machine profile values
+- test generic package/update paths on QEMU first where possible
+
+## 7. Troubleshooting
+
+### Toolchain download/checksum mismatch
+
+```bash
 sha256sum toolchain-coolstream-uclibc-armv7.tar.bz2
-# Verify: b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6
 ```
 
-**Solution 2**: Alternative mirror
+Expected SHA256:
+
+`b7f18dfa5ad9ba607595ebdda13bc66cfe3f35f5151ab1f93cde89dc2b0b52e6`
+
+### Compiler not found
+
 ```bash
-# Edit meta-tuxbox-toolchain/recipes-core/external-toolchain/external-toolchain-coolstream.bb
-# Add alternative SRC_URI mirror
+find . -type f -name 'arm-cortex-linux-uclibcgnueabi-gcc' | head
 ```
 
-### Compiler Not Found
+If no compiler is found, verify toolchain extraction path and
+`EXTERNAL_TOOLCHAIN_BIN` settings in the toolchain integration class.
 
-**Symptom**: `arm-cortex-linux-uclibcgnueabi-gcc: command not found`
+### Library/runtime compatibility issues
 
-**Check**:
-```bash
-ls downloads/toolchain-coolstream-uclibc-armv7/cross/arm-linux-3.10.93/bin/
-```
+- Confirm `TCLIBC = "uclibc"` is active for the current build.
+- Recheck package compatibility against uClibc.
+- Rebuild affected recipes cleanly.
 
-**Solution**:
-```bash
-# Re-extract toolchain
-bitbake external-toolchain-coolstream -c clean
-bitbake external-toolchain-coolstream
-```
+### Kernel/driver mismatch
 
-### Library Compatibility Issues
+- Verify machine-specific kernel recipe alignment.
+- Recheck Coolstream BSP layer contents and branch.
 
-**Symptom**: `error: undefined reference to __stack_chk_fail_local`
+## 8. References
 
-**Cause**: Mixing glibc and uClibc binaries
-
-**Solution**: Ensure clean build
-```bash
-make distclean
-make init
-make image MACHINE=tank DISTRO=tuxbox-uclibc
-```
-
-### Kernel/Driver Issues
-
-**Symptom**: Kernel module mismatch or driver loading fails
-
-**Check kernel version**:
-```bash
-bitbake virtual/kernel -e | grep ^PV=
-# Should be 3.10.93 for Coolstream
-```
-
-**Solution**:
-```bash
-# Force kernel rebuild
-bitbake linux-coolstream -c cleansstate
-bitbake linux-coolstream
-```
-
-## Advanced Topics
-
-### Custom Toolchain
-
-If using a different uClibc toolchain:
-
-1. **Create new recipe**:
-   ```bash
-   cp meta-tuxbox-toolchain/recipes-core/external-toolchain/external-toolchain-coolstream.bb \
-      meta-tuxbox-toolchain/recipes-core/external-toolchain/external-toolchain-custom.bb
-   ```
-
-2. **Update SRC_URI and checksum**
-
-3. **Update paths** in recipe and class
-
-4. **Set TCMODE** in distro config:
-   ```
-   TCMODE = "external-custom"
-   ```
-
-### Toolchain Debugging
-
-Enable verbose logging:
-```bash
-# In local.conf
-BB_LOGCONFIG = "bitbake-logger.conf"
-VERBOSE = "1"
-
-# Rebuild
-bitbake tuxbox-image -f
-```
-
-Check compiler flags:
-```bash
-bitbake neutrino -e | grep ^CC=
-bitbake neutrino -e | grep ^CFLAGS=
-bitbake neutrino -e | grep ^LDFLAGS=
-```
-
-### Migrating from ni-buildsystem
-
-If you have Coolstream-specific recipes from the old ni-buildsystem:
-
-1. **Copy recipes** to `meta-tuxbox-toolchain/recipes-*/`
-
-2. **Update syntax** for Kirkstone compatibility:
-   ```bash
-   # Run Yocto migration scripts
-   poky/scripts/convert-overrides.py meta-tuxbox-toolchain/
-   ```
-
-3. **Fix dependencies**:
-   - Check `DEPENDS` and `RDEPENDS`
-   - Ensure uClibc compatibility
-
-4. **Test build**:
-   ```bash
-   bitbake <package-name>
-   ```
-
-## Testing
-
-### QEMU Testing
-
-**Note**: Coolstream Tank is real hardware, no QEMU support.
-
-For smoke testing, use:
-```bash
-# Test on HD51 or other QEMU-supported machine first
-make image MACHINE=hd51
-
-# Then build for Tank
-make image MACHINE=tank DISTRO=tuxbox-uclibc
-```
-
-### Hardware Testing
-
-1. **Build image**
-2. **Extract to USB stick** (FAT32)
-3. **Flash via bootloader** or recovery mode
-4. **Check boot log** via serial console
-5. **Verify Neutrino starts**
-
-## References
-
-- **Coolstream Wiki**: https://wiki.coolstream.info/
-- **n4k Project**: https://sourceforge.net/projects/n4k/
-- **uClibc**: https://www.uclibc.org/
-- **Yocto External Toolchain**: https://docs.yoctoproject.org/dev-manual/external-toolchain.html
-
----
-
-**Need help?** Ask on the Tuxbox forum or open an issue.
+- [QUICKSTART.md](QUICKSTART.md)
+- [SUBMODULES.md](SUBMODULES.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [GLOSSARY.md](GLOSSARY.md)
+- [README.md](../README.md)

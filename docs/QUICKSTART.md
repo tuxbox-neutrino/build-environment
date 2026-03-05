@@ -1,40 +1,33 @@
-# Tuxbox-OS Quick Start Guide
+# Tuxbox-OS Quickstart (Detailed)
 
 Deutsch: [de/QUICKSTART.md](de/QUICKSTART.md)
 
-Get started building Neutrino images in under 10 minutes.
+This guide is for your first successful build with safe defaults.
+If you want the shortest path, start in [../README.md](../README.md) and come
+back here for details.
 
-## Contents
+Key terms in this page are explained in the
+[Glossary](GLOSSARY.md) (for example:
+[submodule](GLOSSARY.md#submodule),
+[pinning](GLOSSARY.md#pinning),
+[MACHINE](GLOSSARY.md#machine),
+[MACHINEBUILD](GLOSSARY.md#machinebuild)).
 
-- [Prerequisites](#prerequisites)
-- [Step 1: Install Dependencies](#step-1-install-dependencies)
-- [Step 2: Clone Repository](#step-2-clone-repository)
-- [Step 3: Initialize Build Environment](#step-3-initialize-build-environment)
-- [Step 4: Build Your First Image](#step-4-build-your-first-image)
-- [Step 5: Find Your Image](#step-5-find-your-image)
-- [Step 6: Flash Image](#step-6-flash-image)
-- [Common Tasks](#common-tasks)
-- [Build Log Scan](#build-log-scan)
-- [Troubleshooting](#troubleshooting)
-- [Next Steps](#next-steps)
-- [Getting Help](#getting-help)
+## 1. Host Requirements
 
-## Prerequisites
+Supported host systems:
 
-### Hardware Requirements
-- **CPU**: Modern multi-core processor (4+ cores recommended)
-- **RAM**: 8GB minimum, 16GB+ recommended
-- **Disk**: 100GB+ free space (SSD recommended)
-- **Network**: Broadband connection for downloading sources
+- Debian 11/12
+- Ubuntu 20.04/22.04 LTS
 
-### Software Requirements
-- **OS**: Debian 11/12, Ubuntu 20.04/22.04 LTS (or similar)
-- **Python**: 3.6 or higher
-- **Git**: 1.8.3.1 or higher
+Minimum tools:
 
-## Step 1: Install Dependencies
+- `bash`, `git`, `python3`
+- Build toolchain packages from the next section
 
-### Debian 11/12 or Ubuntu 20.04/22.04
+## 2. Install Dependencies
+
+### Debian/Ubuntu
 
 ```bash
 sudo apt update
@@ -44,28 +37,28 @@ sudo apt install -y gawk wget git diffstat unzip texinfo \
   python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl
 ```
 
-For 32-bit targets on a 64-bit host (e.g. armhf machines like HD60/HD61),
-install multilib headers:
+For 32-bit target builds on a 64-bit host (for example `armhf` machines such as
+HD60/HD61):
 
 ```bash
 sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386
 ```
 
-### Configure Locale
+Optional but recommended locale check:
+
+```bash
+locale | grep -E 'LANG=|LC_ALL='
+```
+
+If needed:
 
 ```bash
 sudo dpkg-reconfigure locales
-# Select: en_US.UTF-8
 ```
 
-### Configure Git
+## 3. Clone And Prepare Sources
 
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
-```
-
-## Step 2: Clone Repository
+Fresh clone (recommended):
 
 ```bash
 git clone --recurse-submodules https://github.com/tuxbox-neutrino/build-environment.git
@@ -78,639 +71,155 @@ If you already cloned without submodules:
 git submodule update --init --recursive
 ```
 
-If you have access to private GitHub submodules, use SSH instead of HTTPS:
+If you have access to private GitHub submodules and want SSH instead of HTTPS:
 
 ```bash
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
 
-If you get repeated passphrase prompts, load your SSH key once:
+## 4. Verify Host And Sync Safe Defaults
 
 ```bash
-ssh-add ~/.ssh/id_rsa
+make check
+make update
 ```
 
-### What are submodules (in simple terms)?
+What `make update` does:
 
-This project keeps the build layers in their own Git repositories.
-Those repositories are linked as "submodules" so we can pin exact versions
-and still keep the layers clean and independent.
+- Pulls top-level repository changes.
+- Checks out pinned submodule commits (safe/reproducible).
 
-## Step 3: Initialize Build Environment
+## 5. Choose Machine Values
 
-### Option A: Using Python CLI (Recommended)
-
-```bash
-./cli.py check   # Verify prerequisites
-./cli.py init    # Initialize environment
-```
-
-### Option B: Using Makefile
-
-```bash
-make check  # Verify prerequisites
-make init   # Initialize environment
-```
-
-### Option C: Manual OE init (workspace style)
-
-If you prefer the classic Yocto workflow inside the build directory:
-
-```bash
-. poky/oe-init-build-env builds
-```
-
-Then edit `builds/conf/local.conf`:
-
-```bash
-MACHINE = "hd60"
-MACHINEBUILD = "ax60"
-```
-
-You can omit `MACHINEBUILD` only when a machine has a single (or no) OEM
-variant. If multiple variants exist, you must set `MACHINEBUILD`.
-
-## Step 4: Build Your First Image
-
-Important: first build requires `MACHINE` (and `MACHINEBUILD` when needed).
-`make image` without `MACHINE` only works after a config already exists. If
-you are unsure about `MACHINEBUILD`, use:
+List available machines:
 
 ```bash
 make list-machines
+```
+
+Inspect one machine:
+
+```bash
 make machine-info MACHINE=hd51
 ```
 
-### For GFutures (Mut@nt/AX) HD51
+If your machine needs a specific `MACHINEBUILD`, `make machine-info` will show
+it. On many machines, `MACHINEBUILD` equals `MACHINE`.
+
+## 6. Build Your First Image
+
+### Known-good starter examples
 
 ```bash
-# Using Python CLI
-./cli.py build --machine hd51 --machinebuild mutant51
-
-# Or using Makefile (use MACHINEBUILD when it differs from MACHINE)
+# GFutures HD51
 make image MACHINE=hd51 MACHINEBUILD=mutant51
+
+# GFutures HD60
+make image MACHINE=hd60 MACHINEBUILD=mutant60
+
+# Zgemma H7
+make image MACHINE=zgemmah7 MACHINEBUILD=zgemmah7
 ```
 
-### For GFutures (Mut@nt/AX) HD60/HD61
+If you only want to generate configuration first:
 
 ```bash
-make image MACHINE=hd60 MACHINEBUILD=ax60   # or mutant60
-make image MACHINE=hd61 MACHINEBUILD=ax61
+make config MACHINE=hd51 MACHINEBUILD=mutant51
+make show-config MACHINE=hd51
 ```
 
-If `builds/conf/local.conf` already exists, you can also run just:
+## 7. Find Build Artifacts
+
+Image artifacts are typically here:
+
+- `builds/build/tmp/deploy/images/<machine>/`
+- `build/build/tmp/deploy/images/<machine>/`
+
+Example:
 
 ```bash
-make image
+ls -lah builds/build/tmp/deploy/images/hd51 2>/dev/null || \
+ls -lah build/build/tmp/deploy/images/hd51
 ```
 
-It will reuse the existing config (and prompt if multiple build dirs exist).
-Default shared build dir is `builds/`. If a legacy `build/conf/local.conf`
-already exists, the tooling auto-detects and reuses `build/`.
-
-### For Zgemma H7
+## 8. Daily Workflow (Safe)
 
 ```bash
-make image MACHINE=zgemmah7
-```
-
-Note: The canonical image target is `tuxbox-image`. Legacy targets
-`neutrino-image` and `noneutrino-image` are aliases for compatibility.
-
-### Neutrino Flavour (tuxbox only)
-
-The main tree supports only the `tuxbox` flavour. If you need a fork (NI/Tango),
-use `devtool modify` to work in a local workspace and point `SRC_URI` to your
-fork (or move the changes into a private layer).
-
-### Image Metadata Contract
-
-For flash/update metadata keys written to `/etc/image-version`, see:
-`docs/IMAGE_VERSION_CONTRACT.md`.
-
-Flash backend capability is controlled by `TUXBOX_FLASH_BACKEND`
-(`script` or `ofgwrite`).
-`flash-script` source branch is controlled by `TUXBOX_FLASH_SCRIPT_GIT_BRANCH`
-(default: `master`).
-Script backend mode is controlled by `TUXBOX_FLASH_SCRIPT_MODE`
-(default/current valid mode: `legacy`).
-
-Runtime preflight command from `flash-script`:
-
-```bash
-flash-backend-preflight
-flash-backend-preflight --backend ofgwrite --image-dir /path/to/unpacked/image
-```
-
-Machine profile metadata is available in:
-`/etc/tuxbox/flash-machine-profile.conf`.
-This profile includes `FLASH_SCRIPT_MODE` for script-backend dispatch.
-
-`/usr/bin/flash` dispatches by configured backend:
-- `script` delegates to `/usr/libexec/tuxbox/flash-backend-script.sh`
-- script backend currently supports `legacy` mode (`/usr/bin/flash-legacy`)
-- `ofgwrite` delegates to an ofgwrite backend handler
-
-Current `ofgwrite` backend invocation:
-
-```bash
-flash <slot> [<absolute-image-dir>|restore|force] [force]
-```
-
-### Prepare Configuration Only
-
-Use the same parameters as `make image`, but it will only generate config files:
-
-```bash
-make config MACHINE=hd51
-make show-config MACHINE=hd51   # shows values + source file
-make edit-conf MACHINE=hd51     # opens the include files
-```
-
-`make show-config` lists where each value comes from (local.conf vs include
-files) and lists layers from `bblayers.conf` plus the user include file.
-
-If configs already exist, `make image` reuses them. To force regeneration:
-
-```bash
-make image MACHINE=hd51 FORCE_CONFIG=1
-```
-
-Tip: The CLI prints the underlying `oe-init-build-env` + `bitbake` command
-before executing it, so you can copy/paste and run it manually if you prefer.
-
-### BitBake and devtool wrappers (optional)
-
-You can run BitBake targets without typing `bitbake` directly:
-
-```bash
-make bb-ffmpeg
-make bb TARGET=ffmpeg BB_TASK=clean
-make bb BB_ARGS="-s"
-```
-
-For devtool:
-
-```bash
-make devtool ARGS="modify freetype"
-```
-
-STB Lua plugin smoke check (`stb-*`, tasks: `unpack` + `install`):
-
-```bash
-make stb-smoke MACHINE=qemux86-64
-```
-
-Optional overrides:
-
-```bash
-TASKS="unpack" make stb-smoke MACHINE=qemux86-64
-STB_PLUGIN_RECIPES="stb-flash stb-startup" make stb-smoke MACHINE=qemux86-64
-```
-
-Flash backend preflight smoke check (mocked `ofgwrite -n` call):
-
-```bash
-make flash-preflight-smoke
-```
-
-These wrappers use your current config. Pass `MACHINE`/`MACHINEBUILD` if you
-want a specific build directory.
-
-## Build Log Scan
-
-Use the build-log scanner to detect critical build failures and unstable
-metadata patterns from cooker logs:
-
-```bash
-./scripts/scan-build-log.sh \
-  --glob "build*/build/tmp-*/log/cooker/*/*.log" \
-  --report /tmp/build-log-scan.md \
-  --metrics /tmp/build-log-scan.env
-```
-
-Useful options:
-
-- `--allow-missing`: return success if no log file exists yet
-- `--no-fail-on-critical`: report findings without non-zero exit code
-
-### Persistent Local Overrides (Recommended)
-
-Avoid editing `builds/conf/local.conf` directly. Use the include files instead:
-
-- `builds/conf/local.conf.user.inc` (personal defaults)
-- `builds/conf/local.conf.<machine>.inc` (machine-specific tweaks)
-- `builds/conf/bblayers.conf.user.inc` (extra layers/masks)
-
-These files are created automatically by `make config` and are safe from regeneration.
-
-By default, `local.conf.<machine>.inc` includes a per-machine TMPDIR:
-
-```
-TMPDIR = "${TOPDIR}/build/tmp-${MACHINE}"
-```
-
-(Coolstream defaults to `build-${MACHINE}/tmp`.) Edit as needed.
-
-### Parallelism Defaults (Recommended)
-
-We intentionally **do not set** `BB_NUMBER_THREADS` or `PARALLEL_MAKE` in
-`local.conf`. BitBake already defaults both values to your CPU count
-(see `poky/meta/conf/bitbake.conf`).  
-
-If you want to override, do it in `builds/conf/local.conf.user.inc`:
-
-```conf
-BB_NUMBER_THREADS = "8"
-PARALLEL_MAKE = "-j 8"
-```
-
-### Sstate Cache Sharing (Optional)
-
-If you build regularly, you can upload your sstate cache to a server so other
-users can reuse it. This is helpful when everyone uses the same pinned layer
-revisions.
-
-By default, generated configs point at the public mirror:
-`https://sstate.tuxbox-neutrino.org/kirkstone/release`. You can disable it by
-setting `SSTATE_MIRRORS = ""` in `builds/conf/local.conf.user.inc`.
-
-Hash equivalence is disabled by default when using the public mirror. A local
-hash server (unix socket) uses a different unihash context, which would make
-mirror hits very rare. If you run a shared hash server, you can enable it in
-`builds/conf/local.conf.user.inc`:
-
-```conf
-BB_HASHSERVE = "auto"
-BB_HASHSERVE_UPSTREAM = "hashserv.tuxbox-neutrino.org:8686"
-BB_SIGNATURE_HANDLER = "OEEquivHash"
-```
-
-If you disable hash equivalence (default), the signature handler falls back to
-`OEBasicHash`.
-
-### Source Download Mirror (Optional)
-
-The public source mirror provides pre-fetched downloads. It is separate from
-the sstate cache and only affects `DL_DIR` fetches.
-
-Generated configs enable the public mirror in `builds/conf/local.conf.user.inc`
-so downloads still work if upstream is flaky. Remove the lines below to use
-upstream-only fetches:
-
-```conf
-INHERIT += "own-mirrors"
-SOURCE_MIRROR_URL = "https://archiv.tuxbox-neutrino.org/"
-# Optional: fail if the mirror misses a source (no upstream fetch)
-# BB_FETCH_PREMIRRORONLY = "1"
-```
-
-The `.tuxbox/deploy.conf` file is optional. If it does not exist, pass the
-variables on the command line instead.
-
-1) Create a local config file (not tracked by git):
-
-```make
-# .tuxbox/deploy.conf
-SSTATE_RSYNC_DEST = user@host:/srv/sstate/kirkstone/tuxbox/release
-SSTATE_RSYNC_SSH = ssh -i $${HOME}/.ssh/id_rsa
-SSTATE_RSYNC_OPTS = -a --info=stats2
-SSTATE_RSYNC_EXCLUDE = tmp cache *.done *.siginfo
-SSTATE_DEPLOY_DRYRUN = 1
-SSTATE_DEPLOY_DELETE = 0
-# Optional: if your sstate cache lives elsewhere
-# SSTATE_DEPLOY_SRC = /path/to/sstate-cache
-
-# Optional: mirror downloads (DL_DIR) to a server
-# DL_RSYNC_DEST = user@host:/srv/downloads/tuxbox/kirkstone
-# DL_RSYNC_SSH = ssh -i $${HOME}/.ssh/id_rsa
-# DL_RSYNC_OPTS = -a --info=stats2
-# DL_RSYNC_EXCLUDE defaults to: tmp cache *.done *.lock *.tmp
-# DL_DEPLOY_DRYRUN = 1
-# DL_DEPLOY_DELETE = 0
-# Optional: if your downloads live elsewhere
-# DL_DEPLOY_SRC = /path/to/downloads
-```
-
-2) Run the deploy command (defaults to dry-run for safety):
-
-```bash
-make deploy-sstate
-```
-
-To deploy downloads instead:
-
-```bash
-make deploy-downloads
-```
-
-3) When ready to upload, disable dry-run:
-
-```bash
-make deploy-sstate SSTATE_DEPLOY_DRYRUN=0
-```
-
-Or for downloads:
-
-```bash
-make deploy-downloads DL_DEPLOY_DRYRUN=0
-```
-
-Notes:
-- Keep separate server paths for different branches/distro types to avoid
-  mixing incompatible caches.
-- Consumers can point to your server with `SSTATE_MIRRORS` in
-  `builds/conf/local.conf.user.inc`.
-- If you use `$HOME` in this file, escape it as `$${HOME}` (Make expands `$`).
-- `SSTATE_RSYNC_EXCLUDE` accepts space or comma-separated patterns. Quotes are optional.
-
-### Image Naming Overrides (Optional)
-
-`builds/conf/local.conf.user.inc` includes a commented template for image naming
-variables and examples. Uncomment what you need.
-
-Avoid these pitfalls:
-- Do not add spaces to `IMAGE_VER_STRING` (some OA scripts break on spaces).
-- Keep `vardepsexclude` when using `DATE`/`DATETIME` to avoid rebuild churn.
-- Do not use `:=` (immediate expansion) with `DATE`/`DATETIME` or you will trigger
-  basehash changes; use `=` or `?=` instead.
-- Do not use slashes in `IMAGE_NAME` (must be a filename).
-- Do not change `IMAGE_NAME_SUFFIX` unless your tooling expects it.
-
-### Locale Defaults (Optional)
-
-Default images ship only `en-us` to keep footprints small. The QEMU smoke image
-keeps multiple locales for convenience. Override per build in
-`builds/conf/local.conf.user.inc`:
-
-```conf
-IMAGE_LINGUAS = "en-us"
-```
-
-**Build time**: 2-4 hours on first build (downloads ~10GB sources)
-
-**Subsequent builds**: 20-40 minutes (using cache)
-
-## Step 5: Find Your Image
-
-Built images are in:
-
-```
-builds/build/tmp/deploy/images/<machine>/
-```
-
-Example for HD51:
-```
-builds/build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
-```
-
-## Step 6: Flash Image
-
-### USB Flash Method (Recommended)
-
-1. **Extract** the image ZIP file
-2. **Copy** contents to FAT32-formatted USB stick
-3. **Insert** USB stick into receiver
-4. **Power on** receiver
-5. Follow on-screen flash instructions
-
-### WebIF Flash Method
-
-1. Access receiver WebIF: `http://<receiver-ip>`
-2. Navigate to **System** → **Software Update**
-3. Upload image file
-4. Confirm and wait for flash to complete
-5. Receiver will reboot automatically
-
-## Common Tasks
-
-### Update Sources
-
-Recommended default (safe/pinned):
-```bash
+# Update top-level repo + pinned submodules
 make update
-# Equivalent:
-make sync
-# Optionally skip large submodules
+
+# Build image
+make image MACHINE=hd51 MACHINEBUILD=mutant51
+
+# Build package feeds
+make feeds MACHINE=hd51 MACHINEBUILD=mutant51
+
+# Clean build artifacts (keeps caches)
+make clean
+```
+
+Optional sync variant:
+
+```bash
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
-Advanced (unpinned, maintainers only):
+## 9. Advanced Updates (Maintainers Only)
+
+These commands move submodules to upstream HEAD (unpinned):
+
 ```bash
 make update-upstream
 # Or
 ./cli.py sync
 ```
-Warning: `make update-upstream` / `./cli.py sync` move submodules to upstream
-HEAD
-(unpinned). This can put you on branches/REVs that do not match the pinned build
-and will leave your working tree dirty unless you commit updated submodule
-pointers. Use only when you are intentionally updating layer pins.
-If you ran this by mistake, run `make update` (or `make sync`) to return to
-pinned versions.
 
-### Update Layers (Submodules)
-
-This only checks out the pinned commits recorded by the builder (no top-level
-pull). For a full refresh, use `make sync`.
+Use this only when you intentionally update layer pins.
+If you did this by mistake, return to pinned state:
 
 ```bash
-git submodule sync --recursive
-git submodule update --init --recursive
+make update
 ```
 
-### Clean Build
+## 10. Troubleshooting (Quick)
+
+### "No space left on device"
 
 ```bash
-./cli.py clean --machine hd51
-# Or
+df -h
 make clean
 ```
 
-### Build Package Feeds
-
-Image builds already generate package index files as part of the image build.
-Use the feeds target if you want to refresh indexes without building an image
-or as part of a release feed pipeline.
+### Missing host package or tool
 
 ```bash
-./cli.py build --machine hd51 --target feeds
-# Or
-make feeds MACHINE=hd51
+make check
 ```
 
-### Install Minimal Webmin Modules (Runtime)
-
-To install Webmin with an STB-focused module subset from feeds:
+### Submodule state looks wrong
 
 ```bash
-opkg update
-opkg install packagegroup-tuxbox-webmin-minimal
+make update
 ```
 
-This installs only the curated baseline. Additional `webmin-module-*` packages
-can still be installed individually when needed.
-
-### WiFi Packages
-
-WiFi user-space tools are included by default so USB WiFi sticks can be used
-across machines. To disable them for a specific build, set this in
-`builds/conf/local.conf.user.inc`:
-
-```conf
-TUXBOX_WIFI = "0"
-```
-
-Firmware packages are included by default as well. Kernel modules come from the
-machine kernel (and its modules tarball), so if a stick needs a missing driver
-you must enable it in the kernel config. For a minimal image or custom
-selection, set `TUXBOX_WIFI = "0"` and add packages explicitly.
-
-### Toolset Profile (Image Size vs Convenience)
-
-Default images include the balanced core toolset
-(`packagegroup-tuxbox-tools-core`).
-
-Install optional tools on demand from feeds:
+### basehash mismatch in `do_image_hdfastboot8gb`
 
 ```bash
-opkg update
-opkg install packagegroup-tuxbox-tools-extra
+bitbake hdf-toolbox-image -c cleanall
+make image MACHINE=hdfastboot8gb MACHINEBUILD=hdfastboot8gb
 ```
 
-Build-time knobs in `builds/conf/local.conf.user.inc`:
+## 11. Where To Go Next
 
-```conf
-# Install optional extra tools into the image:
-TUXBOX_COMMUNITY_PARITY = "0"
+- [Layers and Submodules](SUBMODULES.md)
+- [Architecture](ARCHITECTURE.md)
+- [QEMU](QEMU.md)
+- [Hardware Integration](HARDWARE_INTEGRATION.md)
+- [Image Version Contract](IMAGE_VERSION_CONTRACT.md)
+- [Glossary](GLOSSARY.md)
 
-# Build optional extra tools for feeds without installing them:
-TUXBOX_PREBUILD_COMMUNITY_PARITY = "0"
-```
+German docs:
 
-Measured reference (`.tuxbox.tar.bz2`, kirkstone 4.0.32):
-- `h7`: `68,477,609` bytes (base) -> `78,321,788` bytes (parity), `+9,844,179`
-- `hd60`: `77,178,123` bytes (base) -> `86,940,570` bytes (parity), `+9,762,447`
-
-Both tested machines stay below 100 MB with parity enabled. Recommended
-default remains: core tools in-image, parity tools opt-in.
-
-### QEMU Smoke Tests (qemux86-64)
-
-Full guide: `docs/QEMU.md` (EN) / `docs/de/QEMU.md` (DE).
-
-Quick start:
-
-```bash
-./cli.py build --machine qemux86-64 --target tuxbox-qemu-image
-./scripts/qemu/run-qemu.sh
-./scripts/qemu/smoke-test.sh
-```
-
-Makefile shortcuts:
-
-```bash
-make qemu-run
-make qemu-smoke
-```
-
-Examples:
-
-```bash
-make qemu-run QEMU_BUILD_DIR=build-qemu
-SSH_PORT=2223 make qemu-smoke
-```
-
-### GitHub Actions (Manual)
-
-Workflows are manual-only by default to keep private submodules working during
-setup. Trigger runs from the Actions tab after configuring secrets or SSH
-access for submodules. To automate, re-enable `push`/`schedule` in
-`.github/workflows/*.yml` once submodule authentication is working.
-
-### Offline Build
-
-First, download all sources:
-```bash
-./cli.py fetch-only --machine hd51
-```
-
-Then build offline:
-```bash
-./cli.py build --machine hd51 --offline
-```
-
-### Development Shell
-
-```bash
-./cli.py build --machine hd51 --devshell
-```
-
-## Troubleshooting
-
-### Build Fails: "No space left on device"
-
-```bash
-# Check free space
-df -h .
-
-# Clean old builds
-make clean
-
-# Or remove downloads (will re-download)
-rm -rf downloads/
-```
-
-### Build Fails: Missing packages
-
-```bash
-# Re-run dependency installation
-sudo apt install -y gawk wget git diffstat unzip texinfo \
-  gcc g++ build-essential chrpath socat cpio python3 python3-pip \
-  python3-pexpect xz-utils debianutils iputils-ping python3-git \
-  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1
-```
-
-### Submodule Issues
-
-```bash
-git submodule update --init --recursive --force
-```
-
-### Build Fails: basehash mismatch in do_image_hdfastboot8gb
-
-This can occur on GFutures fastboot machines (hd60/hd61/hd66se) when
-`IMAGE_NAME` includes `DATETIME`, which makes the task signature change
-between parses. Ensure your submodules are up to date; recent `meta-tuxbox`
-excludes `IMAGE_NAME` from that task’s signature.
-
-If you *want* a fresh timestamped image every time, force the task:
-
-```bash
-bitbake -f -c do_image_hdfastboot8gb tuxbox-image
-```
-
-### Reset Everything
-
-```bash
-make distclean  # Removes all builds and caches
-./cli.py init   # Re-initialize
-```
-
-## Next Steps
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Understand how it works
-- **[SUBMODULES.md](SUBMODULES.md)** - Layers and pinning
-- **[HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md)** - Add new hardware
-- **[COOLSTREAM.md](COOLSTREAM.md)** - Build for Coolstream Tank (experimental/PoC)
-- **[README.md](../README.md)** - Project overview and commands
-
-## Getting Help
-
-- **Issues**: https://github.com/tuxbox-neutrino/build-environment/issues
-- **Forum**: https://forum.tuxbox-neutrino.org
-- **IRC**: #tuxbox-neutrino on libera.chat
-
----
-
-Happy Building! 🎉
+- [Quickstart (DE)](de/QUICKSTART.md)
+- [Submodules (DE)](de/SUBMODULES.md)
+- [Glossary (DE)](de/GLOSSARY.md)

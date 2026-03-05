@@ -4,6 +4,8 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 
 Verständnis der Build-System-Architektur und der Designentscheidungen.
 
+Kurze Begriffsdefinitionen findest du im [GLOSSARY.md](GLOSSARY.md).
+
 ## Inhalt
 
 - [Übersicht](#übersicht)

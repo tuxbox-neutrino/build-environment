@@ -78,6 +78,14 @@ BUILDDIR := $(DEFAULT_BUILDDIR)
 DL_DIR := $(TOPDIR)/downloads
 SSTATE_DIR := $(TOPDIR)/sstate-cache
 CONF_BUILDDIR = $(if $(filter coolstream%,$(MACHINE)),$(TOPDIR)/build-$(MACHINE),$(BUILDDIR))
+TOASTER_BUILD_DIR ?= $(CONF_BUILDDIR)
+TOASTER_DIR ?= $(TOPDIR)/.tuxbox/toaster
+TOASTER_VENV ?= $(TOPDIR)/.tuxbox/toaster-venv
+TOASTER_PYTHON ?= python3
+TOASTER_WEBPORT ?= localhost:8000
+TOASTER_START_ARGS ?=
+TOASTER_SESSION_PID ?= $(TOASTER_BUILD_DIR)/.toaster-session.pid
+TOASTER_SESSION_LOG ?= $(TOASTER_BUILD_DIR)/toaster_session.log
 
 # Sstate deployment (optional)
 DEPLOY_CONFIG ?= $(TOPDIR)/.tuxbox/deploy.conf
@@ -128,6 +136,9 @@ help:
 	@echo -e "  $(COLOR_GREEN)make qemu-smoke$(COLOR_RESET)                       Run QEMU smoke test (needs QEMU running)"
 	@echo -e "  $(COLOR_GREEN)make stb-smoke MACHINE=qemux86-64$(COLOR_RESET)     Run stb-* plugin unpack/install smoke checks"
 	@echo -e "  $(COLOR_GREEN)make flash-preflight-smoke$(COLOR_RESET)            Run flash backend preflight smoke check"
+	@echo -e "  $(COLOR_GREEN)make init-toaster$(COLOR_RESET)                     Setup Toaster venv + DB"
+	@echo -e "  $(COLOR_GREEN)make toaster-start$(COLOR_RESET)                    Start Toaster web UI"
+	@echo -e "  $(COLOR_GREEN)make toaster-stop$(COLOR_RESET)                     Stop Toaster web UI"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Maintenance:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
@@ -167,6 +178,14 @@ help:
 	@echo -e "  QEMU_IMAGE   QEMU image name (default: tuxbox-qemu-image)"
 	@echo -e "  QEMU_ARGS    Extra args for run-qemu.sh (default: auto net)"
 	@echo -e "  QEMU_BUILD_DIR Build dir for QEMU (default: builds, legacy: build)"
+	@echo -e "  TOASTER_BUILD_DIR Build dir for Toaster env (default: $(CONF_BUILDDIR))"
+	@echo -e "  TOASTER_VENV Toaster Python venv (default: .tuxbox/toaster-venv)"
+	@echo -e "  TOASTER_PYTHON Python executable for Toaster venv (default: python3)"
+	@echo -e "  TOASTER_DIR  Toaster data dir (default: .tuxbox/toaster)"
+	@echo -e "  TOASTER_WEBPORT Toaster bind address (default: localhost:8000)"
+	@echo -e "  TOASTER_START_ARGS Extra args passed to toaster start"
+	@echo -e "  TOASTER_SESSION_PID PID file for detached toaster shell"
+	@echo -e "  TOASTER_SESSION_LOG Log file for detached toaster shell"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
@@ -179,6 +198,8 @@ help:
 	@echo -e "  $(COLOR_YELLOW)make qemu-smoke$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make stb-smoke MACHINE=qemux86-64$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make flash-preflight-smoke$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make init-toaster MACHINE=hd60 MACHINEBUILD=ax60$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make toaster-start TOASTER_WEBPORT=127.0.0.1:8000$(COLOR_RESET)"
 	@echo ""
 
 .PHONY: check
@@ -243,6 +264,126 @@ stb-smoke:
 flash-preflight-smoke:
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) ./scripts/flash-backend-preflight-smoke.sh"
 	@./scripts/flash-backend-preflight-smoke.sh
+
+.PHONY: init-toaster
+init-toaster: init
+	@echo -e "$(COLOR_BOLD)Initializing Toaster environment...$(COLOR_RESET)"
+	@conf_dir="$(TOASTER_BUILD_DIR)/conf"; \
+	local_conf="$$conf_dir/local.conf"; \
+	bblayers_conf="$$conf_dir/bblayers.conf"; \
+	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
+		echo -e "$(COLOR_YELLOW)Config missing in $(TOASTER_BUILD_DIR). Running make config...$(COLOR_RESET)"; \
+		$(MAKE) --no-print-directory config MACHINE=$(MACHINE) MACHINEBUILD=$(MACHINEBUILD) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE); \
+	fi; \
+	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
+		echo -e "$(COLOR_RED)Config missing after generation: $$conf_dir$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
+	toaster_bin="$(TOPDIR)/poky/bitbake/bin/toaster"; \
+	toaster_req="$(TOPDIR)/poky/bitbake/toaster-requirements.txt"; \
+	if [[ ! -f "$$oe_init" ]]; then \
+		echo -e "$(COLOR_RED)OE init script not found: $$oe_init$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ ! -f "$$toaster_bin" ]]; then \
+		echo -e "$(COLOR_RED)Toaster script not found: $$toaster_bin$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ ! -f "$$toaster_req" ]]; then \
+		echo -e "$(COLOR_RED)Toaster requirements not found: $$toaster_req$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if ! command -v "$(TOASTER_PYTHON)" >/dev/null 2>&1; then \
+		echo -e "$(COLOR_RED)Python not found: $(TOASTER_PYTHON)$(COLOR_RESET)"; \
+		echo -e "$(COLOR_YELLOW)Set TOASTER_PYTHON=<python3.12 path> if needed.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	mkdir -p "$(TOASTER_DIR)" "$(dir $(TOASTER_VENV))"; \
+	recreate_venv=0; \
+	if [[ ! -x "$(TOASTER_VENV)/bin/python3" ]]; then \
+		recreate_venv=1; \
+	elif ! "$(TOASTER_VENV)/bin/python3" -c "import cgi" >/dev/null 2>&1 && [[ "$(TOASTER_PYTHON)" != "python3" ]]; then \
+		echo -e "$(COLOR_YELLOW)Recreating Toaster venv with $(TOASTER_PYTHON)$(COLOR_RESET)"; \
+		rm -rf "$(TOASTER_VENV)"; \
+		recreate_venv=1; \
+	fi; \
+	if [[ $$recreate_venv -eq 1 ]]; then \
+		echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(TOASTER_PYTHON) -m venv $(TOASTER_VENV)"; \
+		"$(TOASTER_PYTHON)" -m venv "$(TOASTER_VENV)"; \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(TOASTER_VENV)/bin/pip install --upgrade pip"; \
+	"$(TOASTER_VENV)/bin/pip" install --upgrade pip; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(TOASTER_VENV)/bin/pip install -r $$toaster_req"; \
+	"$(TOASTER_VENV)/bin/pip" install -r "$$toaster_req"; \
+	if ! "$(TOASTER_VENV)/bin/python3" -c "import cgi" >/dev/null 2>&1; then \
+		echo -e "$(COLOR_YELLOW)Command:$(COLOR_RESET) $(TOASTER_VENV)/bin/pip install legacy-cgi"; \
+		"$(TOASTER_VENV)/bin/pip" install legacy-cgi; \
+	fi; \
+	if ! "$(TOASTER_VENV)/bin/python3" -c "import cgi" >/dev/null 2>&1; then \
+		echo -e "$(COLOR_RED)Toaster requires a working 'cgi' module inside venv.$(COLOR_RESET)"; \
+		echo -e "$(COLOR_YELLOW)Current venv python: $$($(TOASTER_VENV)/bin/python3 --version 2>/dev/null || true)$(COLOR_RESET)"; \
+		echo -e "$(COLOR_YELLOW)Use TOASTER_PYTHON=python3.12 and remove $(TOASTER_VENV) if needed.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && source $$toaster_bin start noweb nobuild toasterdir=$(TOASTER_DIR)"; \
+	bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && source '$$toaster_bin' start noweb nobuild toasterdir='$(TOASTER_DIR)'"; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && source $$toaster_bin stop toasterdir=$(TOASTER_DIR)"; \
+	bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && source '$$toaster_bin' stop toasterdir='$(TOASTER_DIR)'"; \
+	echo -e "$(COLOR_GREEN)Toaster setup complete.$(COLOR_RESET)"; \
+	echo -e "Start with: make toaster-start TOASTER_WEBPORT=$(TOASTER_WEBPORT)"; \
+	echo -e "Stop with : make toaster-stop"
+
+.PHONY: toaster-start
+toaster-start: init-toaster
+	@echo -e "$(COLOR_BOLD)Starting Toaster at http://$(TOASTER_WEBPORT)...$(COLOR_RESET)"
+	@oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
+	toaster_bin="$(TOPDIR)/poky/bitbake/bin/toaster"; \
+	if [[ ! -x "$(TOASTER_VENV)/bin/python3" ]]; then \
+		echo -e "$(COLOR_RED)Toaster venv missing: $(TOASTER_VENV). Run 'make init-toaster'.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	session_pid_file="$(TOASTER_SESSION_PID)"; \
+	session_log_file="$(TOASTER_SESSION_LOG)"; \
+	if [[ -f "$$session_pid_file" ]]; then \
+		session_pid=$$(cat "$$session_pid_file" 2>/dev/null || true); \
+		if [[ -n "$$session_pid" ]] && kill -0 "$$session_pid" 2>/dev/null; then \
+			echo -e "$(COLOR_YELLOW)Toaster session already running (pid $$session_pid).$(COLOR_RESET)"; \
+			exit 0; \
+		fi; \
+		rm -f "$$session_pid_file"; \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) setsid bash -lc \"source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && source $$toaster_bin start webport=$(TOASTER_WEBPORT) toasterdir=$(TOASTER_DIR) $(TOASTER_START_ARGS) && while :; do sleep 3600; done\""; \
+	setsid bash -lc "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && source '$$toaster_bin' start webport='$(TOASTER_WEBPORT)' toasterdir='$(TOASTER_DIR)' $(TOASTER_START_ARGS) && while :; do sleep 3600; done" </dev/null >"$$session_log_file" 2>&1 & \
+	echo $$! > "$$session_pid_file"; \
+	sleep 2; \
+	session_pid=$$(cat "$$session_pid_file" 2>/dev/null || true); \
+	if [[ -z "$$session_pid" ]] || ! kill -0 "$$session_pid" 2>/dev/null; then \
+		echo -e "$(COLOR_RED)Toaster session failed to stay alive. See $$session_log_file$(COLOR_RESET)"; \
+		tail -n 80 "$$session_log_file" 2>/dev/null || true; \
+		exit 1; \
+	fi; \
+	echo -e "$(COLOR_GREEN)Toaster session started (pid $$session_pid).$(COLOR_RESET)"
+
+.PHONY: toaster-stop
+toaster-stop:
+	@echo -e "$(COLOR_BOLD)Stopping Toaster...$(COLOR_RESET)"
+	@oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
+	toaster_bin="$(TOPDIR)/poky/bitbake/bin/toaster"; \
+	if [[ ! -f "$$oe_init" || ! -f "$$toaster_bin" ]]; then \
+		echo -e "$(COLOR_RED)Toaster scripts not found. Is poky initialized?$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && source $$toaster_bin stop toasterdir=$(TOASTER_DIR)"; \
+	bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && source '$$toaster_bin' stop toasterdir='$(TOASTER_DIR)'"; \
+	session_pid_file="$(TOASTER_SESSION_PID)"; \
+	if [[ -f "$$session_pid_file" ]]; then \
+		session_pid=$$(cat "$$session_pid_file" 2>/dev/null || true); \
+		if [[ -n "$$session_pid" ]] && kill -0 "$$session_pid" 2>/dev/null; then \
+			kill "$$session_pid" 2>/dev/null || true; \
+		fi; \
+		rm -f "$$session_pid_file"; \
+	fi
 
 .PHONY: config
 config: init

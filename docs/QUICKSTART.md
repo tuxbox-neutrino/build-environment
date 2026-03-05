@@ -164,7 +164,15 @@ Optional sync variant:
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
-## 9. Advanced Updates (Maintainers Only)
+## 9. Optional: Toaster Web Frontend
+
+This integration is currently experimental.
+
+Use the dedicated guide:
+
+- [Toaster (Experimental)](TOASTER_EXPERIMENTAL.md)
+
+## 10. Advanced Updates (Maintainers Only)
 
 These commands move submodules to upstream HEAD (unpinned):
 
@@ -181,7 +189,7 @@ If you did this by mistake, return to pinned state:
 make update
 ```
 
-## 10. Troubleshooting (Quick)
+## 11. Troubleshooting (Quick)
 
 ### "No space left on device"
 
@@ -209,7 +217,7 @@ bitbake hdf-toolbox-image -c cleanall
 make image MACHINE=hdfastboot8gb MACHINEBUILD=hdfastboot8gb
 ```
 
-## 11. Where To Go Next
+## 12. Where To Go Next
 
 - [Layers and Submodules](SUBMODULES.md)
 - [Architecture](ARCHITECTURE.md)
@@ -223,3 +231,4 @@ German docs:
 - [Quickstart (DE)](de/QUICKSTART.md)
 - [Submodules (DE)](de/SUBMODULES.md)
 - [Glossary (DE)](de/GLOSSARY.md)
+- [Toaster (DE, Experimental)](de/TOASTER_EXPERIMENTAL.md)

@@ -51,6 +51,15 @@ make sync
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
+## Experimental: Toaster Frontend
+
+Toaster support is available, but currently marked experimental and not part of
+the default recommended workflow.
+
+Use the dedicated guide:
+
+- [Toaster (Experimental)](docs/TOASTER_EXPERIMENTAL.md)
+
 ## Choose A Machine
 
 ```bash
@@ -99,6 +108,7 @@ Then continue with topic docs:
 - [QEMU usage](docs/QEMU.md)
 - [Hardware integration](docs/HARDWARE_INTEGRATION.md)
 - [Image version contract](docs/IMAGE_VERSION_CONTRACT.md)
+- [Toaster (Experimental)](docs/TOASTER_EXPERIMENTAL.md)
 
 ## Need The German Version?
 
@@ -107,3 +117,4 @@ Then continue with topic docs:
 - [SUBMODULES (DE)](docs/de/SUBMODULES.md)
 - [GLOSSARY (DE)](docs/de/GLOSSARY.md)
 - [IMAGE VERSION CONTRACT (DE)](docs/de/IMAGE_VERSION_CONTRACT.md)
+- [TOASTER (DE, Experimental)](docs/de/TOASTER_EXPERIMENTAL.md)

@@ -51,6 +51,15 @@ make sync
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
+## Experimentell: Toaster-Frontend
+
+Die Toaster-Integration ist verfügbar, aber derzeit als experimentell markiert
+und nicht Teil des empfohlenen Standard-Workflows.
+
+Details stehen in der separaten Anleitung:
+
+- [Toaster (Experimentell)](docs/de/TOASTER_EXPERIMENTAL.md)
+
 ## Maschine Auswählen
 
 ```bash
@@ -99,6 +108,7 @@ Danach bei Bedarf tiefer einsteigen:
 - [QEMU Nutzung](docs/de/QEMU.md)
 - [Hardware-Integration](docs/de/HARDWARE_INTEGRATION.md)
 - [Image-Version-Vertrag](docs/de/IMAGE_VERSION_CONTRACT.md)
+- [Toaster (Experimentell)](docs/de/TOASTER_EXPERIMENTAL.md)
 
 ## Englisch?
 
@@ -107,3 +117,4 @@ Danach bei Bedarf tiefer einsteigen:
 - [SUBMODULES (EN)](docs/SUBMODULES.md)
 - [GLOSSARY (EN)](docs/GLOSSARY.md)
 - [IMAGE VERSION CONTRACT (EN)](docs/IMAGE_VERSION_CONTRACT.md)
+- [TOASTER (EN, Experimental)](docs/TOASTER_EXPERIMENTAL.md)

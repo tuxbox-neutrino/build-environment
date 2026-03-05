@@ -58,10 +58,17 @@ cd build-environment
 make init
 ```
 
-### 2.2. Update and Sync
-If you already cloned without submodules or want to resync later (safe/pinned):
+### 2.2. Update and Sync (safe/pinned)
+Default and recommended for daily work:
 ```bash
+make update
+# Equivalent:
 make sync
+```
+
+Optional: skip large submodules while syncing:
+```bash
+make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
 ... or, raw git (pinned submodules only, no top-level pull):
@@ -70,24 +77,27 @@ git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-### 2.3 Sync with Upstreams
+### 2.3 Sync with Upstreams (maintainers only)
 
 Use this only when you intentionally want to move submodules to upstream HEAD
 (unpinned):
 
 ```bash
-make update
+make update-upstream
 # Or
 ./cli.py sync
 ```
 
-Warning: `make update` and `./cli.py sync` move submodules to upstream HEAD
+Warning: `make update-upstream` and `./cli.py sync` move submodules to upstream HEAD
 (unpinned). This can put layers on branches/REVs that do not match the pinned
 build and will leave your working tree dirty unless you commit the new
 submodule pointers. Use those only when you intend to update layer pins.
-If you run them by mistake, use `make sync` to return to the pinned state:
+If you run them by mistake, use `make update` (or `make sync`) to return to the
+pinned state:
 
 ```bash
+make update
+# Or
 make sync
 ```
 

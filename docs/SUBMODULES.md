@@ -19,7 +19,7 @@ Submodules let us pin exact versions while keeping each layer independent.
 - [2. SSH for private submodules](#2-ssh-for-private-submodules)
 - [3. Fix empty layer folders](#3-fix-empty-layer-folders)
 - [4. Update to the recorded (safe) versions](#4-update-to-the-recorded-safe-versions)
-- [5. make sync vs make update (important)](#5-make-sync-vs-make-update-important)
+- [5. make update vs make update-upstream (important)](#5-make-update-vs-make-update-upstream-important)
 - [6. Update a layer to the latest upstream (advanced)](#6-update-a-layer-to-the-latest-upstream-advanced)
 - [7. Branch and tag policy](#7-branch-and-tag-policy)
 - [Related Docs](#related-docs)
@@ -55,25 +55,30 @@ git submodule update --init --recursive
 
 ## 4. Update to the recorded (safe) versions
 
-This will update all submodules to the exact commits recorded by the builder:
+Use this for normal work. It updates the top-level repo and checks out the exact
+pinned submodule commits recorded by the builder:
 
 ```bash
+make update
+# Equivalent:
 make sync
 # Or, raw git (no top-level pull):
 git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-## 5. make sync vs make update (important)
+## 5. make update vs make update-upstream (important)
 
-- `make sync`: pulls the top-level repo and checks out pinned submodule commits
-  (safe for builds).
-- `make update` / `./cli.py sync`: moves submodules to upstream HEAD (as set in
-  `.gitmodules`), leaves the tree dirty unless you commit new pointers, and can
-  put layers on branches/REVs that do not match the pinned build.
+- `make update`: safe default for daily work (pinned).
+- `make sync`: same safe behavior as `make update` (pinned); use this when you
+  want `SYNC_EXCLUDE=...`.
+- `make update-upstream` / `./cli.py sync`: moves submodules to upstream HEAD
+  (as set in `.gitmodules`), leaves the tree dirty unless you commit new
+  pointers, and can put layers on branches/REVs that do not match the pinned
+  build.
 
-If you ran `make update` by mistake, run `make sync` to return to the pinned
-state.
+If you ran `make update-upstream` by mistake, run `make update` (or `make sync`)
+to return to the pinned state.
 
 ## 6. Update a layer to the latest upstream (advanced)
 

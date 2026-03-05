@@ -486,24 +486,28 @@ builds/build/tmp/deploy/images/hd51/tuxbox-image-hd51-20231217120000.zip
 
 ### Update Sources
 
-Recommended (safe/pinned):
+Recommended default (safe/pinned):
 ```bash
+make update
+# Equivalent:
 make sync
 # Optionally skip large submodules
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
-Advanced (unpinned, for maintainers):
+Advanced (unpinned, maintainers only):
 ```bash
-make update
+make update-upstream
 # Or
 ./cli.py sync
 ```
-Warning: `make update` / `./cli.py sync` move submodules to upstream HEAD
+Warning: `make update-upstream` / `./cli.py sync` move submodules to upstream
+HEAD
 (unpinned). This can put you on branches/REVs that do not match the pinned build
 and will leave your working tree dirty unless you commit updated submodule
 pointers. Use only when you are intentionally updating layer pins.
-If you ran this by mistake, run `make sync` to return to pinned versions.
+If you ran this by mistake, run `make update` (or `make sync`) to return to
+pinned versions.
 
 ### Update Layers (Submodules)
 

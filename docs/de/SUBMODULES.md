@@ -20,7 +20,7 @@ voneinander zu trennen.
 - [2. SSH für private Submodule](#2-ssh-für-private-submodule)
 - [3. Leere Layer-Ordner beheben](#3-leere-layer-ordner-beheben)
 - [4. Auf gepinnte (sichere) Versionen aktualisieren](#4-auf-gepinnte-sichere-versionen-aktualisieren)
-- [5. make sync vs make update (wichtig)](#5-make-sync-vs-make-update-wichtig)
+- [5. make update vs make update-upstream (wichtig)](#5-make-update-vs-make-update-upstream-wichtig)
 - [6. Layer auf aktuelles Upstream bringen (fortgeschritten)](#6-layer-auf-aktuelles-upstream-bringen-fortgeschritten)
 - [7. Branch- und Tag-Richtlinie](#7-branch--und-tag-richtlinie)
 - [Verwandte Dokus](#verwandte-dokus)
@@ -56,27 +56,30 @@ git submodule update --init --recursive
 
 ## 4. Auf gepinnte (sichere) Versionen aktualisieren
 
-Damit werden alle Submodule auf die exakten Commits gebracht, die der Builder
-pinned:
+Nutze das im normalen Workflow. Es aktualisiert das Top-Level Repo und setzt
+alle Submodule auf die exakten gepinnten Commits des Builders:
 
 ```bash
+make update
+# Gleichwertig:
 make sync
 # Oder, raw git (kein Top-Level Pull):
 git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-## 5. make sync vs make update (wichtig)
+## 5. make update vs make update-upstream (wichtig)
 
-- `make sync`: zieht das Top-Level Repo und checkt die gepinnten Submodule aus
-  (sicher für Builds).
-- `make update` / `./cli.py sync`: bewegt Submodule auf Upstream HEAD (wie in
-  `.gitmodules` gesetzt), lässt den Tree dirty, wenn du keine neuen Pointer
-  committest, und kann Layer auf Branches/REVs bringen, die nicht zum gepinnten
-  Build passen.
+- `make update`: sicherer Standard für den täglichen Workflow (pinned).
+- `make sync`: gleiches sicheres Verhalten wie `make update` (pinned); nutze
+  das für `SYNC_EXCLUDE=...`.
+- `make update-upstream` / `./cli.py sync`: bewegt Submodule auf Upstream HEAD
+  (wie in `.gitmodules` gesetzt), lässt den Tree dirty, wenn du keine neuen
+  Pointer committest, und kann Layer auf Branches/REVs bringen, die nicht zum
+  gepinnten Build passen.
 
-Wenn du `make update` aus Versehen ausgeführt hast, nutze `make sync`, um
-zurück zum gepinnten Stand zu kommen.
+Wenn du `make update-upstream` aus Versehen ausgeführt hast, nutze
+`make update` (oder `make sync`), um zurück zum gepinnten Stand zu kommen.
 
 ## 6. Layer auf aktuelles Upstream bringen (fortgeschritten)
 

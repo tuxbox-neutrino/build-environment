@@ -51,15 +51,6 @@ make sync
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
-## Experimental: Toaster Frontend
-
-Toaster support is available, but currently marked experimental and not part of
-the default recommended workflow.
-
-Use the dedicated guide:
-
-- [Toaster (Experimental)](docs/TOASTER_EXPERIMENTAL.md)
-
 ## Choose A Machine
 
 ```bash
@@ -93,6 +84,25 @@ If you ran the advanced unpinned sync by mistake:
 ```bash
 make update
 ```
+
+## Experimental: Toaster Frontend
+
+Toaster support is available, but currently marked experimental and not part of
+the default recommended workflow.
+
+Use the dedicated guide:
+
+- [Toaster (Experimental)](docs/TOASTER_EXPERIMENTAL.md)
+
+Import an existing local build directory into Toaster:
+
+```bash
+make toaster-import-build
+```
+
+Defaults:
+- `TOASTER_IMPORT_NAME=$(DISTRO)-build`
+- `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
 
 ## Documentation Map
 

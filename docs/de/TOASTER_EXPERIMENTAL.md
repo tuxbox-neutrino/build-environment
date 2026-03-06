@@ -26,6 +26,26 @@ make toaster-start TOASTER_WEBPORT=127.0.0.1:18083
 make toaster-stop
 ```
 
+Vorhandenes Build-Verzeichnis als Toaster-Projekt importieren:
+
+```bash
+make toaster-import-build
+```
+
+Bereits importiertes Projekt nach lokalen `conf/`- oder Layer-Änderungen
+neu einlesen:
+
+```bash
+make toaster-reconfigure-build
+```
+
+Importierte Projektseite öffnen:
+
+```bash
+make toaster-open-build \
+  TOASTER_WEBPORT=127.0.0.1:18083
+```
+
 Admin-Benutzer erstellen (interaktiv):
 
 ```bash
@@ -63,6 +83,31 @@ Beispiel für Admin-Login-URL:
 - `TOASTER_ADMIN_USERNAME`: Admin-Benutzername (non-interaktive Erstellung)
 - `TOASTER_ADMIN_EMAIL`: Admin-E-Mail (non-interaktive Erstellung)
 - `TOASTER_ADMIN_PASSWORD`: Admin-Passwort (non-interaktive Erstellung)
+- `TOASTER_IMPORT_NAME`: Toaster-Projektname für Import/Reconfigure
+  (Default `DISTRO-build`, z. B. `tuxbox-build`)
+- `TOASTER_IMPORT_PATH`: vorhandenes Build-Verzeichnis für den Import
+  (Default `TOASTER_BUILD_DIR`)
+- `TOASTER_IMPORT_CALLBACK`: optionales Callback-Skript für `buildimport`
+- `TOASTER_LAST_PROJECT_FILE`: lokale Datei mit letzter importierter Projekt-ID
+
+## Toaster mit vorhandenem Build-Verzeichnis verwenden
+
+Wenn Toaster direkt auf eurem bestehenden Build-Verzeichnis arbeiten soll
+(Default `TOASTER_BUILD_DIR`):
+
+1. `make toaster-import-build` ausführen.
+2. `make toaster-open-build` öffnen (oder die ausgegebene URL nutzen).
+3. Nach manuellen Config-/Layer-Änderungen `make toaster-reconfigure-build`
+   ausführen.
+
+Wichtig:
+
+- Keinen normalen Build und keinen Toaster-Build gleichzeitig im selben
+  Build-Verzeichnis laufen lassen.
+- Serielle Nutzung ist unkritisch (normaler Build, dann Toaster-Build oder
+  umgekehrt).
+- Toaster kann im importierten project-specific-Modus markierte
+  Toaster-Konfigabschnitte in `conf/` schreiben/aktualisieren.
 
 ## Häufiges Problem: Port bereits belegt
 
@@ -81,6 +126,8 @@ Lösung:
 - Session-PID: `build/.toaster-session.pid`
 - Session-Log: `build/toaster_session.log`
 - Toaster-PIDs: `build/.toastermain.pid`, `build/.runbuilds.pid`
+- Letzte importierte Projekt-ID:
+  `.tuxbox/toaster/.last-imported-project-id`
 
 ## Aufräumen
 

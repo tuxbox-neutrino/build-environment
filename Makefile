@@ -89,6 +89,10 @@ TOASTER_SESSION_LOG ?= $(TOASTER_BUILD_DIR)/toaster_session.log
 TOASTER_ADMIN_USERNAME ?=
 TOASTER_ADMIN_EMAIL ?=
 TOASTER_ADMIN_PASSWORD ?=
+TOASTER_IMPORT_NAME ?= $(DISTRO)-build
+TOASTER_IMPORT_PATH ?= $(TOASTER_BUILD_DIR)
+TOASTER_IMPORT_CALLBACK ?=
+TOASTER_LAST_PROJECT_FILE ?= $(TOASTER_DIR)/.last-imported-project-id
 
 # Sstate deployment (optional)
 DEPLOY_CONFIG ?= $(TOPDIR)/.tuxbox/deploy.conf
@@ -143,6 +147,9 @@ help:
 	@echo -e "  $(COLOR_GREEN)make toaster-start$(COLOR_RESET)                    Start Toaster web UI"
 	@echo -e "  $(COLOR_GREEN)make toaster-stop$(COLOR_RESET)                     Stop Toaster web UI"
 	@echo -e "  $(COLOR_GREEN)make toaster-create-admin$(COLOR_RESET)             Create Toaster admin user"
+	@echo -e "  $(COLOR_GREEN)make toaster-import-build$(COLOR_RESET)             Import existing build dir into Toaster"
+	@echo -e "  $(COLOR_GREEN)make toaster-reconfigure-build$(COLOR_RESET)        Refresh imported build project"
+	@echo -e "  $(COLOR_GREEN)make toaster-open-build$(COLOR_RESET)               Open imported project page"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Maintenance:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
@@ -193,6 +200,10 @@ help:
 	@echo -e "  TOASTER_ADMIN_USERNAME Admin username for non-interactive creation"
 	@echo -e "  TOASTER_ADMIN_EMAIL Admin email for non-interactive creation"
 	@echo -e "  TOASTER_ADMIN_PASSWORD Admin password for non-interactive creation"
+	@echo -e "  TOASTER_IMPORT_NAME Toaster project name for build import (default: DISTRO-build)"
+	@echo -e "  TOASTER_IMPORT_PATH Existing build dir to import (default: TOASTER_BUILD_DIR)"
+	@echo -e "  TOASTER_IMPORT_CALLBACK Optional callback script for buildimport"
+	@echo -e "  TOASTER_LAST_PROJECT_FILE File storing last imported Toaster project id"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
@@ -209,6 +220,8 @@ help:
 	@echo -e "  $(COLOR_YELLOW)make toaster-start TOASTER_WEBPORT=127.0.0.1:8000$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make toaster-create-admin$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make toaster-create-admin TOASTER_ADMIN_USERNAME=admin TOASTER_ADMIN_EMAIL=admin@example.org TOASTER_ADMIN_PASSWORD='secret'$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make toaster-import-build$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make toaster-open-build$(COLOR_RESET)"
 	@echo ""
 
 .PHONY: check
@@ -444,6 +457,110 @@ toaster-create-admin: init-toaster
 	else \
 		echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && python3 $$manage_py createsuperuser"; \
 		bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && export TOASTER_DIR='$(TOASTER_DIR)' && python3 '$$manage_py' createsuperuser"; \
+	fi
+
+.PHONY: toaster-import-build
+toaster-import-build: init-toaster
+	@echo -e "$(COLOR_BOLD)Importing existing build directory into Toaster...$(COLOR_RESET)"
+	@oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
+	manage_py="$(TOPDIR)/poky/bitbake/lib/toaster/manage.py"; \
+	import_path="$(TOASTER_IMPORT_PATH)"; \
+	if [[ -z "$(TOASTER_IMPORT_NAME)" ]]; then \
+		echo -e "$(COLOR_RED)TOASTER_IMPORT_NAME must not be empty.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ ! -d "$$import_path" ]]; then \
+		echo -e "$(COLOR_RED)Import path does not exist: $$import_path$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	import_path="$$(python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$$import_path")"; \
+	if [[ ! -f "$$import_path/conf/local.conf" || ! -f "$$import_path/conf/bblayers.conf" ]]; then \
+		echo -e "$(COLOR_RED)Import path is not a configured build dir: $$import_path$(COLOR_RESET)"; \
+		echo -e "$(COLOR_YELLOW)Expected conf/local.conf and conf/bblayers.conf.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ ! -x "$(TOASTER_VENV)/bin/python3" ]]; then \
+		echo -e "$(COLOR_RED)Toaster venv missing: $(TOASTER_VENV). Run 'make init-toaster'.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && python3 $$manage_py buildimport --name $(TOASTER_IMPORT_NAME) --path $$import_path --callback $(TOASTER_IMPORT_CALLBACK) --command import"; \
+	import_output="$$(bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && export TOASTER_DIR='$(TOASTER_DIR)' && python3 '$$manage_py' buildimport --name '$(TOASTER_IMPORT_NAME)' --path '$$import_path' --callback '$(TOASTER_IMPORT_CALLBACK)' --command import")"; \
+	printf '%s\n' "$$import_output"; \
+	project_id="$$(printf '%s\n' "$$import_output" | sed -n 's/.*Project_id=\([0-9]\+\).*/\1/p' | tail -n 1)"; \
+	if [[ -z "$$project_id" ]]; then \
+		echo -e "$(COLOR_RED)Failed to parse Project_id from buildimport output.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	mkdir -p "$(dir $(TOASTER_LAST_PROJECT_FILE))"; \
+	printf '%s\n' "$$project_id" > "$(TOASTER_LAST_PROJECT_FILE)"; \
+	echo -e "$(COLOR_GREEN)Imported project id $$project_id (name: $(TOASTER_IMPORT_NAME)).$(COLOR_RESET)"; \
+	echo -e "Project page: http://$(TOASTER_WEBPORT)/toastergui/project_specific/$$project_id"
+
+.PHONY: toaster-reconfigure-build
+toaster-reconfigure-build: init-toaster
+	@echo -e "$(COLOR_BOLD)Reconfiguring imported Toaster build project...$(COLOR_RESET)"
+	@oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
+	manage_py="$(TOPDIR)/poky/bitbake/lib/toaster/manage.py"; \
+	import_path="$(TOASTER_IMPORT_PATH)"; \
+	if [[ -z "$(TOASTER_IMPORT_NAME)" ]]; then \
+		echo -e "$(COLOR_RED)TOASTER_IMPORT_NAME must not be empty.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ ! -d "$$import_path" ]]; then \
+		echo -e "$(COLOR_RED)Import path does not exist: $$import_path$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	import_path="$$(python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$$import_path")"; \
+	if [[ ! -f "$$import_path/conf/local.conf" || ! -f "$$import_path/conf/bblayers.conf" ]]; then \
+		echo -e "$(COLOR_RED)Import path is not a configured build dir: $$import_path$(COLOR_RESET)"; \
+		echo -e "$(COLOR_YELLOW)Expected conf/local.conf and conf/bblayers.conf.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ ! -x "$(TOASTER_VENV)/bin/python3" ]]; then \
+		echo -e "$(COLOR_RED)Toaster venv missing: $(TOASTER_VENV). Run 'make init-toaster'.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && python3 $$manage_py buildimport --name $(TOASTER_IMPORT_NAME) --path $$import_path --callback $(TOASTER_IMPORT_CALLBACK) --command reconfigure"; \
+	import_output="$$(bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && export TOASTER_DIR='$(TOASTER_DIR)' && python3 '$$manage_py' buildimport --name '$(TOASTER_IMPORT_NAME)' --path '$$import_path' --callback '$(TOASTER_IMPORT_CALLBACK)' --command reconfigure")"; \
+	printf '%s\n' "$$import_output"; \
+	project_id="$$(printf '%s\n' "$$import_output" | sed -n 's/.*Project_id=\([0-9]\+\).*/\1/p' | tail -n 1)"; \
+	if [[ -z "$$project_id" ]]; then \
+		echo -e "$(COLOR_RED)Failed to parse Project_id from buildimport output.$(COLOR_RESET)"; \
+		echo -e "$(COLOR_YELLOW)Run 'make toaster-import-build' first if the project does not exist yet.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	mkdir -p "$(dir $(TOASTER_LAST_PROJECT_FILE))"; \
+	printf '%s\n' "$$project_id" > "$(TOASTER_LAST_PROJECT_FILE)"; \
+	echo -e "$(COLOR_GREEN)Reconfigured project id $$project_id (name: $(TOASTER_IMPORT_NAME)).$(COLOR_RESET)"; \
+	echo -e "Project page: http://$(TOASTER_WEBPORT)/toastergui/project_specific/$$project_id"
+
+.PHONY: toaster-open-build
+toaster-open-build: init-toaster
+	@echo -e "$(COLOR_BOLD)Opening imported Toaster project page...$(COLOR_RESET)"
+	@project_id=""; \
+	if [[ -f "$(TOASTER_LAST_PROJECT_FILE)" ]]; then \
+		project_id="$$(sed -n '1p' "$(TOASTER_LAST_PROJECT_FILE)" | tr -d '[:space:]')"; \
+	fi; \
+	if [[ -z "$$project_id" ]]; then \
+		db_path="$(TOASTER_DIR)/toaster.sqlite"; \
+		if [[ ! -f "$$db_path" ]]; then \
+			echo -e "$(COLOR_RED)Toaster database not found: $$db_path$(COLOR_RESET)"; \
+			echo -e "$(COLOR_YELLOW)Run 'make toaster-import-build' first.$(COLOR_RESET)"; \
+			exit 1; \
+		fi; \
+		project_id="$$(python3 -c "import sqlite3,sys; conn=sqlite3.connect(sys.argv[1]); cur=conn.cursor(); cur.execute(\"SELECT id FROM orm_project WHERE name = ? ORDER BY id DESC LIMIT 1\", (sys.argv[2],)); row=cur.fetchone(); print(row[0] if row else \"\")" "$$db_path" "$(TOASTER_IMPORT_NAME)")"; \
+	fi; \
+	if [[ -z "$$project_id" ]]; then \
+		echo -e "$(COLOR_RED)No Toaster project id found for name '$(TOASTER_IMPORT_NAME)'.$(COLOR_RESET)"; \
+		echo -e "$(COLOR_YELLOW)Run 'make toaster-import-build' first.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	url="http://$(TOASTER_WEBPORT)/toastergui/project_specific/$$project_id"; \
+	echo -e "$(COLOR_GREEN)Project URL: $$url$(COLOR_RESET)"; \
+	if command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open "$$url" >/dev/null 2>&1 || true; \
+	else \
+		echo -e "$(COLOR_YELLOW)xdg-open not found. Open URL manually.$(COLOR_RESET)"; \
 	fi
 
 .PHONY: config

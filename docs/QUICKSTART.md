@@ -172,6 +172,16 @@ Use the dedicated guide:
 
 - [Toaster (Experimental)](TOASTER_EXPERIMENTAL.md)
 
+For existing builds, you can import your current build dir into Toaster:
+
+```bash
+make toaster-import-build
+```
+
+Defaults:
+- `TOASTER_IMPORT_NAME=$(DISTRO)-build`
+- `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
+
 ## 10. Advanced Updates (Maintainers Only)
 
 These commands move submodules to upstream HEAD (unpinned):

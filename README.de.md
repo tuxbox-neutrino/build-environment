@@ -51,15 +51,6 @@ make sync
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
-## Experimentell: Toaster-Frontend
-
-Die Toaster-Integration ist verfügbar, aber derzeit als experimentell markiert
-und nicht Teil des empfohlenen Standard-Workflows.
-
-Details stehen in der separaten Anleitung:
-
-- [Toaster (Experimentell)](docs/de/TOASTER_EXPERIMENTAL.md)
-
 ## Maschine Auswählen
 
 ```bash
@@ -93,6 +84,15 @@ Wenn du den unpinned-Update versehentlich ausgeführt hast:
 ```bash
 make update
 ```
+
+## Experimentell: Toaster-Frontend
+
+Die Toaster-Integration ist verfügbar, aber derzeit als experimentell markiert
+und nicht Teil des empfohlenen Standard-Workflows.
+
+Details stehen in der separaten Anleitung:
+
+- [Toaster (Experimentell)](docs/de/TOASTER_EXPERIMENTAL.md)
 
 ## Doku-Wegweiser
 

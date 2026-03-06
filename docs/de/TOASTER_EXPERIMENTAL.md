@@ -26,6 +26,25 @@ make toaster-start TOASTER_WEBPORT=127.0.0.1:18083
 make toaster-stop
 ```
 
+Admin-Benutzer erstellen (interaktiv):
+
+```bash
+make toaster-create-admin
+```
+
+Admin-Benutzer erstellen (non-interaktiv):
+
+```bash
+make toaster-create-admin \
+  TOASTER_ADMIN_USERNAME=admin \
+  TOASTER_ADMIN_EMAIL=admin@example.org \
+  TOASTER_ADMIN_PASSWORD='dein-passwort'
+```
+
+Beispiel für Admin-Login-URL:
+
+- `http://127.0.0.1:18083/admin`
+
 ## Was `init-toaster` macht
 
 - Stellt sicher, dass Build-Konfiguration existiert (führt bei Bedarf `make config` aus).
@@ -41,6 +60,9 @@ make toaster-stop
 - `TOASTER_BUILD_DIR`: Build-Verzeichnis für `oe-init-build-env`
 - `TOASTER_DIR`: Toaster-Datenverzeichnis (Default `.tuxbox/toaster`)
 - `TOASTER_START_ARGS`: zusätzliche Argumente für `toaster start`
+- `TOASTER_ADMIN_USERNAME`: Admin-Benutzername (non-interaktive Erstellung)
+- `TOASTER_ADMIN_EMAIL`: Admin-E-Mail (non-interaktive Erstellung)
+- `TOASTER_ADMIN_PASSWORD`: Admin-Passwort (non-interaktive Erstellung)
 
 ## Häufiges Problem: Port bereits belegt
 

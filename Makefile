@@ -86,6 +86,9 @@ TOASTER_WEBPORT ?= localhost:8000
 TOASTER_START_ARGS ?=
 TOASTER_SESSION_PID ?= $(TOASTER_BUILD_DIR)/.toaster-session.pid
 TOASTER_SESSION_LOG ?= $(TOASTER_BUILD_DIR)/toaster_session.log
+TOASTER_ADMIN_USERNAME ?=
+TOASTER_ADMIN_EMAIL ?=
+TOASTER_ADMIN_PASSWORD ?=
 
 # Sstate deployment (optional)
 DEPLOY_CONFIG ?= $(TOPDIR)/.tuxbox/deploy.conf
@@ -139,6 +142,7 @@ help:
 	@echo -e "  $(COLOR_GREEN)make init-toaster$(COLOR_RESET)                     Setup Toaster venv + DB"
 	@echo -e "  $(COLOR_GREEN)make toaster-start$(COLOR_RESET)                    Start Toaster web UI"
 	@echo -e "  $(COLOR_GREEN)make toaster-stop$(COLOR_RESET)                     Stop Toaster web UI"
+	@echo -e "  $(COLOR_GREEN)make toaster-create-admin$(COLOR_RESET)             Create Toaster admin user"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Maintenance:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make clean$(COLOR_RESET)                           Clean build artifacts (keeps sstate)"
@@ -186,6 +190,9 @@ help:
 	@echo -e "  TOASTER_START_ARGS Extra args passed to toaster start"
 	@echo -e "  TOASTER_SESSION_PID PID file for detached toaster shell"
 	@echo -e "  TOASTER_SESSION_LOG Log file for detached toaster shell"
+	@echo -e "  TOASTER_ADMIN_USERNAME Admin username for non-interactive creation"
+	@echo -e "  TOASTER_ADMIN_EMAIL Admin email for non-interactive creation"
+	@echo -e "  TOASTER_ADMIN_PASSWORD Admin password for non-interactive creation"
 	@echo -e "  SSTATE_DEPLOY_SRC Source sstate dir for deploy-sstate (default: sstate-cache)"
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
@@ -200,6 +207,8 @@ help:
 	@echo -e "  $(COLOR_YELLOW)make flash-preflight-smoke$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make init-toaster MACHINE=hd60 MACHINEBUILD=ax60$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make toaster-start TOASTER_WEBPORT=127.0.0.1:8000$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make toaster-create-admin$(COLOR_RESET)"
+	@echo -e "  $(COLOR_YELLOW)make toaster-create-admin TOASTER_ADMIN_USERNAME=admin TOASTER_ADMIN_EMAIL=admin@example.org TOASTER_ADMIN_PASSWORD='secret'$(COLOR_RESET)"
 	@echo ""
 
 .PHONY: check
@@ -335,23 +344,39 @@ init-toaster: init
 	echo -e "Stop with : make toaster-stop"
 
 .PHONY: toaster-start
-toaster-start: init-toaster
+toaster-start:
 	@echo -e "$(COLOR_BOLD)Starting Toaster at http://$(TOASTER_WEBPORT)...$(COLOR_RESET)"
 	@oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
 	toaster_bin="$(TOPDIR)/poky/bitbake/bin/toaster"; \
-	if [[ ! -x "$(TOASTER_VENV)/bin/python3" ]]; then \
-		echo -e "$(COLOR_RED)Toaster venv missing: $(TOASTER_VENV). Run 'make init-toaster'.$(COLOR_RESET)"; \
-		exit 1; \
-	fi; \
 	session_pid_file="$(TOASTER_SESSION_PID)"; \
 	session_log_file="$(TOASTER_SESSION_LOG)"; \
+	toastermain_pid_file="$(TOASTER_BUILD_DIR)/.toastermain.pid"; \
 	if [[ -f "$$session_pid_file" ]]; then \
 		session_pid=$$(cat "$$session_pid_file" 2>/dev/null || true); \
 		if [[ -n "$$session_pid" ]] && kill -0 "$$session_pid" 2>/dev/null; then \
-			echo -e "$(COLOR_YELLOW)Toaster session already running (pid $$session_pid).$(COLOR_RESET)"; \
-			exit 0; \
+			main_pid=$$(cat "$$toastermain_pid_file" 2>/dev/null || true); \
+			if [[ -n "$$main_pid" ]] && kill -0 "$$main_pid" 2>/dev/null; then \
+				echo -e "$(COLOR_YELLOW)Toaster session already running (session $$session_pid, web $$main_pid).$(COLOR_RESET)"; \
+				exit 0; \
+			fi; \
+			echo -e "$(COLOR_YELLOW)Stale Toaster session detected (pid $$session_pid); cleaning up.$(COLOR_RESET)"; \
+			kill "$$session_pid" 2>/dev/null || true; \
 		fi; \
 		rm -f "$$session_pid_file"; \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) make --no-print-directory init-toaster"; \
+	$(MAKE) --no-print-directory init-toaster \
+		MACHINE="$(MACHINE)" \
+		MACHINEBUILD="$(MACHINEBUILD)" \
+		DISTRO="$(DISTRO)" \
+		DISTRO_TYPE="$(DISTRO_TYPE)" \
+		TOASTER_BUILD_DIR="$(TOASTER_BUILD_DIR)" \
+		TOASTER_DIR="$(TOASTER_DIR)" \
+		TOASTER_VENV="$(TOASTER_VENV)" \
+		TOASTER_PYTHON="$(TOASTER_PYTHON)"; \
+	if [[ ! -x "$(TOASTER_VENV)/bin/python3" ]]; then \
+		echo -e "$(COLOR_RED)Toaster venv missing: $(TOASTER_VENV). Run 'make init-toaster'.$(COLOR_RESET)"; \
+		exit 1; \
 	fi; \
 	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) setsid bash -lc \"source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && source $$toaster_bin start webport=$(TOASTER_WEBPORT) toasterdir=$(TOASTER_DIR) $(TOASTER_START_ARGS) && while :; do sleep 3600; done\""; \
 	setsid bash -lc "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && source '$$toaster_bin' start webport='$(TOASTER_WEBPORT)' toasterdir='$(TOASTER_DIR)' $(TOASTER_START_ARGS) && while :; do sleep 3600; done" </dev/null >"$$session_log_file" 2>&1 & \
@@ -361,6 +386,21 @@ toaster-start: init-toaster
 	if [[ -z "$$session_pid" ]] || ! kill -0 "$$session_pid" 2>/dev/null; then \
 		echo -e "$(COLOR_RED)Toaster session failed to stay alive. See $$session_log_file$(COLOR_RESET)"; \
 		tail -n 80 "$$session_log_file" 2>/dev/null || true; \
+		exit 1; \
+	fi; \
+	main_pid=""; \
+	for _ in $$(seq 1 30); do \
+		main_pid=$$(cat "$$toastermain_pid_file" 2>/dev/null || true); \
+		if [[ -n "$$main_pid" ]] && kill -0 "$$main_pid" 2>/dev/null; then \
+			break; \
+		fi; \
+		sleep 1; \
+	done; \
+	if [[ -z "$$main_pid" ]] || ! kill -0 "$$main_pid" 2>/dev/null; then \
+		echo -e "$(COLOR_RED)Toaster web process failed to start. See $$session_log_file$(COLOR_RESET)"; \
+		tail -n 80 "$$session_log_file" 2>/dev/null || true; \
+		kill "$$session_pid" 2>/dev/null || true; \
+		rm -f "$$session_pid_file"; \
 		exit 1; \
 	fi; \
 	echo -e "$(COLOR_GREEN)Toaster session started (pid $$session_pid).$(COLOR_RESET)"
@@ -383,6 +423,27 @@ toaster-stop:
 			kill "$$session_pid" 2>/dev/null || true; \
 		fi; \
 		rm -f "$$session_pid_file"; \
+	fi
+
+.PHONY: toaster-create-admin
+toaster-create-admin: init-toaster
+	@echo -e "$(COLOR_BOLD)Creating Toaster admin user...$(COLOR_RESET)"
+	@oe_init="$(TOPDIR)/poky/oe-init-build-env"; \
+	manage_py="$(TOPDIR)/poky/bitbake/lib/toaster/manage.py"; \
+	if [[ ! -x "$(TOASTER_VENV)/bin/python3" ]]; then \
+		echo -e "$(COLOR_RED)Toaster venv missing: $(TOASTER_VENV). Run 'make init-toaster'.$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ -n "$(TOASTER_ADMIN_USERNAME)" || -n "$(TOASTER_ADMIN_EMAIL)" || -n "$(TOASTER_ADMIN_PASSWORD)" ]]; then \
+		if [[ -z "$(TOASTER_ADMIN_USERNAME)" || -z "$(TOASTER_ADMIN_EMAIL)" || -z "$(TOASTER_ADMIN_PASSWORD)" ]]; then \
+			echo -e "$(COLOR_RED)For non-interactive mode set all three: TOASTER_ADMIN_USERNAME, TOASTER_ADMIN_EMAIL, TOASTER_ADMIN_PASSWORD.$(COLOR_RESET)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && python3 $$manage_py createsuperuser --noinput --username $(TOASTER_ADMIN_USERNAME) --email $(TOASTER_ADMIN_EMAIL)"; \
+		bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && export TOASTER_DIR='$(TOASTER_DIR)' && export DJANGO_SUPERUSER_PASSWORD='$(TOASTER_ADMIN_PASSWORD)' && python3 '$$manage_py' createsuperuser --noinput --username '$(TOASTER_ADMIN_USERNAME)' --email '$(TOASTER_ADMIN_EMAIL)'"; \
+	else \
+		echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(TOASTER_BUILD_DIR) >/dev/null && python3 $$manage_py createsuperuser"; \
+		bash -c "source '$$oe_init' '$(TOASTER_BUILD_DIR)' >/dev/null && export PATH='$(TOASTER_VENV)/bin:'\"\$$PATH\" && export TOASTER_DIR='$(TOASTER_DIR)' && python3 '$$manage_py' createsuperuser"; \
 	fi
 
 .PHONY: config

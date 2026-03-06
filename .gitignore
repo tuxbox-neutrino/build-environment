@@ -8,6 +8,8 @@
 # Generated configuration
 /.tuxbox/state.json
 /.tuxbox/deploy.conf
+/.tuxbox/toaster/
+/.tuxbox/toaster-venv/
 /conf/
 /bitbake.lock
 

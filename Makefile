@@ -156,9 +156,9 @@ help:
 	@echo -e "  $(COLOR_GREEN)make distclean$(COLOR_RESET)                       Clean everything"
 	@echo -e "  $(COLOR_GREEN)make deploy-sstate$(COLOR_RESET)                   Upload sstate cache (rsync)"
 	@echo -e "  $(COLOR_GREEN)make deploy-downloads$(COLOR_RESET)                Upload downloads cache (rsync)"
-	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)                          Update repo + pinned submodules (safe/default)"
+	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)  (or $(COLOR_GREEN)make up$(COLOR_RESET))               Update repo + pinned submodules (safe/default)"
 	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Same as make update (safe/pinned)"
-	@echo -e "  $(COLOR_GREEN)make update-upstream$(COLOR_RESET)                 Update submodules to upstream HEAD (DEV ONLY, unpinned)"
+	@echo -e "  $(COLOR_GREEN)make update-upstream$(COLOR_RESET)  (or $(COLOR_GREEN)make up-upstream$(COLOR_RESET))  Update submodules to upstream HEAD (DEV ONLY, unpinned)"
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
@@ -780,12 +780,12 @@ distclean:
 		echo -e "$(COLOR_YELLOW)Cancelled.$(COLOR_RESET)"; \
 	fi
 
-.PHONY: update update-upstream
-update:
+.PHONY: update up update-upstream up-upstream
+update up:
 	@echo -e "$(COLOR_BOLD)Running safe update (pinned)...$(COLOR_RESET)"
 	@$(MAKE) --no-print-directory sync
 
-update-upstream:
+update-upstream up-upstream:
 	@echo -e "$(COLOR_BOLD)Syncing submodule URLs...$(COLOR_RESET)"
 	@git submodule sync --recursive
 	@echo -e "$(COLOR_YELLOW)Warning: make update-upstream moves submodules to upstream HEAD (unpinned).$(COLOR_RESET)"

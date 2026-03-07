@@ -185,22 +185,51 @@ Defaults:
 - `TOASTER_IMPORT_NAME=$(DISTRO)-build`
 - `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
 
-## 10. Fortgeschrittene Updates (nur für Maintainer)
+## 10. Aktualisieren: Nutzer Vs Entwickler
 
-Diese Kommandos ziehen Submodule auf Upstream HEAD (unpinned):
+### Für Nutzer: bei `make update` bleiben
+
+`make update` checkt immer die **gepinnten Submodul-Commits** aus — eine
+getestete, stabile Kombination. Dein Build ist reproduzierbar. Das ist der
+einzige Update-Befehl, den du als Nutzer brauchst.
+
+### Für Entwickler: `make update-upstream`
 
 ```bash
 make update-upstream
-# Oder
-./cli.py sync
 ```
 
-Nutze das nur, wenn du bewusst Layer-Pins aktualisierst.
-Wenn das versehentlich passiert ist, gehe zurück auf den gepinnten Stand:
+Damit werden alle Submodule auf den **neuesten Commit** ihres Tracking-Branches
+gezogen (z.B. `kirkstone` für Poky/meta-openembedded, `5.1` für OE-Alliance).
+Du bleibst auf dem gleichen Yocto-Release, bekommst aber die neuesten
+Upstream-Patches.
+
+**Warnung:** Das kann deinen Build brechen, weil die neue Kombination noch
+nicht getestet wurde. Nutze das nur, wenn du testen und die Pins aktualisieren
+willst.
+
+Nach einem erfolgreichen Build den neuen Stand pinnen:
+
+```bash
+git add poky oe-alliance meta-openembedded meta-neutrino meta-tuxbox
+git commit -m "chore (deps): pin submodules to latest kirkstone/5.1"
+```
+
+Um jederzeit zum sicheren gepinnten Stand zurückzukehren:
 
 ```bash
 make update
 ```
+
+### Mitarbeit
+
+Wenn du einen Bug findest oder eine Änderung vorschlagen möchtest:
+
+- Erstelle ein [Issue](https://github.com/tuxbox-neutrino/build-environment/issues)
+  um Probleme zu melden oder Verbesserungen vorzuschlagen.
+- Reiche einen [Pull Request](https://github.com/tuxbox-neutrino/build-environment/pulls)
+  für Code-Änderungen ein. Bitte teste deine Änderungen vorher.
+- Schiebe keine ungetesteten Submodul-Pins auf `master`.
 
 ## 11. Fehlersuche (kurz)
 

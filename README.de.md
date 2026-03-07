@@ -72,14 +72,46 @@ Beispiel für `hd51`:
 
 - `builds/build/tmp/deploy/images/hd51/`
 
-## Sicher Vs Fortgeschritten
+## Aktualisieren: Nutzer Vs Entwickler
 
-- Sicherer Standard: `make update` (oder `make sync`) checkt gepinnte Commits aus.
-- Fortgeschritten (nur bewusst): `make update-upstream` oder `./cli.py sync`
-  zieht Submodule auf Upstream HEAD (unpinned). Das kann deinen Tree dirty
-  machen und die Reproduzierbarkeit brechen.
+### Für Nutzer: `make update` (sicherer Standard)
 
-Wenn du den unpinned-Update versehentlich ausgeführt hast:
+```bash
+make update
+```
+
+Damit werden die **gepinnten Submodul-Commits** ausgecheckt, die zusammen
+getestet wurden. Dein Build ist reproduzierbar und geht nicht unerwartet
+kaputt. Nutze immer diesen Befehl, es sei denn du weißt was du tust.
+
+### Für Entwickler: `make update-upstream`
+
+```bash
+make update-upstream
+```
+
+Damit werden alle Submodule auf den **neuesten Commit** ihres Tracking-Branches
+gezogen (z.B. `kirkstone`, `5.1`). Der Code bleibt auf dem gleichen
+Yocto-Release, aber du bekommst die neuesten Patches und Änderungen von
+Upstream. **Das kann deinen Build brechen**, weil diese Kombination noch nicht
+getestet wurde.
+
+Nach `update-upstream` solltest du deinen Build testen. Wenn alles funktioniert,
+pinne den neuen Stand für andere Nutzer:
+
+```bash
+git add poky oe-alliance meta-openembedded meta-neutrino meta-tuxbox
+git commit -m "chore (deps): pin submodules to latest kirkstone/5.1"
+```
+
+**Wichtig für Entwickler:**
+- Wenn du einen Bug findest oder eine Änderung vorschlagen möchtest, erstelle
+  bitte ein [Issue](https://github.com/tuxbox-neutrino/build-environment/issues)
+  oder reiche einen [Pull Request](https://github.com/tuxbox-neutrino/build-environment/pulls) ein.
+- Schiebe keine ungetesteten Submodul-Pins auf `master`.
+
+Wenn du `update-upstream` versehentlich ausgeführt hast, kehre zum sicheren
+gepinnten Stand zurück:
 
 ```bash
 make update

@@ -788,13 +788,13 @@ update up:
 update-upstream up-upstream:
 	@echo -e "$(COLOR_BOLD)Syncing submodule URLs...$(COLOR_RESET)"
 	@git submodule sync --recursive
-	@echo -e "$(COLOR_YELLOW)Warning: make update-upstream moves submodules to upstream HEAD (unpinned).$(COLOR_RESET)"
-	@echo -e "$(COLOR_YELLOW)Use this only when you intend to update layer pins; for builds use make update (or make sync).$(COLOR_RESET)"
-	@echo -e "$(COLOR_YELLOW)It will leave the working tree dirty unless you commit updated pointers.$(COLOR_RESET)"
+	@echo -e "$(COLOR_YELLOW)Warning: This is for developers only! It moves submodules to upstream HEAD (unpinned).$(COLOR_RESET)"
+	@echo -e "$(COLOR_YELLOW)The build may break because the new combination has not been tested.$(COLOR_RESET)"
+	@echo -e "$(COLOR_YELLOW)Test your build, then pin the result for other users.$(COLOR_RESET)"
 	@echo -e "$(COLOR_BOLD)Updating submodules to upstream HEAD (unpinned)...$(COLOR_RESET)"
 	@git submodule update --remote --recursive
-	@echo -e "$(COLOR_GREEN)Submodules updated (unpinned).$(COLOR_RESET)"
-	@echo -e "$(COLOR_YELLOW)Run make update (or make sync) to return to the current pinned dev state.$(COLOR_RESET)"
+	@echo -e "$(COLOR_GREEN)Submodules updated (unpinned). Test your build before committing.$(COLOR_RESET)"
+	@echo -e "$(COLOR_YELLOW)Run make update (or make up) to return to the stable pinned state.$(COLOR_RESET)"
 
 .PHONY: sync
 sync:

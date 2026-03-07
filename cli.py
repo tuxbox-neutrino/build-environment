@@ -1688,10 +1688,15 @@ bitbake -c devshell {target}
         else:
             # No machine specified — try to detect from existing config
             for bd in self._discover_builddirs():
-                lc = bd / "conf" / "local.conf"
+                conf_dir = bd / "conf"
+                lc = conf_dir / "local.conf"
                 if lc.exists():
+                    detected_machine, _ = self._read_machine_values_from_conf(conf_dir)
+                    conf_sources = [lc, conf_dir / "local.conf.user.inc"]
+                    if detected_machine:
+                        conf_sources.append(conf_dir / f"local.conf.{detected_machine}.inc")
                     vals = self._read_conf_values_with_sources(
-                        [lc], ["MACHINE", "MACHINEBUILD", "DISTRO", "DISTRO_TYPE", "DL_DIR", "SSTATE_DIR", "TMPDIR"]
+                        conf_sources, ["MACHINE", "MACHINEBUILD", "DISTRO", "DISTRO_TYPE", "DL_DIR", "SSTATE_DIR", "TMPDIR"]
                     )
                     build_config["build_dir"] = str(bd)
                     configured = True

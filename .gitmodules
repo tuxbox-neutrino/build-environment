@@ -15,6 +15,7 @@
 [submodule "meta-neutrino"]
 	path = meta-neutrino
 	url = https://github.com/tuxbox-neutrino/meta-neutrino.git
+	branch = master
 [submodule "poky"]
 	path = poky
 	url = https://git.yoctoproject.org/git/poky
@@ -32,3 +33,4 @@
 [submodule "meta-tuxbox"]
 	path = meta-tuxbox
 	url = https://github.com/tuxbox-neutrino/meta-tuxbox.git
+	branch = master

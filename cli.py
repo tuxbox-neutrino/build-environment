@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -1509,6 +1510,377 @@ bitbake -c devshell {target}
             self.run_cmd(['git', 'submodule', 'update', '--remote', '--recursive'])
             self.success("Synced with upstream")
 
+    # ------------------------------------------------------------------
+    # info command
+    # ------------------------------------------------------------------
+
+    def _builder_version(self) -> str:
+        """Detect builder version from git, gitpkgv count-short style.
+
+        On a version tag:        1.2.0
+        N commits after tag:     1.2.0-git5
+        No version tag in repo:  0.0-git142
+        """
+        # Try git describe with version-like tags (v1.0, 1.0, ver1.0)
+        describe = self._git_output(
+            self.topdir, ['describe', '--tags', '--long', '--match', 'v[0-9]*']
+        ) or self._git_output(
+            self.topdir, ['describe', '--tags', '--long', '--match', '[0-9]*']
+        )
+        if describe:
+            m = re.match(r'^v?e?r?(\d[^-]*)-(\d+)-g[0-9a-f]+$', describe)
+            if m:
+                tag_ver = m.group(1)
+                ahead = int(m.group(2))
+                if ahead == 0:
+                    return tag_ver
+                return f"{tag_ver}-git{ahead}"
+
+        # No version tag — use commit count
+        count = self._git_output(self.topdir, ['rev-list', 'HEAD', '--count']) or "0"
+        return f"0.0-git{count}"
+
+    def _yocto_version(self) -> Tuple[str, str]:
+        """Read Yocto codename and version from poky distro conf.
+
+        Returns (codename, version) e.g. ("kirkstone", "4.0.32").
+        """
+        poky_conf = self.topdir / 'poky' / 'meta-poky' / 'conf' / 'distro' / 'poky.conf'
+        codename = ""
+        version = ""
+        if poky_conf.exists():
+            try:
+                text = poky_conf.read_text(errors='ignore')
+                for line in text.splitlines():
+                    line = line.strip()
+                    if line.startswith('#'):
+                        continue
+                    m = re.match(r'DISTRO_CODENAME\s*=\s*"([^"]+)"', line)
+                    if m:
+                        codename = m.group(1)
+                    m = re.match(r'DISTRO_VERSION\s*=\s*"([^"]+)"', line)
+                    if m and 'snapshot' not in m.group(1):
+                        version = m.group(1)
+            except OSError:
+                pass
+        if not codename and not version:
+            return ("kirkstone", "4.0")
+        return (codename, version)
+
+    def _ccache_status(self) -> Dict:
+        """Collect ccache status information."""
+        result: Dict = {"enabled": False}
+        if not shutil.which("ccache"):
+            return result
+
+        # Check if ccache is configured in any build conf
+        ccache_in_conf = False
+        for builddir in self._discover_builddirs():
+            local_conf = builddir / "conf" / "local.conf"
+            if local_conf.exists():
+                try:
+                    text = local_conf.read_text(errors="ignore")
+                    if re.search(r'^\s*INHERIT\s*\+?=.*"ccache"', text, re.MULTILINE):
+                        ccache_in_conf = True
+                        break
+                except OSError:
+                    pass
+            # Also check user include
+            user_inc = builddir / "conf" / "local.conf.user.inc"
+            if user_inc.exists():
+                try:
+                    text = user_inc.read_text(errors="ignore")
+                    if re.search(r'^\s*INHERIT\s*\+?=.*"ccache"', text, re.MULTILINE):
+                        ccache_in_conf = True
+                        break
+                except OSError:
+                    pass
+
+        if not ccache_in_conf:
+            return result
+
+        result["enabled"] = True
+        try:
+            proc = subprocess.run(
+                ["ccache", "-s"],
+                capture_output=True, text=True, timeout=5
+            )
+            if proc.returncode == 0:
+                for line in proc.stdout.splitlines():
+                    stripped = line.strip()
+                    stripped_lower = stripped.lower()
+                    # New format: "Cache size (GB):  4.56 /  5.00 (91.25%)"
+                    m = re.match(r'Cache size\s*\([^)]*\)\s*:\s*(\S+)\s*/\s*(\S+)', stripped)
+                    if m:
+                        result["size"] = m.group(1)
+                        result["max_size"] = m.group(2)
+                        continue
+                    # New format: "Hits: 7373 / 28523 (25.85%)"
+                    if stripped_lower.startswith("hits:") and "direct" not in stripped_lower and "preprocessed" not in stripped_lower:
+                        m2 = re.match(r'Hits:\s*(\d+)\s*/\s*(\d+)\s*\(([^)]+)\)', stripped, re.IGNORECASE)
+                        if m2:
+                            result["hit_rate"] = m2.group(3)
+                            continue
+                    # Old format fallback
+                    if "cache size" in stripped_lower and "max" not in stripped_lower:
+                        parts = stripped.split(":")
+                        if len(parts) >= 2:
+                            result["size"] = parts[-1].strip()
+                    elif "max cache size" in stripped_lower:
+                        parts = stripped.split(":")
+                        if len(parts) >= 2:
+                            result["max_size"] = parts[-1].strip()
+                    elif "hit rate" in stripped_lower:
+                        parts = stripped.split(":")
+                        if len(parts) >= 2:
+                            result["hit_rate"] = parts[-1].strip()
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        return result
+
+    def _collect_info(self, machine: Optional[str] = None,
+                      distro: str = "tuxbox",
+                      distro_type: str = "release",
+                      machinebuild: Optional[str] = None,
+                      builddir: Optional[str] = None) -> Dict:
+        """Collect all info data into a dict."""
+        data: Dict = {}
+
+        # Version info
+        data["builder_version"] = self._builder_version()
+        codename, yocto_ver = self._yocto_version()
+        data["yocto_codename"] = codename
+        data["yocto_version"] = yocto_ver
+        py = sys.version_info
+        data["python_version"] = f"{py.major}.{py.minor}.{py.micro}"
+        git_proc = subprocess.run(
+            ["git", "--version"], capture_output=True, text=True
+        )
+        git_ver = git_proc.stdout.strip().replace("git version ", "") if git_proc.returncode == 0 else "unknown"
+        data["git_version"] = git_ver
+
+        # Build configuration
+        configured = False
+        build_config: Dict = {}
+        if machine:
+            target_builddir = Path(builddir) if builddir else self._default_builddir_for_machine(machine)
+            conf_dir = target_builddir / "conf"
+            local_conf = conf_dir / "local.conf"
+
+            build_config["build_dir"] = str(target_builddir)
+            if local_conf.exists():
+                configured = True
+                keys = ["MACHINE", "MACHINEBUILD", "DISTRO", "DISTRO_TYPE", "DL_DIR", "SSTATE_DIR", "TMPDIR"]
+                conf_sources = [
+                    local_conf,
+                    conf_dir / "local.conf.user.inc",
+                    conf_dir / f"local.conf.{machine}.inc",
+                ]
+                values_with_sources = self._read_conf_values_with_sources(conf_sources, keys)
+                for key in keys:
+                    value, _ = values_with_sources.get(key, (None, None))
+                    build_config[key.lower()] = value
+            else:
+                build_config["machine"] = machine
+                build_config["machinebuild"] = machinebuild or machine
+                build_config["distro"] = distro
+                build_config["distro_type"] = distro_type
+        else:
+            # No machine specified — try to detect from existing config
+            for bd in self._discover_builddirs():
+                lc = bd / "conf" / "local.conf"
+                if lc.exists():
+                    vals = self._read_conf_values_with_sources(
+                        [lc], ["MACHINE", "MACHINEBUILD", "DISTRO", "DISTRO_TYPE", "DL_DIR", "SSTATE_DIR", "TMPDIR"]
+                    )
+                    build_config["build_dir"] = str(bd)
+                    configured = True
+                    for key in ["MACHINE", "MACHINEBUILD", "DISTRO", "DISTRO_TYPE", "DL_DIR", "SSTATE_DIR", "TMPDIR"]:
+                        value, _ = vals.get(key, (None, None))
+                        build_config[key.lower()] = value
+                    break
+
+        data["configured"] = configured
+        data["build"] = build_config
+
+        # Layer refs
+        layers_list = []
+        layers = [
+            ("poky", self.topdir / "poky"),
+            ("oe-alliance", self.topdir / "oe-alliance"),
+            ("meta-openembedded", self.topdir / "meta-openembedded"),
+            ("meta-neutrino", self.topdir / "meta-neutrino"),
+            ("meta-tuxbox", self.topdir / "meta-tuxbox"),
+        ]
+        for name, path in layers:
+            ref = self._layer_ref(path)
+            if ref:
+                state, ref_name, commit = ref
+                layers_list.append({"name": name, "state": state, "ref": ref_name, "commit": commit})
+            elif path.exists():
+                layers_list.append({"name": name, "state": "unknown", "ref": "-", "commit": "-"})
+            else:
+                layers_list.append({"name": name, "state": "missing", "ref": "-", "commit": "-"})
+        data["layers"] = layers_list
+
+        # Prerequisites (quick)
+        prereq: Dict = {}
+        stat = os.statvfs(self.topdir)
+        free_gb = (stat.f_bavail * stat.f_frsize) / (1024**3)
+        prereq["disk_free_gb"] = round(free_gb, 1)
+
+        required_cmds = [
+            "git", "gcc", "make", "python3", "patch", "diffstat",
+            "tar", "gzip", "bzip2", "xz", "unzip", "wget", "curl"
+        ]
+        missing = [cmd for cmd in required_cmds if not shutil.which(cmd)]
+        if missing:
+            prereq["status"] = "missing_tools"
+            prereq["missing"] = missing
+        elif free_gb < 100:
+            prereq["status"] = "low_disk"
+        else:
+            prereq["status"] = "ok"
+        data["prerequisites"] = prereq
+
+        # ccache
+        data["ccache"] = self._ccache_status()
+
+        return data
+
+    def cmd_info(self, args):
+        """Show build system status overview."""
+        machine = getattr(args, "machine", None)
+        distro = getattr(args, "distro", "tuxbox")
+        distro_type = getattr(args, "distro_type", "release")
+        machinebuild = getattr(args, "machinebuild", None)
+        builddir = getattr(args, "builddir", None)
+        as_json = getattr(args, "json", False)
+
+        data = self._collect_info(machine, distro, distro_type, machinebuild, builddir)
+
+        if as_json:
+            print(json.dumps(data, indent=2))
+            return
+
+        # Header
+        self.log(
+            f"Tuxbox-OS Builder v{data['builder_version']}",
+            Colors.BOLD, bold=True
+        )
+        codename = data.get('yocto_codename', '')
+        yocto_ver = data.get('yocto_version', '')
+        yocto_display = f"{codename.capitalize()} ({yocto_ver})" if codename else yocto_ver
+        self.info(
+            f"Yocto:   {yocto_display}    "
+            f"Python: {data['python_version']}    "
+            f"Git: {data['git_version']}"
+        )
+        print()
+
+        # Build configuration
+        build = data.get("build", {})
+        if data["configured"]:
+            self.log("── Build Configuration ─────────────────────────", Colors.BOLD, bold=True)
+            kv = [
+                ("MACHINE", build.get("machine", "-")),
+                ("MACHINEBUILD", build.get("machinebuild", "-")),
+                ("DISTRO", build.get("distro", "-")),
+                ("DISTRO_TYPE", build.get("distro_type", "-")),
+                ("Build dir", build.get("build_dir", "-")),
+            ]
+            if build.get("dl_dir"):
+                kv.append(("DL_DIR", build["dl_dir"]))
+            if build.get("sstate_dir"):
+                kv.append(("SSTATE_DIR", build["sstate_dir"]))
+            if build.get("tmpdir"):
+                kv.append(("TMPDIR", build["tmpdir"]))
+            width = max(len(k) for k, _ in kv)
+            for key, val in kv:
+                self.info(f"  {key:<{width}}  {val}")
+        elif machine:
+            self.log("── Build Configuration ─────────────────────────", Colors.BOLD, bold=True)
+            self.warning(f"  Not configured yet (no local.conf for {machine})")
+            self.info(f"  Run: make config MACHINE={machine}")
+        else:
+            self.log("── Build Configuration ─────────────────────────", Colors.BOLD, bold=True)
+            self.warning("  No MACHINE specified and no existing config found")
+            self.info("  Run: make config MACHINE=<machine>")
+        print()
+
+        # Layer refs
+        layers = data.get("layers", [])
+        if layers:
+            self.log("── Layer Refs ──────────────────────────────────", Colors.BOLD, bold=True)
+            rows = [(l["name"], l["state"], l["ref"], l["commit"]) for l in layers]
+            headers = ["Layer", "State", "Ref", "Commit"]
+            col_widths = [len(h) for h in headers]
+            for row in rows:
+                for idx, cell in enumerate(row):
+                    col_widths[idx] = max(col_widths[idx], len(str(cell)))
+            header_line = "  " + "  ".join(
+                f"{headers[idx]:<{col_widths[idx]}}" for idx in range(len(headers))
+            )
+            self.info(header_line)
+            self.info("  " + "  ".join("-" * w for w in col_widths))
+            for row in rows:
+                color = Colors.YELLOW if row[1] in ("missing", "unknown") else Colors.CYAN
+                line = "  " + "  ".join(
+                    f"{str(row[idx]):<{col_widths[idx]}}" for idx in range(len(headers))
+                )
+                self.log(line, color)
+        print()
+
+        # System
+        prereq = data.get("prerequisites", {})
+        self.log("── System ──────────────────────────────────────", Colors.BOLD, bold=True)
+        status = prereq.get("status", "unknown")
+        if status == "ok":
+            self.success(f"Prerequisites: OK")
+        elif status == "low_disk":
+            self.warning(f"Prerequisites: OK (low disk space)")
+        elif status == "missing_tools":
+            self.error(f"Prerequisites: missing tools: {', '.join(prereq.get('missing', []))}")
+        self.info(f"  Disk space:    {prereq.get('disk_free_gb', '?')} GB free")
+
+        # ccache
+        cc = data.get("ccache", {})
+        if cc.get("enabled"):
+            parts = ["enabled"]
+            if cc.get("size") and cc.get("max_size"):
+                parts.append(f"{cc['size']}/{cc['max_size']} GB")
+            elif cc.get("size"):
+                parts.append(f"size: {cc['size']}")
+            if cc.get("hit_rate"):
+                parts.append(f"hit rate: {cc['hit_rate']}")
+            self.info(f"  ccache:        {', '.join(parts)}")
+        else:
+            self.info("  ccache:        not active")
+
+    def cmd_version(self, args):
+        """Show version information."""
+        builder_ver = self._builder_version()
+        codename, yocto_ver = self._yocto_version()
+        py = sys.version_info
+        git_proc = subprocess.run(["git", "--version"], capture_output=True, text=True)
+        git_ver = git_proc.stdout.strip().replace("git version ", "") if git_proc.returncode == 0 else "unknown"
+
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "builder_version": builder_ver,
+                "yocto_codename": codename,
+                "yocto_version": yocto_ver,
+                "python_version": f"{py.major}.{py.minor}.{py.micro}",
+                "git_version": git_ver,
+            }, indent=2))
+            return
+
+        yocto_display = f"{codename.capitalize()} ({yocto_ver})" if codename else yocto_ver
+        print(f"Tuxbox-OS Builder v{builder_ver}")
+        print(f"Yocto: {yocto_display}")
+        print(f"Python: {py.major}.{py.minor}.{py.micro}")
+        print(f"Git: {git_ver}")
+
     def check(self, args):
         """Check system prerequisites."""
         if self.check_prerequisites():
@@ -1599,6 +1971,20 @@ def main():
     # check command
     check_parser = subparsers.add_parser('check', help='Check system prerequisites')
 
+    # version command
+    version_parser = subparsers.add_parser('version', help='Show version information')
+    version_parser.add_argument('--json', action='store_true', help='Output as JSON')
+
+    # info command
+    info_parser = subparsers.add_parser('info', help='Show build system status overview')
+    info_parser.add_argument('-m', '--machine', help='Target machine (auto-detect from config if omitted)')
+    info_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
+    info_parser.add_argument('--machinebuild', help='OEM machine variant')
+    info_parser.add_argument('--builddir', help='Custom build directory')
+    info_parser.add_argument('--distro-type', choices=['release', 'development'],
+                             default='release', help='Build type')
+    info_parser.add_argument('--json', action='store_true', help='Output as JSON')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1633,6 +2019,10 @@ def main():
         builder.sync(args)
     elif args.command == 'check':
         builder.check(args)
+    elif args.command == 'version':
+        builder.cmd_version(args)
+    elif args.command == 'info':
+        builder.cmd_info(args)
     else:
         parser.print_help()
         sys.exit(1)

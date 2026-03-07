@@ -162,6 +162,8 @@ help:
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
+	@echo -e "  $(COLOR_GREEN)make info$(COLOR_RESET)                            Build system status overview"
+	@echo -e "  $(COLOR_GREEN)make info MACHINE=hd51$(COLOR_RESET)               Status overview for specific machine"
 	@echo -e "  $(COLOR_GREEN)make list-machines$(COLOR_RESET)                   List all supported machines"
 	@echo -e "  $(COLOR_GREEN)make machine-info MACHINE=hd51$(COLOR_RESET)       Show machine details"
 	@echo -e "  $(COLOR_GREEN)make check$(COLOR_RESET)                           Check system prerequisites"
@@ -851,9 +853,21 @@ test:
 ci-build: init
 	@$(CLI) build --machine $(MACHINE) --machinebuild $(MACHINEBUILD) --ci-mode
 
+.PHONY: info
+info:
+ifeq ($(USE_CLI),1)
+	@$(CLI) info $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+else
+	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
+	@exit 1
+endif
+
 .PHONY: version
 version:
-	@echo "Tuxbox-OS Builder v1.0.0"
-	@echo "Yocto: Kirkstone (4.0 LTS)"
+ifeq ($(USE_CLI),1)
+	@$(CLI) version
+else
+	@echo "Tuxbox-OS Builder"
 	@echo "Python: $$(python3 --version)"
 	@echo "Git: $$(git --version)"
+endif

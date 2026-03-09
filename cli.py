@@ -724,6 +724,13 @@ class TuxboxBuilder:
         except ValueError:
             return str(source)
 
+    def _resolve_topdir_in_path(self, value: Optional[str], build_dir: Optional[str]) -> Optional[str]:
+        """Resolve TOPDIR placeholders to a concrete build directory path."""
+        if not value:
+            return value
+        topdir = build_dir or str(self.builddir)
+        return value.replace("${TOPDIR}", topdir).replace("$TOPDIR", topdir)
+
     def _extract_layer_paths(self, conf_path: Path) -> List[str]:
         if not conf_path.exists():
             return []
@@ -1787,19 +1794,20 @@ bitbake -c devshell {target}
         build = data.get("build", {})
         if data["configured"]:
             self.log("── Build Configuration ─────────────────────────", Colors.BOLD, bold=True)
+            build_dir = build.get("build_dir")
             kv = [
                 ("MACHINE", build.get("machine", "-")),
                 ("MACHINEBUILD", build.get("machinebuild", "-")),
                 ("DISTRO", build.get("distro", "-")),
                 ("DISTRO_TYPE", build.get("distro_type", "-")),
-                ("Build dir", build.get("build_dir", "-")),
+                ("Build dir", build_dir or "-"),
             ]
             if build.get("dl_dir"):
                 kv.append(("DL_DIR", build["dl_dir"]))
             if build.get("sstate_dir"):
                 kv.append(("SSTATE_DIR", build["sstate_dir"]))
             if build.get("tmpdir"):
-                kv.append(("TMPDIR", build["tmpdir"]))
+                kv.append(("TMPDIR", self._resolve_topdir_in_path(build["tmpdir"], build_dir)))
             width = max(len(k) for k, _ in kv)
             for key, val in kv:
                 self.info(f"  {key:<{width}}  {val}")

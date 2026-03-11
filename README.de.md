@@ -126,6 +126,23 @@ Details stehen in der separaten Anleitung:
 
 - [Toaster (Experimentell)](docs/de/TOASTER_EXPERIMENTAL.md)
 
+## Image-Portal Feed-Workflow
+
+Portal-Feed-Staging und `catalog.json` aus dem letzten Machine-Deploy erzeugen:
+
+```bash
+make portal-catalog MACHINE=hd60 \
+  PORTAL_ARTIFACT_BASE_URL=https://images.tuxbox-neutrino.org/feed
+```
+
+Den erzeugten Feed per rsync auf einen Portal-Host synchronisieren:
+
+```bash
+make portal-sync \
+  PORTAL_SYNC_DEST=user@host:/srv/tuxbox/feed \
+  PORTAL_SYNC_DRYRUN=0
+```
+
 ## Doku-Wegweiser
 
 Lies am besten in dieser Reihenfolge:
@@ -137,6 +154,7 @@ Lies am besten in dieser Reihenfolge:
 Danach bei Bedarf tiefer einsteigen:
 
 - [Architektur](docs/de/ARCHITECTURE.md)
+- [Image-Portal Einsteigeranleitung](docs/de/IMAGE_PORTAL_BEGINNER_GUIDE.md)
 - [QEMU Nutzung](docs/de/QEMU.md)
 - [Hardware-Integration](docs/de/HARDWARE_INTEGRATION.md)
 - [Image-Version-Vertrag](docs/de/IMAGE_VERSION_CONTRACT.md)
@@ -148,5 +166,6 @@ Danach bei Bedarf tiefer einsteigen:
 - [QUICKSTART (EN)](docs/QUICKSTART.md)
 - [SUBMODULES (EN)](docs/SUBMODULES.md)
 - [GLOSSARY (EN)](docs/GLOSSARY.md)
+- [IMAGE PORTAL BEGINNER GUIDE (EN)](docs/IMAGE_PORTAL_BEGINNER_GUIDE.md)
 - [IMAGE VERSION CONTRACT (EN)](docs/IMAGE_VERSION_CONTRACT.md)
 - [TOASTER (EN, Experimental)](docs/TOASTER_EXPERIMENTAL.md)

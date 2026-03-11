@@ -134,6 +134,23 @@ Defaults:
 - `TOASTER_IMPORT_NAME=$(DISTRO)-build`
 - `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
 
+## Image Portal Feed Workflow
+
+Build portal feed stage and `catalog.json` from the latest machine deploy:
+
+```bash
+make portal-catalog MACHINE=hd60 \
+  PORTAL_ARTIFACT_BASE_URL=https://images.tuxbox-neutrino.org/feed
+```
+
+Sync the generated feed directory to a portal host:
+
+```bash
+make portal-sync \
+  PORTAL_SYNC_DEST=user@host:/srv/tuxbox/feed \
+  PORTAL_SYNC_DRYRUN=0
+```
+
 ## Documentation Map
 
 Read in this order:
@@ -145,6 +162,7 @@ Read in this order:
 Then continue with topic docs:
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Image Portal Beginner Guide](docs/IMAGE_PORTAL_BEGINNER_GUIDE.md)
 - [QEMU usage](docs/QEMU.md)
 - [Hardware integration](docs/HARDWARE_INTEGRATION.md)
 - [Image version contract](docs/IMAGE_VERSION_CONTRACT.md)
@@ -156,5 +174,6 @@ Then continue with topic docs:
 - [QUICKSTART (DE)](docs/de/QUICKSTART.md)
 - [SUBMODULES (DE)](docs/de/SUBMODULES.md)
 - [GLOSSARY (DE)](docs/de/GLOSSARY.md)
+- [IMAGE PORTAL BEGINNER GUIDE (DE)](docs/de/IMAGE_PORTAL_BEGINNER_GUIDE.md)
 - [IMAGE VERSION CONTRACT (DE)](docs/de/IMAGE_VERSION_CONTRACT.md)
 - [TOASTER (DE, Experimental)](docs/de/TOASTER_EXPERIMENTAL.md)

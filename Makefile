@@ -64,6 +64,16 @@ QEMU_MACHINE ?= qemux86-64
 QEMU_IMAGE ?= tuxbox-qemu-image
 QEMU_ARGS ?=
 QEMU_BUILD_DIR ?= $(BUILDDIR)
+PORTAL_FEED_ROOT ?= $(TOPDIR)/portal-feed
+PORTAL_CATALOG_OUT ?= $(PORTAL_FEED_ROOT)/catalog.json
+PORTAL_ARTIFACT_BASE_URL ?= https://images.tuxbox-neutrino.org/feed
+PORTAL_ONLINE_UPDATE_REPO ?= $(abspath $(TOPDIR)/../online-update)
+PORTAL_SOURCE_DIR ?=
+PORTAL_ALLOWED_CHANNELS ?= release,beta,nightly
+PORTAL_SYNC_DEST ?=
+PORTAL_RSYNC_OPTS ?= -a
+PORTAL_SYNC_DRYRUN ?= 1
+PORTAL_SYNC_DELETE ?=
 
 # Build directories
 DEFAULT_BUILDDIR := $(TOPDIR)/builds
@@ -159,6 +169,8 @@ help:
 	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)  (or $(COLOR_GREEN)make up$(COLOR_RESET))               Update repo + pinned submodules (safe/default)"
 	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Same as make update (safe/pinned)"
 	@echo -e "  $(COLOR_GREEN)make update-upstream$(COLOR_RESET)  (or $(COLOR_GREEN)make up-upstream$(COLOR_RESET))  Update submodules to upstream HEAD (DEV ONLY, unpinned)"
+	@echo -e "  $(COLOR_GREEN)make portal-catalog MACHINE=hd60$(COLOR_RESET)    Build portal feed stage + catalog"
+	@echo -e "  $(COLOR_GREEN)make portal-sync PORTAL_SYNC_DEST=user@host:/srv/tuxbox/feed$(COLOR_RESET)  Sync portal feed via rsync"
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
@@ -210,6 +222,14 @@ help:
 	@echo -e "  SSTATE_RSYNC_EXCLUDE Exclude patterns (space/comma-separated)"
 	@echo -e "  DL_DEPLOY_SRC Source downloads dir for deploy-downloads (default: downloads)"
 	@echo -e "  DL_RSYNC_EXCLUDE Exclude patterns (default: tmp cache *.done *.lock *.tmp)"
+	@echo -e "  PORTAL_FEED_ROOT Local feed staging root (default: portal-feed)"
+	@echo -e "  PORTAL_CATALOG_OUT Catalog output file (default: PORTAL_FEED_ROOT/catalog.json)"
+	@echo -e "  PORTAL_ARTIFACT_BASE_URL Public base URL for feed artifacts"
+	@echo -e "  PORTAL_ONLINE_UPDATE_REPO Path to online-update repository"
+	@echo -e "  PORTAL_SOURCE_DIR Optional explicit deploy source dir"
+	@echo -e "  PORTAL_SYNC_DEST Rsync destination for make portal-sync"
+	@echo -e "  PORTAL_SYNC_DRYRUN Enable dry-run for portal sync (default: 1)"
+	@echo -e "  PORTAL_SYNC_DELETE Enable --delete for portal sync (default: 0)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"
@@ -288,6 +308,40 @@ stb-smoke:
 flash-preflight-smoke:
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) ./scripts/flash-backend-preflight-smoke.sh"
 	@./scripts/flash-backend-preflight-smoke.sh
+
+.PHONY: portal-catalog
+portal-catalog:
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) DISTRO_TYPE=$(DISTRO_TYPE) SOURCE_DIR=$(PORTAL_SOURCE_DIR) FEED_ROOT=$(PORTAL_FEED_ROOT) CATALOG_OUT=$(PORTAL_CATALOG_OUT) ARTIFACT_BASE_URL=$(PORTAL_ARTIFACT_BASE_URL) ONLINE_UPDATE_REPO=$(PORTAL_ONLINE_UPDATE_REPO) ALLOWED_CHANNELS=$(PORTAL_ALLOWED_CHANNELS) ./scripts/portal-catalog.sh"
+	@MACHINE="$(MACHINE)" \
+	 DISTRO_TYPE="$(DISTRO_TYPE)" \
+	 SOURCE_DIR="$(PORTAL_SOURCE_DIR)" \
+	 FEED_ROOT="$(PORTAL_FEED_ROOT)" \
+	 CATALOG_OUT="$(PORTAL_CATALOG_OUT)" \
+	 ARTIFACT_BASE_URL="$(PORTAL_ARTIFACT_BASE_URL)" \
+	 ONLINE_UPDATE_REPO="$(PORTAL_ONLINE_UPDATE_REPO)" \
+	 ALLOWED_CHANNELS="$(PORTAL_ALLOWED_CHANNELS)" \
+	 ./scripts/portal-catalog.sh
+
+.PHONY: portal-sync
+portal-sync:
+	@dest="$(PORTAL_SYNC_DEST)"; \
+	if [[ -z "$$dest" ]]; then \
+		echo -e "$(COLOR_RED)Error: PORTAL_SYNC_DEST is required (example: user@host:/srv/tuxbox/feed)$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	if [[ ! -d "$(PORTAL_FEED_ROOT)" ]]; then \
+		echo -e "$(COLOR_RED)Error: feed root does not exist: $(PORTAL_FEED_ROOT)$(COLOR_RESET)"; \
+		exit 1; \
+	fi; \
+	rsync_opts=($(PORTAL_RSYNC_OPTS)); \
+	if [[ "$(PORTAL_SYNC_DRYRUN)" =~ ^(1|yes|true)$$ ]]; then \
+		rsync_opts+=(--dry-run); \
+	fi; \
+	if [[ "$(PORTAL_SYNC_DELETE)" =~ ^(1|yes|true)$$ ]]; then \
+		rsync_opts+=(--delete); \
+	fi; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) rsync $${rsync_opts[*]} \"$(PORTAL_FEED_ROOT)/\" \"$$dest\""; \
+	rsync "$${rsync_opts[@]}" "$(PORTAL_FEED_ROOT)/" "$$dest"
 
 .PHONY: init-toaster
 init-toaster: init

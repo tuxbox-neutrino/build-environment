@@ -30,7 +30,10 @@ Die Datei wird erzeugt als:
 - `imagedir`: Maschinen-Image-Verzeichniskennung.
 - `image_update_url`: Basis-URL für Update-Feed.
 - `image_update_info_file`: Dateiname für Update-Info (Standard `imageversion`).
+- `image_manifest_file`: Dateiname des Online-Manifests (Standard `manifest.json`).
+- `image_discovery_api_url`: optionaler API-Endpunkt für Discovery.
 - `image_file_name`: Dateiname des Update-Image-Archivs.
+- `channel`: Release-Kanal (`release|beta|nightly`).
 - `flash_backend`: Flash-Backend-Fähigkeit (`script` oder `ofgwrite`).
 - `builddate`: Kompatibilitäts-Builddatum.
 - `creator`: Ersteller-/Vendor-String.
@@ -52,8 +55,11 @@ Die Datei wird erzeugt als:
 - `flash_backend`
 - `image_update_url`
 - `image_update_info_file`
+- `image_manifest_file`
+- `image_discovery_api_url`
 - `build_date`
 - `creator`
+- `channel`
 - `git_hash` (optional)
 - `describe` (optional)
 
@@ -72,14 +78,45 @@ Die Klasse unterstützt folgende optionale Overrides:
 - `TUXBOX_IMAGEBUILD` (Standard `${DATETIME}`)
 - `TUXBOX_IMAGE_DESCRIPTION` (Standard `${IMAGE_NAME}`)
 - `TUXBOX_IMAGE_DIR` (Standard `${IMAGEDIR}` oder `${MACHINE}`)
-- `TUXBOX_IMAGE_UPDATE_URL` (Standard `${IMAGE_LOCATION_URL}`)
+- `TUXBOX_IMAGE_CHANNEL` (Standard aus `DISTRO_TYPE` abgeleitet)
+- `TUXBOX_IMAGE_UPDATE_BASE_URL` (Standard `${IMAGE_LOCATION_URL}` oder `${DISTRO_FEED_URI}`)
+- `TUXBOX_IMAGE_UPDATE_URL` (Standard leer; wird bei Bedarf aus Basis/Kanal/Imagedir abgeleitet)
 - `TUXBOX_IMAGE_UPDATE_INFO_FILE` (Standard `imageversion`)
-- `TUXBOX_IMAGE_FILE_NAME` (Standard `${IMAGE_NAME}_usb.zip`)
+- `TUXBOX_IMAGE_FILE_SUFFIX` (Standard `multi` bei `fastboot`-Maschinen, sonst `usb`)
+- `TUXBOX_IMAGE_FILE_NAME` (Standard `${IMAGE_NAME}_${TUXBOX_IMAGE_FILE_SUFFIX}.zip`)
+- `TUXBOX_IMAGE_MANIFEST_FILE` (Standard `manifest.json`)
+- `TUXBOX_IMAGE_DISCOVERY_API_URL` (Standard leer)
 - `TUXBOX_VERSION_STAMP` (Standard `${TUXBOX_IMAGEBUILD}`)
 - `TUXBOX_VERSION_LINK_OS_RELEASE` (Standard `0`)
 - `TUXBOX_VERSION_LEGACY_LINK_TARGET` (Standard `/etc/image-version`)
 - `TUXBOX_VERSION_GIT_PATH` (optional explizites Git-Repo)
 - `TUXBOX_VERSION_GIT_REF` (Standard `HEAD`)
+- `TUXBOX_FEED_WRITE_METADATA` (Standard `1`)
+- `TUXBOX_FEED_WRITE_SIDECARS` (Standard `1`)
+
+## Deploy-Metadaten-Ausgaben
+
+Zusätzlich zu `/etc/image-version` erzeugt die Klasse während der
+Image-Post-Processing-Phase Metadaten in `${DEPLOY_DIR_IMAGE}`:
+
+- `${TUXBOX_IMAGE_UPDATE_INFO_FILE}` (Legacy-Marker, Standard `imageversion`)
+- `${TUXBOX_IMAGE_MANIFEST_FILE}` (Standard `manifest.json`)
+- `*.sha256`- und `*.md5`-Sidecar-Dateien für gewählte Archive
+- `manifest.json.sha256`-Sidecar für Manifest-Integrität
+
+Auswahlverhalten:
+
+- Primär-Archiv-Reihenfolge:
+  1. `${TUXBOX_IMAGE_FILE_NAME}`
+  2. `${IMAGE_NAME}_multi.zip`
+  3. `${IMAGE_NAME}_usb.zip`
+- optional `${IMAGE_NAME}_recovery_emmc.zip` wird eingebunden, wenn vorhanden.
+
+Manifest-Hinweise:
+
+- jede `files[]`-Struktur enthält `name`, `size`, `sha256` und `md5`.
+- `describe` enthält Git-Describe-Metadaten (falls verfügbar).
+- `image_description` enthält die menschenlesbare Image-Bezeichnung.
 
 ## Flash-Backend-Modell
 

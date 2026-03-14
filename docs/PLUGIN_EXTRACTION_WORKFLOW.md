@@ -66,6 +66,17 @@ For `<name>_git.bb`:
 - if needed, set `PE` to avoid feed version rollback after migration
 - remove now-obsolete layer patches/files
 
+Migration principle (mandatory for extracted Lua plugins):
+- Prefer `oe_runmake` packaging semantics (same pattern as `neutrino-mediathek`).
+- Upstream plugin `Makefile` must support:
+  - `DESTDIR` (default empty)
+  - `PREFIX` (default `/usr/share/tuxbox/neutrino`)
+  - `PLUGIN_SUBDIR` (default `plugins`)
+- Recipe install should call:
+  - `oe_runmake DESTDIR=${D} PREFIX=${N_PREFIX}${N_DATADIR}/neutrino PLUGIN_SUBDIR=$(basename ${N_PLUGIN_DIR}) install`
+- Do not rely on `makeit` wrapper for new standalone repos unless there is a hard blocker.
+- Keep recipe runtime deps minimal and explicit; avoid adding unrelated shared-file deps unless required by the plugin code.
+
 ## 7) Validate
 
 Build:

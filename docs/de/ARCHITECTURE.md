@@ -40,7 +40,7 @@ Neutrino-fokussierte Distribution bereitstellt.
     - Yocto Kirkstone (Whinlasser)
     - 300+ Hardware-Definitionen
     - DVB-Driver, Kernel, Bootloader
-  - meta-neutrino (Submodule - Kirkstone Branch)
+  - meta-neutrino (Submodul - master-Branch)
     - neutrino-mp recipes
     - libstb-hal
     - Plugins (Standard + Lua)
@@ -256,7 +256,7 @@ Submodule (Git-Submodule):
 |   |   +-- meta-airdigital/
 |   |   +-- ... (30+ brands)
 |   +-- openembedded-core/       # Yocto Core
-+-- meta-neutrino/               # Neutrino Recipes (Kirkstone Branch)
++-- meta-neutrino/               # Neutrino-Rezepte (master-Branch)
 |   +-- recipes-neutrino/
 |   |   +-- neutrino/
 |   |   +-- libstb-hal/

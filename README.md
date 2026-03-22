@@ -91,16 +91,17 @@ make update-upstream
 ```
 
 This moves all submodules to the **latest commit** on their tracking branch
-(e.g. `kirkstone`, `5.1`). The code is still on the same Yocto release, but
-you get the newest patches and changes from upstream. **This can break your
-build** because the combination has not been tested yet.
+(e.g. `kirkstone` for Poky/meta-openembedded, `5.1` for OE-Alliance,
+`master` for meta-neutrino/meta-tuxbox). The code is still on the same Yocto
+release, but you get the newest patches and changes from upstream. **This can
+break your build** because the combination has not been tested yet.
 
 After `update-upstream`, test your build. If everything works, pin the new
 state for other users:
 
 ```bash
 git add poky oe-alliance meta-openembedded meta-neutrino meta-tuxbox
-git commit -m "chore (deps): pin submodules to latest kirkstone/5.1"
+git commit -m "chore (deps): pin submodules to latest tracked branches"
 ```
 
 **Important for developers:**

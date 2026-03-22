@@ -5,7 +5,7 @@
 #
 # Submodules are pinned to specific commits for reproducibility
 # OE-Alliance: branch 5.1 (Yocto Kirkstone), commit 4a05b18f5e
-# meta-neutrino: kirkstone-migration branch (migrated to Kirkstone), commit 9ee3484c5f569d6a14a775e2ee0ae97346cb44be
+# meta-neutrino: branch master (Kirkstone content), commit 9ee3484c5f569d6a14a775e2ee0ae97346cb44be
 # Poky: branch kirkstone (Yocto 4.0 LTS)
 # meta-openembedded: branch kirkstone (Yocto 4.0 LTS)
 [submodule "oe-alliance"]

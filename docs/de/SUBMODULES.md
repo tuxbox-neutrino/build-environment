@@ -79,6 +79,8 @@ git submodule update --init --recursive
   (wie in `.gitmodules` gesetzt), lässt den Tree dirty, wenn du keine neuen
   Pointer committest, und kann Layer auf Branches/REVs bringen, die nicht zum
   gepinnten Build passen.
+- Aktuell getrackt werden `master` für `meta-neutrino`/`meta-tuxbox`,
+  `kirkstone` für `poky`/`meta-openembedded` und `5.1` für `oe-alliance`.
 
 Wenn du `make update-upstream` aus Versehen ausgeführt hast, nutze
 `make update` (oder `make sync`), um zurück zum gepinnten Stand zu kommen.

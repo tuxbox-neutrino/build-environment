@@ -52,7 +52,7 @@ Tuxbox-OS Builder is a **parasitic integration** system that leverages OE-Allian
 │  └────────────────────────────────────────────────┘      │
 │                                                            │
 │  ┌────────────────────────────────────────────────┐      │
-│  │ meta-neutrino (Submodule - Kirkstone branch)   │      │
+│  │ meta-neutrino (Submodule - master branch)      │      │
 │  │  • neutrino-mp recipes                         │      │
 │  │  • libstb-hal                                  │      │
 │  │  • Plugins (standard + Lua)                    │      │
@@ -278,7 +278,7 @@ Submodules (Git submodules):
 │   │   ├── meta-airdigital/
 │   │   └── ... (30+ brands)
 │   └── openembedded-core/       # Yocto core
-├── meta-neutrino/               # Neutrino recipes (Kirkstone branch)
+├── meta-neutrino/               # Neutrino recipes (master branch)
 │   ├── recipes-neutrino/
 │   │   ├── neutrino/
 │   │   ├── libstb-hal/

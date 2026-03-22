@@ -200,9 +200,9 @@ make update-upstream
 ```
 
 Damit werden alle Submodule auf den **neuesten Commit** ihres Tracking-Branches
-gezogen (z.B. `kirkstone` für Poky/meta-openembedded, `5.1` für OE-Alliance).
-Du bleibst auf dem gleichen Yocto-Release, bekommst aber die neuesten
-Upstream-Patches.
+gezogen (z.B. `kirkstone` für Poky/meta-openembedded, `5.1` für OE-Alliance,
+`master` für meta-neutrino/meta-tuxbox). Du bleibst auf dem gleichen
+Yocto-Release, bekommst aber die neuesten Upstream-Patches.
 
 **Warnung:** Das kann deinen Build brechen, weil die neue Kombination noch
 nicht getestet wurde. Nutze das nur, wenn du testen und die Pins aktualisieren
@@ -212,7 +212,7 @@ Nach einem erfolgreichen Build den neuen Stand pinnen:
 
 ```bash
 git add poky oe-alliance meta-openembedded meta-neutrino meta-tuxbox
-git commit -m "chore (deps): pin submodules to latest kirkstone/5.1"
+git commit -m "chore (deps): pin submodules to latest tracked branches"
 ```
 
 Um jederzeit zum sicheren gepinnten Stand zurückzukehren:

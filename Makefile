@@ -853,7 +853,7 @@ update-upstream up-upstream:
 .PHONY: sync
 sync:
 	@echo -e "$(COLOR_BOLD)Updating repository...$(COLOR_RESET)"
-	@git pull --ff-only
+	@git pull --ff-only --no-recurse-submodules
 	@echo -e "$(COLOR_BOLD)Syncing submodule URLs...$(COLOR_RESET)"
 	@git submodule sync --recursive
 	@echo -e "$(COLOR_BOLD)Updating submodules (pinned)...$(COLOR_RESET)"

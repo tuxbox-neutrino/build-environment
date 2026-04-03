@@ -90,7 +90,7 @@ make update
 
 What `make update` does:
 
-- Pulls top-level repository changes.
+- Pulls top-level repository changes without recursively fetching submodules.
 - Checks out pinned submodule commits (safe/reproducible).
 
 ## 5. Choose Machine Values

@@ -91,8 +91,10 @@ make update
 ```
 
 Damit werden die **gepinnten Submodul-Commits** ausgecheckt, die zusammen
-getestet wurden. Dein Build ist reproduzierbar und geht nicht unerwartet
-kaputt. Nutze immer diesen Befehl, es sei denn du weißt was du tust.
+getestet wurden. Zuerst wird nur das Top-Level-Repository aktualisiert, danach
+werden die Submodule separat auf die gepinnten Stände gesetzt. Dein Build ist
+reproduzierbar und geht nicht unerwartet kaputt. Nutze immer diesen Befehl, es
+sei denn du weißt was du tust.
 
 ### Für Entwickler: `make update-upstream`
 

@@ -91,8 +91,9 @@ make update
 ```
 
 This checks out the **pinned submodule commits** that have been tested together.
-Your build is reproducible and will not break unexpectedly. Always use this
-unless you know what you are doing.
+It first updates the top-level repo, then syncs submodules separately to the
+pinned tested revisions. Your build is reproducible and will not break
+unexpectedly. Always use this unless you know what you are doing.
 
 ### For developers: `make update-upstream`
 

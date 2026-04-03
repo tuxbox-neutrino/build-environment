@@ -92,7 +92,7 @@ make update
 
 Was `make update` macht:
 
-- Zieht Änderungen im Top-Level-Repository.
+- Zieht Änderungen im Top-Level-Repository ohne rekursiven Submodul-Fetch.
 - Setzt Submodule auf gepinnte Commits (sicher/reproduzierbar).
 
 ## 5. Maschinenwerte wählen

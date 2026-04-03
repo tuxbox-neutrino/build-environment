@@ -669,6 +669,13 @@ class TuxboxBuilder:
             return None
         if len(configs) == 1:
             return configs[0]
+        if not builddir_hint:
+            preferred_matches = [
+                item for item in configs
+                if item.get('builddir') and Path(item['builddir']) == self.preferred_builddir
+            ]
+            if len(preferred_matches) == 1:
+                return preferred_matches[0]
         if not sys.stdin.isatty():
             self.error("Multiple build configs found. Specify --machine or --builddir.")
             for idx, item in enumerate(configs, start=1):

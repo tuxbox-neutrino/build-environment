@@ -28,7 +28,9 @@ What this does:
 Fastboot/multiboot machines such as HD60 include the STB Lua plugin bundle by
 default in the image. That covers runtime tools such as `stb-startup`,
 `stb-flash`, `stb-backup`, and `stb-restore`. All images also install
-`logoupdater` by default, including its runtime download tools.
+`logoupdater` by default, including its runtime download tools. The standard
+runtime now also includes the yWeb helper tools for OSD screenshots and
+AutoMount (`grab`, `fbshot`, and `autofs`/`automount`).
 
 If `make check` reports missing packages, use the dependency section in
 [docs/QUICKSTART.md](docs/QUICKSTART.md).

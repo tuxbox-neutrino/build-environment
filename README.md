@@ -28,7 +28,7 @@ What this does:
 Fastboot/multiboot machines such as HD60 include the STB Lua plugin bundle by
 default in the image. That covers runtime tools such as `stb-startup`,
 `stb-flash`, `stb-backup`, and `stb-restore`. All images also install
-`logoupdater` by default, including its runtime download tools. The standard
+`logoupdater` and the Neutrino `mediathek` plugin by default. The standard
 runtime now also includes the yWeb helper tools for OSD screenshots and
 AutoMount (`grab`, `fbshot`, and `autofs`/`automount`). Settings backup for the
 default flash workflows comes from Neutrino's `backup.sh` with

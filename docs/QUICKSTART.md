@@ -80,6 +80,7 @@ git config --global url."git@github.com:".insteadOf "https://github.com/"
 Default STB flash workflows back up settings via Neutrino's `backup.sh` and
 `/etc/neutrino/config/tobackup.conf`. `etckeeper` is kept as an optional extra
 tool for feed installation and is no longer part of the default image payload.
+The default runtime set also includes the Neutrino `mediathek` plugin.
 
 ## 4. Verify Host And Sync Safe Defaults
 

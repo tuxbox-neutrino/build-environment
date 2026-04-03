@@ -81,7 +81,8 @@ git config --global url."git@github.com:".insteadOf "https://github.com/"
 Die Standard-Flash-Abläufe der STB-Plugins sichern Einstellungen über
 Neutrinos `backup.sh` und `/etc/neutrino/config/tobackup.conf`. `etckeeper`
 bleibt als optionales Extra-/Feed-Paket verfügbar und gehört nicht mehr zum
-Standard-Image-Inhalt.
+Standard-Image-Inhalt. Zum Standard-Laufzeitsatz gehört außerdem das
+Neutrino-Plugin `mediathek`.
 
 ## 4. Host prüfen und sicher synchronisieren
 

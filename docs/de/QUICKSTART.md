@@ -78,6 +78,11 @@ Wenn du Zugriff auf private GitHub-Submodule hast und SSH statt HTTPS nutzen wil
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
 
+Die Standard-Flash-Abläufe der STB-Plugins sichern Einstellungen über
+Neutrinos `backup.sh` und `/etc/neutrino/config/tobackup.conf`. `etckeeper`
+bleibt als optionales Extra-/Feed-Paket verfügbar und gehört nicht mehr zum
+Standard-Image-Inhalt.
+
 ## 4. Host prüfen und sicher synchronisieren
 
 ```bash

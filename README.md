@@ -30,7 +30,10 @@ default in the image. That covers runtime tools such as `stb-startup`,
 `stb-flash`, `stb-backup`, and `stb-restore`. All images also install
 `logoupdater` by default, including its runtime download tools. The standard
 runtime now also includes the yWeb helper tools for OSD screenshots and
-AutoMount (`grab`, `fbshot`, and `autofs`/`automount`).
+AutoMount (`grab`, `fbshot`, and `autofs`/`automount`). Settings backup for the
+default flash workflows comes from Neutrino's `backup.sh` with
+`/etc/neutrino/config/tobackup.conf`; `etckeeper` stays available as an
+optional extra-tool/feed package instead of being installed by default.
 
 If `make check` reports missing packages, use the dependency section in
 [docs/QUICKSTART.md](docs/QUICKSTART.md).

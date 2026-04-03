@@ -121,6 +121,11 @@ make image MACHINE=hd60 MACHINEBUILD=mutant60
 make image MACHINE=zgemmah7 MACHINEBUILD=zgemmah7
 ```
 
+Fastboot/multiboot machines such as HD60 install the STB Lua plugin bundle by
+default in the image. That includes `stb-startup` together with the related
+flash, backup, and restore plugins. All images also install `logoupdater`
+with its required runtime helper tools by default.
+
 If you only want to generate configuration first:
 
 ```bash

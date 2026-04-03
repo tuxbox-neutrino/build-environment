@@ -25,6 +25,11 @@ What this does:
 3. Syncs the repository and pinned submodule commits (`make update`, safe default).
 4. Builds your first image.
 
+Fastboot/multiboot machines such as HD60 include the STB Lua plugin bundle by
+default in the image. That covers runtime tools such as `stb-startup`,
+`stb-flash`, `stb-backup`, and `stb-restore`. All images also install
+`logoupdater` by default, including its runtime download tools.
+
 If `make check` reports missing packages, use the dependency section in
 [docs/QUICKSTART.md](docs/QUICKSTART.md).
 

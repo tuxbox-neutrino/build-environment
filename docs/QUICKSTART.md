@@ -218,6 +218,14 @@ git add poky oe-alliance meta-openembedded meta-neutrino meta-tuxbox
 git commit -m "chore (deps): pin submodules to latest tracked branches"
 ```
 
+General pin policy:
+- During active development, it is acceptable to work locally on the current
+  upstream tracking heads of the active Yocto line.
+- Update the recorded pins only when you have a validated shared state,
+  maintenance fix set, or release candidate.
+- Once a Kirkstone release is cut, keep those pins stable and move them only
+  through deliberate, validated maintenance updates.
+
 To return to the safe pinned state at any time:
 
 ```bash

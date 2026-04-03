@@ -105,6 +105,15 @@ git add poky oe-alliance meta-openembedded meta-neutrino meta-tuxbox
 git commit -m "chore (deps): pin submodules to latest tracked branches"
 ```
 
+Allgemeine Pin-Policy:
+- Während der aktiven Entwicklung auf einer Yocto-Linie darf lokal gegen die
+  aktuellen Upstream-Tracking-Branches gearbeitet werden.
+- Submodul-Updates werden erst gepinnt, wenn ein validierter gemeinsamer
+  Stand, ein Maintenance-Update oder ein Release veröffentlicht wird.
+- Release-Stände wie ein finales Kirkstone-Build behalten explizite stabile
+  Pins. Wenn später Fixes, Security-Updates oder sonstige Maintenance nötig
+  sind, werden diese Pins nach Validierung gezielt aktualisiert.
+
 **Wichtig für Entwickler:**
 - Wenn du einen Bug findest oder eine Änderung vorschlagen möchtest, erstelle
   bitte ein [Issue](https://github.com/tuxbox-neutrino/build-environment/issues)

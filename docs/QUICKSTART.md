@@ -92,7 +92,15 @@ make update
 What `make update` does:
 
 - Pulls top-level repository changes without recursively fetching submodules.
+- Syncs submodule URLs from `.gitmodules`.
 - Checks out pinned submodule commits (safe/reproducible).
+
+Why this matters:
+
+- The top-level pull no longer tries to recurse into submodules mid-update, so
+  transient pin changes from another host are handled more reliably.
+- If `make update` still stops, check for local commits or uncommitted changes
+  inside a submodule. The safe sync will not overwrite that local state.
 
 ## 5. Choose Machine Values
 
@@ -199,8 +207,10 @@ Defaults:
 ### For users: stay on `make update`
 
 `make update` always checks out the **pinned submodule commits** — a tested,
-stable combination. Your build is reproducible. This is the only update
-command you need as a user.
+stable combination. It updates the top-level repo first and then applies the
+pinned submodule state explicitly, which is more robust when multiple hosts
+or workstations sync at different times. Your build is
+reproducible. This is the only update command you need as a user.
 
 ### For developers: `make update-upstream`
 
@@ -266,6 +276,13 @@ make check
 
 ```bash
 make update
+```
+
+If that does not fix it, inspect the submodules for local commits or
+uncommitted changes:
+
+```bash
+git submodule foreach --recursive 'git status --short --branch'
 ```
 
 ### basehash mismatch in `do_image_hdfastboot8gb`

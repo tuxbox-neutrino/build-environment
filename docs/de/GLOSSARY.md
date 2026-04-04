@@ -53,7 +53,8 @@ Das ist für Maintainer nützlich, für normale Builds aber riskant.
 ## `make update`
 
 Sicheres Standard-Update-Kommando.
-Es aktualisiert das Top-Level-Repo und setzt Submodule auf gepinnte Commits.
+Es fast-forwardet das Top-Level-Repo, synchronisiert die Submodul-URLs und
+setzt danach die gepinnten Submodul-Commits explizit.
 
 ## `make sync`
 

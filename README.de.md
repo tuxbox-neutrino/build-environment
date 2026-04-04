@@ -22,7 +22,8 @@ Das passiert dabei:
 
 1. Du klonst das Repository inklusive Submodule.
 2. Du prüfst Host-Abhängigkeiten.
-3. Du synchronisierst Repository und gepinnte Submodule (`make update`, sicherer Standard).
+3. Du führst den sicheren Zwei-Phasen-Sync für Repository und gepinnte
+   Submodule aus (`make update`, sicherer Standard).
 4. Du baust dein erstes Image.
 
 Wenn `make check` fehlende Pakete meldet, nutze den Abhängigkeits-Abschnitt in
@@ -92,10 +93,17 @@ make update
 ```
 
 Damit werden die **gepinnten Submodul-Commits** ausgecheckt, die zusammen
-getestet wurden. Zuerst wird nur das Top-Level-Repository aktualisiert, danach
-werden die Submodule separat auf die gepinnten Stände gesetzt. Dein Build ist
-reproduzierbar und geht nicht unerwartet kaputt. Nutze immer diesen Befehl, es
+getestet wurden. Zuerst wird nur das Top-Level-Repository per Fast-Forward
+aktualisiert, danach werden die Submodul-URLs synchronisiert und die
+Submodule explizit auf die gepinnten Stände gesetzt. Das vermeidet den
+früheren Fehlerfall mit rekursivem Submodul-Fetch während des Top-Level-Pulls
+und hält den normalen Workflow reproduzierbar. Nutze immer diesen Befehl, es
 sei denn du weißt was du tust.
+
+Wenn `make update` trotzdem abbricht, liegt die Ursache meist noch in lokalem
+Submodul-Zustand, zum Beispiel eigenen Commits oder uncommitted Änderungen in
+einem Submodul. Bereinige oder übernimm diesen lokalen Zustand zuerst und
+starte dann `make update` erneut.
 
 ### Für Entwickler: `make update-upstream`
 

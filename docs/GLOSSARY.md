@@ -53,7 +53,8 @@ Useful for maintainers, risky for normal builds.
 ## `make update`
 
 Safe default update command.
-It updates top-level repo + checks out pinned submodule commits.
+It fast-forwards the top-level repo, syncs submodule URLs, and then checks out
+the pinned submodule commits explicitly.
 
 ## `make sync`
 

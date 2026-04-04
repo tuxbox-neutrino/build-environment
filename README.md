@@ -22,7 +22,8 @@ What this does:
 
 1. Clones the repository including submodules.
 2. Checks host dependencies.
-3. Syncs the repository and pinned submodule commits (`make update`, safe default).
+3. Runs the safe two-phase sync for the repository and pinned submodule
+   commits (`make update`, safe default).
 4. Builds your first image.
 
 Fastboot/multiboot machines such as HD60 include the STB Lua plugin bundle by
@@ -91,9 +92,15 @@ make update
 ```
 
 This checks out the **pinned submodule commits** that have been tested together.
-It first updates the top-level repo, then syncs submodules separately to the
-pinned tested revisions. Your build is reproducible and will not break
-unexpectedly. Always use this unless you know what you are doing.
+It first fast-forwards only the top-level repo, then syncs submodule URLs, then
+updates submodules explicitly to the pinned tested revisions. This avoids the
+older recursive-fetch failure mode during the top-level pull and keeps the
+normal workflow reproducible. Always use this unless you know what you are
+doing.
+
+If `make update` still stops, the usual remaining reason is local state inside
+a submodule, for example local commits or uncommitted changes. Resolve that
+local divergence first, then run `make update` again.
 
 ### For developers: `make update-upstream`
 

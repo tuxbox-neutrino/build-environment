@@ -1,6 +1,6 @@
 # Konzept: Flash-Integration Neutrino + flash/ofgwrite
 
-Stand: 2026-03-10
+Stand: 2026-03-11
 
 ## Ziel
 
@@ -74,20 +74,32 @@ Damit bleibt Althardware ohne neues Profil vollständig kompatibel.
 
 Neue Dateien in `gui-neutrino`:
 
-- `src/gui/flash_profile.h/.cpp`
-  - Lädt und validiert Runtime-Profile.
-  - Kapselt Detection-Logik (`isAvailable()`, Backend, Capabilities).
-- `src/gui/flash_result.h/.cpp`
-  - Normiert Exitcode-/Fehler-Mapping für UI.
 - `src/gui/flash_manager.h/.cpp`
-  - Neuer, datengetriebener Flash-Flow über `/usr/bin/flash`.
-  - Slotauswahl, Bestätigung, Aufruf, Ergebnisdarstellung.
+  - Enthält den neuen, datengetriebenen Flash-Flow **ausschließlich**
+    über `/usr/bin/flash`. Neutrino ruft `ofgwrite_caller` nicht mehr
+    direkt auf.
+  - Der bisherige `ofgwrite_caller` wird durch den internen
+    Handoff-Helper `/usr/libexec/tuxbox/flash-ofgwrite-handoff`
+    ersetzt. Dieser Helper ist die einzige Stelle, an der nach der
+    Target-Rootfs-Injection noch Richtung Flash-Device geschrieben
+    wird (Inactive-Slot via `flash-backend-ofgwrite.sh`, Active-Slot
+    via transient systemd unit mit `--active-slot`). Er hat keine
+    öffentliche CLI in `${bindir}`; Callsites gehen ausnahmslos über
+    `/usr/bin/flash`. Die Spec steht in
+    [ONLINE-FLASH-CONCEPT.md](ONLINE-FLASH-CONCEPT.md) unter
+    "Internal libexec handoff helper".
+  - Implementiert `CFlashManager` als additive Einheit neben Legacy.
+  - Slot-Auswahl, Archiv-Extraktion (soweit vor dem Dispatcher-Aufruf
+    nötig), Exitcode-Mapping zu Locale-UI.
+- Optional später: interne Helper (`flash_profile`, `flash_result`) nur falls
+  `flash_manager.*` inhaltlich zu groß wird.
 
 Bestehende Dateien:
 
+- `src/gui/update.h`: unverändert (Legacy bleibt).
 - `src/gui/update.cpp`: unverändert (Legacy bleibt).
-- `src/gui/update_menue.cpp`: zusätzlicher Menüeintrag für den neuen Manager,
-  nur bei erfolgreicher Runtime-Detection.
+- `src/gui/update_menue.cpp`: nur minimaler zusätzlicher Menüeintrag auf
+  `CFlashManager`, runtime-gated.
 
 ## Exitcode-/Fehlervertrag
 
@@ -139,8 +151,9 @@ Mittelfristig:
 ### Phase 1: Minimal-invasive Einführung
 
 - Exitcodevertrag backendübergreifend festziehen.
-- Neue Neutrino-Klassen `flash_profile`, `flash_result`, `flash_manager` einführen.
-- Neuen Menüpunkt in `update_menue.cpp` hinzufügen (feature-gated über Runtime).
+- `flash_manager.h/.cpp` einführen.
+- Neuen Menüpunkt in `update_menue.cpp` hinzufügen (feature-gated über Runtime,
+  minimaler Hook).
 - Legacypfad unverändert lassen.
 
 ### Phase 2: Lua entkoppeln
@@ -148,7 +161,19 @@ Mittelfristig:
 - `stb_flash`/`stb_local-flash` Slot-/Layoutlogik abbauen.
 - Plugins an die `flash`-API andocken (nur Parameterübergabe + UI).
 
-### Phase 3: Härtung und Rollout
+### Phase 3: WebIF/APIv4 Vorbereitung
+
+- Gemeinsamen Laufzeitvertrag für GUI und WebIF festziehen:
+  - gleicher `flash`-Aufrufvertrag,
+  - gleiche Exitcodes,
+  - gleicher Statuskanal (`/run/tuxbox/flash/status.json`).
+- APIv4-Endpunkte vorplanen für:
+  - Flash-Precheck/Start/Status,
+  - OPKG-Precheck/Run/Status.
+- Schnittstelle so vorbereiten, dass eine spätere WebIF-Übernahme
+  ohne Umbau der Flash-Core-Logik möglich ist.
+
+### Phase 4: Härtung und Rollout
 
 - Fehler-/Statusmodell in UI verbessern.
 - Optional maschinenabhängige Deep-Preflight-Checks erweitern.
@@ -168,8 +193,13 @@ Alle Punkte müssen erfüllt sein:
 ## Konkrete Risiken und Gegenmaßnahmen
 
 - Risiko: Bypass am Dispatcher (direkte `ofgwrite_caller`-Aufrufe).
-  Maßnahme: immer Dispatcher/Preflight erzwingen oder Caller auf Dispatcher
-  vereinheitlichen.
+  Maßnahme: Der interne Handoff-Helper wird als
+  `/usr/libexec/tuxbox/flash-ofgwrite-handoff` installiert und ist
+  nicht mehr Teil des öffentlichen `${bindir}`-Pfads. Der bisherige
+  `ofgwrite_caller` verschwindet aus `${bindir}` vollständig (optional
+  kurzfristig als libexec-lokaler Kompatibilitäts-Symlink auf
+  `flash-ofgwrite-handoff`, nicht als `${bindir}`-Eintrag). Alle
+  UI/Lua/API-Callsites gehen ausschließlich über `/usr/bin/flash`.
 - Risiko: Duplizierte Slot-Erkennung in mehreren Stellen.
   Maßnahme: gemeinsame Helper/Lib-Funktion für Slot-Detection.
 - Risiko: Profil passt nicht zur realen Partitionierung.

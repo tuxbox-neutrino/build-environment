@@ -1,7 +1,10 @@
 # Image Portal Service Concept (Landing Page + Download API)
 
-Date: 2026-03-10
+Date: 2026-04-12
 Status: design + bootstrap implementation started
+
+Related: [ONLINE-FLASH-CONCEPT.md](ONLINE-FLASH-CONCEPT.md),
+[ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md)
 
 ## Goal
 
@@ -54,9 +57,9 @@ Target delta:
 
 ## Repository Plan
 
-Create new repository:
+Canonical repository:
 
-- `tuxbox-neutrino/image-portal-service`
+- `git@github.com:tuxbox-neutrino/image-portal-service.git`
 
 Suggested structure:
 
@@ -71,6 +74,10 @@ image-portal-service/
     nginx.conf
     caddy/Caddyfile
     systemd/
+    docker/
+      Dockerfile
+      docker-compose.yml
+      .env.example
   tools/
     catalog-build         # reads publish dir, builds catalog
   tests/
@@ -96,6 +103,32 @@ Important:
 
 - Portal catalog is a derived index. Source of truth remains the published
   machine feed artifacts (`manifest.json` + payload + checksums).
+
+### Retention policy
+
+The portal MUST retain historical builds per `channel` + `imagedir` —
+not just the latest. Rationale:
+
+- Online Flash exposes a "Browse older builds" flow that directly
+  calls `GET /api/v1/catalog?channel=...&imagedir=...`
+  (see [ONLINE-FLASH-CONCEPT.md](ONLINE-FLASH-CONCEPT.md#historical-builds-browse--flash-older-images)),
+- users must be able to roll back to a known-good build when a new
+  release regresses on their hardware,
+- `git_hash`/`describe` traceability is only useful if the build it
+  points to is still downloadable.
+
+Rules:
+
+- No implicit pruning by the catalog builder. Artifacts that are
+  present under the published feed must appear in `catalog.json`.
+- Operator-initiated pruning (to free disk space) is a deploy-host
+  operation and must be explicit: delete artifacts + rerun
+  `make portal-catalog`.
+- `GET /api/v1/catalog` returns all retained builds, sorted
+  newest-first, without a hidden default limit. Pagination is via an
+  explicit `?limit=<n>&offset=<n>` query pair.
+- `GET /api/v1/images/{imagedir}/latest` remains the convenience
+  endpoint for "give me the newest".
 
 ### Catalog Object (normalized)
 
@@ -179,6 +212,32 @@ Per image detail page:
 
 ## Security Model
 
+### Update Key (Phase 1 access gate)
+
+Every catalog and download endpoint is gated by a shared Update Key,
+sent as HTTP header `X-Tuxbox-Update-Key`. Full contract in
+[ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md).
+
+Portal behavior:
+
+- **Missing header** -> `401 Unauthorized`,
+  body `{ "error": "missing_update_key" }`.
+- **Invalid key** -> `403 Forbidden`,
+  body `{ "error": "invalid_update_key" }`.
+- Valid key -> normal response.
+
+Implementation requirements:
+
+- Key allowlist configured via environment variable
+  `IMAGE_PORTAL_UPDATE_KEYS` (comma-separated to allow rotation).
+- Constant-time comparison.
+- Failed attempts rate-limited per source IP.
+- Failed attempts logged with correlation ID, IP, endpoint,
+  timestamp — but never the attempted key value.
+- Phase 2 reserves two more headers (`X-Tuxbox-Box-Id`,
+  `X-Tuxbox-Box-Proof`); Phase 1 ignores them if present (graceful
+  upgrade path).
+
 ### Security Requirements
 
 - strict input allowlist (`channel`, `imagedir`, `build_date`, `filename`),
@@ -239,6 +298,61 @@ Recommended production deployment:
 - container or VM with reverse proxy (`nginx`/`caddy`) + PHP-FPM,
 - read-only bind mount for published artifacts,
 - catalog cache on local fast storage.
+
+### Docker (Phase 1 monolithic container)
+
+Goal: operator runs `docker compose up -d` and gets a working portal.
+
+Image contents (single container):
+
+- nginx + php-fpm + catalog refresh worker (systemd-less, supervisor
+  or a small entrypoint script),
+- runtime PHP code under `/usr/share/image-portal/api`,
+- static landing page assets under `/usr/share/image-portal/web`,
+- no artifact data inside the image (always bind-mounted).
+
+Dockerfile constraints:
+
+- base image: a slim Debian or Alpine PHP 8.3 + nginx combination,
+- no build tooling retained in the final layer,
+- non-root runtime user matching the `image-portal` system user,
+- multi-arch build via `docker buildx`:
+  - `linux/amd64`,
+  - `linux/arm64`,
+  - `linux/arm/v7` (Raspberry Pi),
+- release tags pushed to GHCR under
+  `ghcr.io/tuxbox-neutrino/image-portal-service`.
+
+Runtime configuration via `docker-compose.yml` + `.env`:
+
+```yaml
+services:
+  portal:
+    image: ghcr.io/tuxbox-neutrino/image-portal-service:latest
+    ports:
+      - "${PORTAL_PORT:-8080}:80"
+    environment:
+      IMAGE_PORTAL_UPDATE_KEYS: "${UPDATE_KEYS}"
+      IMAGE_PORTAL_ARTIFACT_DIR: "/srv/artifacts"
+      IMAGE_PORTAL_CATALOG_REFRESH_INTERVAL: "${CATALOG_REFRESH_INTERVAL:-300}"
+      IMAGE_PORTAL_ALLOWED_CHANNELS: "release,beta,nightly"
+    volumes:
+      - "${ARTIFACT_DIR}:/srv/artifacts:ro"
+      - portal_catalog:/var/cache/image-portal
+    restart: unless-stopped
+volumes:
+  portal_catalog:
+```
+
+`.env.example` ships with safe defaults and clearly placeholder values
+for `UPDATE_KEYS` and `ARTIFACT_DIR`.
+
+### Split-container deployment (Phase 2)
+
+Phase 2 splits nginx / php-fpm / catalog refresh worker into separate
+containers for easier scaling and clean single-responsibility. Phase 1
+deliberately does not ship this to keep the first public release
+trivial to deploy.
 
 ### Buildsystem Integration
 
@@ -306,7 +420,7 @@ Usage relationship:
 
 Implemented baseline:
 
-- Repository scaffold in `dbt1/online-update`:
+- Repository scaffold:
   - manifest-first API endpoints:
     - `/api/v1/catalog.php`
     - `/api/v1/latest.php`
@@ -330,8 +444,12 @@ Implemented baseline:
 
 Open follow-up work:
 
-1. Complete production key-management rollout for manifest signature
+1. Implement Update Key validation on all API endpoints
+   (see [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md)).
+2. Add multi-arch Docker build (`linux/amd64`, `linux/arm64`,
+   `linux/arm/v7`) with docker-compose reference deployment.
+3. Complete production key-management rollout for manifest signature
    verification (catalog builder support is implemented, deployment policy TBD).
-2. Add API contract tests and legacy fixture tests.
-3. Add production deployment docs (`nginx/php-fpm/caddy` variants).
-4. Add optional frontend catalog/detail pages beyond the minimal landing page.
+4. Add API contract tests and legacy fixture tests.
+5. Add production deployment docs (`nginx/php-fpm/caddy` variants).
+6. Add optional frontend catalog/detail pages beyond the minimal landing page.

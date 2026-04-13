@@ -15,6 +15,15 @@ Submodules let us pin exact versions while keeping each layer independent.
 If you want short definitions for terms like submodule/pinning, see the
 [Glossary](GLOSSARY.md).
 
+Repository policy note:
+- `build-environment` itself is intended to use only the official `master`
+  branch on the remote.
+- This does not change the existing branch workflow of layer repos such as
+  `meta-neutrino` or `meta-tuxbox`.
+- It also does not change the behavior of `make update` / `make up` and
+  `make update-upstream` / `make up-upstream`: those continue to use the
+  pinned submodule commits or the tracking branches from `.gitmodules`.
+
 ## Contents
 
 - [1. Clone with submodules](#1-clone-with-submodules)
@@ -22,7 +31,7 @@ If you want short definitions for terms like submodule/pinning, see the
 - [3. Fix empty layer folders](#3-fix-empty-layer-folders)
 - [4. Update to the recorded (safe) versions](#4-update-to-the-recorded-safe-versions)
 - [5. make update vs make update-upstream (important)](#5-make-update-vs-make-update-upstream-important)
-- [6. Update a layer to the latest upstream (advanced)](#6-update-a-layer-to-the-latest-upstream-advanced)
+- [6. Align layer repos and submodule pointers (advanced)](#6-align-layer-repos-and-submodule-pointers-advanced)
 - [7. Branch and tag policy](#7-branch-and-tag-policy)
 - [Related Docs](#related-docs)
 
@@ -84,23 +93,55 @@ git submodule update --init --recursive
 If you ran `make update-upstream` by mistake, run `make update` (or `make sync`)
 to return to the pinned state.
 
-## 6. Update a layer to the latest upstream (advanced)
+## 6. Align layer repos and submodule pointers (advanced)
 
-Only do this if you know why you need newer layer commits.
+Only do this if you intentionally want to move a layer away from the currently
+pinned builder state.
+
+Important:
+- The layer commit lives in the layer repo such as `meta-tuxbox`.
+- The pinned reference to that layer commit lives in the top-level
+  `build-environment` repo.
+- For normal daily work, do **not** `git pull` inside submodules manually. Use
+  `make update` / `make sync` to return to the recorded pinned state.
+
+Typical flow when you really want to advance a layer:
 
 ```bash
+# 1. Move the layer repo itself to the desired upstream state.
 cd meta-tuxbox
-git checkout master
-git pull
+git switch master
+git pull --ff-only
+
+# 2. Make and test your layer changes in the layer repo.
+git status
+# edit files
+git commit -am "..."
+git push
+
+# 3. Record the new pinned layer commit in the builder repo.
 cd ..
 git add meta-tuxbox
-git commit -m "Update meta-tuxbox"
+git commit -m "Update meta-tuxbox submodule pointer"
 ```
 
-Repeat for `meta-neutrino` if needed.
+Verification after the pointer update:
+
+```bash
+git status
+git submodule status
+```
+
+Expected result:
+- the layer repo contains the actual code commit,
+- the top-level repo contains only the submodule pointer update,
+- `git submodule status` shows the recorded commit for `meta-tuxbox`.
+
+Repeat the same pattern for `meta-neutrino` if needed.
 
 ## 7. Branch and tag policy
 
+- `build-environment`: official remote branch is `master`
 - Default branch: `master` (current Yocto line)
 - Maintenance branches: `gatesgarth`, `kirkstone`, etc.
 - Tags: `<codename>-<yocto_version>` (example: `kirkstone-4.0.12`)

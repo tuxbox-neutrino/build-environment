@@ -32,14 +32,14 @@ The file is generated as:
 - `image_update_info_file`: update info filename (default `imageversion`).
 - `image_manifest_file`: online manifest filename (default `manifest.json`).
 - `image_discovery_api_url`: optional API endpoint for discovery.
-- `image_update_key`: build-time **seed** for the portal Update Key.
+- `image_service_key`: build-time **seed** for the portal Service Key.
   Used on first boot to initialize the Neutrino setting if no user
   value is present, and as a recovery reference when inspecting an
   image manually. It is **not** a live runtime fallback — runtime
   callers never read this key from `/etc/image-version`. Neutrino
   alone resolves the effective key and passes it to the helper via
   `--key`. See
-  [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md).
+  [SERVICE-KEY.md](SERVICE-KEY.md).
 - `image_file_name`: update image archive filename.
 - `channel`: release channel (`release|beta|nightly`).
 - `flash_backend`: flash backend capability (`script` or `ofgwrite`).
@@ -65,7 +65,7 @@ The file is generated as:
 - `image_update_info_file`
 - `image_manifest_file`
 - `image_discovery_api_url`
-- `image_update_key`
+- `image_service_key`
 - `build_date` (canonical format: `YYYYMMDDHHMMSS`, shared with
   manifest `build_date` and the runtime selector
   `/usr/bin/flash <slot> online <build_date>`)
@@ -97,10 +97,10 @@ The class supports these optional overrides:
 - `TUXBOX_IMAGE_FILE_NAME` (default `${IMAGE_NAME}_${TUXBOX_IMAGE_FILE_SUFFIX}.zip`)
 - `TUXBOX_IMAGE_MANIFEST_FILE` (default `manifest.json`)
 - `TUXBOX_IMAGE_DISCOVERY_API_URL` (default empty)
-- `TUXBOX_ONLINE_UPDATE_KEY` (distro default; overridable via
-  `local.conf`; propagated to `image_update_key=` in
+- `TUXBOX_SERVICE_KEY` (distro default; overridable via
+  `local.conf`; propagated to `image_service_key=` in
   `/etc/image-version` and to Neutrino compile-time default via
-  `--with-online-update-key`)
+  `--with-service-key`)
 - `TUXBOX_VERSION_STAMP` (default `${TUXBOX_IMAGEBUILD}`)
 - `TUXBOX_VERSION_LINK_OS_RELEASE` (default `0`)
 - `TUXBOX_VERSION_LEGACY_LINK_TARGET` (default `/etc/image-version`)

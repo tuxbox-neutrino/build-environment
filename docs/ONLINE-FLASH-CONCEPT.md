@@ -3,7 +3,7 @@
 Date: 2026-04-12
 Status: design + implementation in progress
 
-Related: [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md),
+Related: [SERVICE-KEY.md](SERVICE-KEY.md),
 [FLASH-NEUTRINO-INTEGRATION-CONCEPT.md](FLASH-NEUTRINO-INTEGRATION-CONCEPT.md),
 [IMAGE-PORTAL-SERVICE-CONCEPT.md](IMAGE-PORTAL-SERVICE-CONCEPT.md)
 
@@ -144,8 +144,8 @@ New key for modern clients:
 
 - `image_manifest_file` (default: `manifest.json`)
 - `image_discovery_api_url` (optional portal/API endpoint)
-- `image_update_key` (build-time default for portal access; runtime override
-  via Neutrino settings. See [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md).)
+- `image_service_key` (build-time default for portal access; runtime override
+  via Neutrino settings. See [SERVICE-KEY.md](SERVICE-KEY.md).)
 
 Important:
 
@@ -199,14 +199,15 @@ flash-online-check --build <build_date> [--json]            # specific build
 Responsibilities:
 
 - load `/etc/image-version`,
-- consume the Update Key as `--key <value>` CLI argument (or, as a
-  headless fallback, from environment `TUXBOX_UPDATE_KEY`). The helper
+- consume the Service Key as `--key <value>` CLI argument (or, as a
+  headless fallback, from environment `TUXBOX_SERVICE_KEY`). The helper
   is a dumb transport: it never reads Neutrino settings, never reads
-  `image_update_key=` from `/etc/image-version`, and has no
+  `image_service_key=` from `/etc/image-version`, and has no
   compile-time default. Neutrino (the sole key owner) resolves the
   effective key and always passes it in via `--key`. See
-  [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md),
-- send the key as HTTP header `X-Tuxbox-Update-Key` on every request,
+  [SERVICE-KEY.md](SERVICE-KEY.md),
+- send the key as HTTP header `X-Tuxbox-Service-Key` on every request
+  (omitted entirely when key is empty — keyless/LAN mode),
 - fetch/validate `manifest.json` (fallback to legacy `imageversion` marker),
 - compare local vs remote version/build (default mode),
 - return the full available build list (`--catalog`),
@@ -232,8 +233,8 @@ Output:
 Portal HTTP responses are mapped to the stable exit codes below. 401
 (missing key) and 403 (invalid key) both collapse to exit `3`
 (preflight failure) because the user action is the same: check the
-Update Key setting. See
-[ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md#exit-code-mapping).
+Service Key setting. See
+[SERVICE-KEY.md](SERVICE-KEY.md#exit-code-mapping).
 
 ### Exit Codes (Stable)
 
@@ -380,7 +381,7 @@ Flashing an older build than the currently installed one is
 - When the new runtime is present, the legacy `CFlashUpdate` menu entry
   is **hidden**, not disabled. Showing two similar-looking flash flows
   in the same menu confuses users.
-- Shared settings (update server URL, update key, channel) live in
+- Shared settings (update server URL, service key, channel) live in
   exactly one place — the new "Online Flash Settings" container. They
   must not be duplicated between legacy and new menu trees.
 - On boxes where the new runtime is missing (old hardware, no profile),
@@ -431,7 +432,7 @@ all for inactive-slot flashes.
 
 A new "Flash Backup & Restore" container lives inside the Online Flash
 Settings menu (Neutrino-side, see
-[ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md#setting-placement)):
+[SERVICE-KEY.md](SERVICE-KEY.md#setting-placement)):
 
 ```
 Online Flash Settings
@@ -651,8 +652,8 @@ backup was still created and how to restore it manually if desired.
 
 ### Phase B: Runtime Helper + UI Integration
 
-- finalize Update Key build/runtime plumbing (see
-  [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md)),
+- finalize Service Key build/runtime plumbing (see
+  [SERVICE-KEY.md](SERVICE-KEY.md)),
 - add `flash-online-check`,
 - add new Neutrino online-flash manager (runtime-gated) and hide the
   legacy `CFlashUpdate` entry when the new runtime is present,
@@ -671,10 +672,10 @@ and out of scope for the STB-side rollout.
 - align the WebIF flow to the same runtime contracts and status model,
 - add OPKG job model with deterministic precheck + error mapping,
 - keep endpoint semantics stable for APIv4 clients,
-- WebIF daemon resolves the effective Update Key and passes it to
-  `flash-online-check` via `--key` or `TUXBOX_UPDATE_KEY`; the helper
-  itself stays stateless (see ONLINE-FLASH-UPDATE-KEY.md "Runtime
-  Transport Contract").
+- WebIF daemon resolves the effective Service Key and passes it to
+  `flash-online-check` via `--key` or `TUXBOX_SERVICE_KEY`; the helper
+  itself stays stateless (see SERVICE-KEY.md "Runtime Transport
+  Contract").
 
 ### Phase E: Hardening
 
@@ -710,8 +711,8 @@ Prioritize these build-side changes first:
 - multiboot targets default to `${IMAGE_NAME}_multi.zip`.
 3. Add feed marker generation in deploy (`imageversion`) if missing.
 4. Generate and publish `manifest.json` + SHA256 in image deploy pipeline.
-5. Add `TUXBOX_ONLINE_UPDATE_KEY` distro default in `tuxbox.conf` and
+5. Add `TUXBOX_SERVICE_KEY` distro default in `tuxbox.conf` and
    propagate to `/etc/image-version` + Neutrino compile-time default
-   (see [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md)).
+   (see [SERVICE-KEY.md](SERVICE-KEY.md)).
 
 Then implement runtime/UI changes.

@@ -4,7 +4,7 @@ Date: 2026-04-12
 Status: design + bootstrap implementation started
 
 Related: [ONLINE-FLASH-CONCEPT.md](ONLINE-FLASH-CONCEPT.md),
-[ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md)
+[SERVICE-KEY.md](SERVICE-KEY.md)
 
 ## Goal
 
@@ -212,18 +212,20 @@ Per image detail page:
 
 ## Security Model
 
-### Update Key (Phase 1 access gate)
+### Service Key (Phase 1 access gate)
 
-Every catalog and download endpoint is gated by a shared Update Key,
-sent as HTTP header `X-Tuxbox-Update-Key`. Full contract in
-[ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md).
+When configured, every catalog and download endpoint is gated by a
+shared Service Key, sent as HTTP header `X-Tuxbox-Service-Key`.
+The key is optional — when unconfigured on both sides, the portal
+operates without authentication (LAN mode).  Full contract in
+[SERVICE-KEY.md](SERVICE-KEY.md).
 
-Portal behavior:
+Portal behavior (when key validation is active):
 
 - **Missing header** -> `401 Unauthorized`,
-  body `{ "error": "missing_update_key" }`.
+  body `{ "error": "missing_service_key" }`.
 - **Invalid key** -> `403 Forbidden`,
-  body `{ "error": "invalid_update_key" }`.
+  body `{ "error": "invalid_service_key" }`.
 - Valid key -> normal response.
 
 Implementation requirements:
@@ -444,8 +446,8 @@ Implemented baseline:
 
 Open follow-up work:
 
-1. Implement Update Key validation on all API endpoints
-   (see [ONLINE-FLASH-UPDATE-KEY.md](ONLINE-FLASH-UPDATE-KEY.md)).
+1. Implement Service Key validation on all API endpoints
+   (see [SERVICE-KEY.md](SERVICE-KEY.md)).
 2. Add multi-arch Docker build (`linux/amd64`, `linux/arm64`,
    `linux/arm/v7`) with docker-compose reference deployment.
 3. Complete production key-management rollout for manifest signature

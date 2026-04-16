@@ -796,7 +796,8 @@ class TuxboxBuilder:
         commit = self._git_output(path, ['rev-parse', '--short', 'HEAD']) or "-"
         if branch and branch != 'HEAD':
             return ("branch", branch, commit)
-        name = self._git_output(path, ['name-rev', '--name-only', '--no-undefined', 'HEAD'])
+        name = self._git_output(path, ['name-rev', '--name-only', '--no-undefined',
+                                        '--exclude', 'refs/remotes/origin/HEAD', 'HEAD'])
         if name:
             return ("detached", name, commit)
         return ("detached", "-", commit)

@@ -847,6 +847,7 @@ update-upstream up-upstream:
 	@echo -e "$(COLOR_YELLOW)Test your build, then pin the result for other users.$(COLOR_RESET)"
 	@echo -e "$(COLOR_BOLD)Updating submodules to upstream HEAD (unpinned)...$(COLOR_RESET)"
 	@git submodule update --remote --recursive
+	@$(MAKE) --no-print-directory checkout-branches
 	@echo -e "$(COLOR_GREEN)Submodules updated (unpinned). Test your build before committing.$(COLOR_RESET)"
 	@echo -e "$(COLOR_YELLOW)Run make update (or make up) to return to the stable pinned state.$(COLOR_RESET)"
 
@@ -874,7 +875,23 @@ sync:
 			git submodule update --init --recursive "$$path"; \
 		done < <(git config -f .gitmodules --get-regexp path); \
 	fi
+	@$(MAKE) --no-print-directory checkout-branches
 	@echo -e "$(COLOR_GREEN)Repository and submodules updated.$(COLOR_RESET)"
+
+# Check out configured branch in each submodule so layer metadata shows
+# the real branch name instead of "HEAD" (detached).  The pinned commit
+# stays unchanged – we only move the local branch pointer to match.
+.PHONY: checkout-branches
+checkout-branches:
+	@git submodule foreach --quiet ' \
+		branch=$$(git config -f "$$toplevel/.gitmodules" submodule.$$name.branch 2>/dev/null); \
+		if [ -n "$$branch" ]; then \
+			pinned=$$(git rev-parse HEAD); \
+			current=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null); \
+			if [ "$$current" = "HEAD" ]; then \
+				git checkout -B "$$branch" "$$pinned" --quiet 2>/dev/null || true; \
+			fi; \
+		fi'
 
 .PHONY: list-machines
 list-machines:

@@ -423,7 +423,17 @@ is already invoked before every **active-slot** flash (see
 `meta-tuxbox/recipes-local/flash-script/files/flash-backend-ofgwrite.sh`).
 It calls `backup.sh` against `tobackup.conf` and stores a tar.gz
 under `FLASH_ACTIVE_SLOT_BACKUP_DIR`
-(default `/media/hdd/backup/flash-active-slot`).
+(default `/var/volatile/flash-backup` — tmpfs, survives pivot_root
+but not reboot; pick a path on external/unwiped storage if you need
+post-reboot rollback).
+
+Before writing the backup the dispatcher runs a runtime space check
+(`check_backup_space`): free KB on the destination filesystem must be
+at least `du -sk` of the sources listed in `tobackup.conf` plus
+`FLASH_ACTIVE_SLOT_BACKUP_MIN_FREE_KB` (default 51200 = 50 MB). This
+avoids silently filling tmpfs (RAM) when the default
+`/var/volatile/flash-backup` is used. Override the source config via
+`FLASH_ACTIVE_SLOT_BACKUP_SRC_CONF`.
 
 Today this runs unconditionally for active-slot flashes and not at
 all for inactive-slot flashes.

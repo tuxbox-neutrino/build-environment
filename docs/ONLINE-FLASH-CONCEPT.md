@@ -1,7 +1,8 @@
 # Online Flash Concept (Neutrino + Yocto/OE Deploy)
 
-Date: 2026-04-12
+Date: 2026-04-20
 Status: design + implementation in progress
+(Restore flow Schritt A+B shipped; see "Schritt A+B (implemented)")
 
 Related: [SERVICE-KEY.md](SERVICE-KEY.md),
 [FLASH-NEUTRINO-INTEGRATION-CONCEPT.md](FLASH-NEUTRINO-INTEGRATION-CONCEPT.md),
@@ -506,6 +507,18 @@ must not be conflated with the active-slot safety variables.
 
 ### Restore flow
 
+**Implementation status (2026-04-20): shipped, with a simpler
+injection path than the original concept.** The `flash-ofgwrite-handoff`
+libexec helper described below was not built. Instead, ofgwrite
+itself grew the injection CLI (`--inject-backup`, `--inject-marker`,
+`--keep-last`) and the dispatcher forwards the staged files directly
+to it. The target-rootfs decision and the marker/backup layout below
+are unchanged and current. The first-boot restore is an unattended
+systemd oneshot service, not a Neutrino prompt — see "Schritt A+B
+(implemented)" after this section for the actual code paths. The
+user prompt variant ("Offer restore after flash") is deferred to
+Phase 2.
+
 **Marker and backup location (decision 2026-04-12):** both the
 restore marker and the tar.gz backup are written **into the target
 slot's rootfs**, not into the currently running slot. This piggybacks
@@ -562,7 +575,81 @@ future flashes: each flash writes its own backup into its own target
 slot, so the backup is always co-located with the slot it was taken
 against.
 
+### Schritt A+B (implemented)
+
+The restore flow shipped in two parts. Both are live on HD60 as of
+2026-04-20.
+
+**Schritt A — injection on the flash side (ofgwrite + dispatcher):**
+
+- `ofgwrite` gained three CLI flags:
+  - `--inject-backup=<path>`: copy a tarball into the freshly
+    extracted target rootfs under
+    `<target_rootfs>/var/lib/neutrino-backups/<basename>`.
+  - `--inject-marker=<path>`: copy a JSON marker into the target
+    rootfs under `<target_rootfs>/etc/neutrino/flash-restore-pending.conf`.
+  - `--keep-last=<n>`: prune older tarballs in the target slot's
+    `/var/lib/neutrino-backups/` after injection (best-effort retention;
+    effectively no-op today because each target slot only ever
+    receives one backup per flash — kept in place as API stability).
+- `flash-backend-ofgwrite.sh:run_active_slot_backup()` stages the
+  tarball **and** a marker JSON in `/var/volatile/flash-backup/`
+  (tmpfs, bind-mounted through ofgwrite's pivot_root) and appends
+  `--inject-backup=... --inject-marker=... --keep-last=...` to the
+  transient-unit `ExecStart=` of the active-slot flash. Paths stay
+  valid across pivot_root because the source directory is the bind
+  mount that ofgwrite preserves.
+- The marker JSON is a flat, one-field-per-line document with the
+  fields `schema_version=1`, `backup_file`, `backup_relpath`,
+  `source_slot`, `target_slot`, `timestamp_utc`. `backup_relpath` is
+  the absolute path inside the new rootfs where the tarball will
+  land (always `/var/lib/neutrino-backups/<basename>`).
+- Active-slot path is fully covered today. Inactive-slot injection
+  (non-active target) was not in scope for Schritt A and is still
+  deferred; the backup layer in that case stays at the legacy
+  pre-flash location.
+
+**Schritt B — first-boot restore (meta-tuxbox):**
+
+- Added to `flash-script_git.bb`:
+  - `tuxbox-flash-restore.service` — systemd oneshot,
+    `ConditionPathExists=/etc/neutrino/flash-restore-pending.conf`,
+    `Before=neutrino.service`, `After=local-fs.target`, auto-enabled
+    via `SYSTEMD_SERVICE:${PN}` + `SYSTEMD_AUTO_ENABLE:${PN} =
+    "enable"`.
+  - `tuxbox-flash-restore.sh` installed as
+    `/usr/libexec/tuxbox/tuxbox-flash-restore.sh`. Busybox-safe POSIX
+    shell: awk-based JSON field extractor for the flat marker
+    format, `tar -xzpf <tarball> -C /`, then `rm -f` on the marker.
+  - Idempotent: exits 0 silently if the marker is gone. On tar
+    failure the marker is left in place so the next boot retries.
+  - Runs **before** `neutrino.service` so Neutrino sees the
+    restored config on first start. No user prompt, no Neutrino code
+    involved.
+- `RDEPENDS:${PN}` remains unchanged; no new packages needed.
+
+**Delta vs the original concept:**
+
+- The `flash-ofgwrite-handoff` libexec helper described below was
+  **not** built. The job it was supposed to do (stage backup + write
+  marker into the target rootfs) is done inside ofgwrite via the
+  inject flags. One fewer shell layer, no cross-slot coordination.
+- Restore is unattended (systemd service) instead of an opt-in
+  Neutrino prompt. Trade-off accepted for v1: the marker is only
+  present if the dispatcher just flashed this slot, so auto-restore
+  has the same effective scope as "prompt and user clicks yes".
+  Phase 2 can still add a Neutrino-side prompt by switching the unit
+  to write to an intermediate marker and letting Neutrino run the
+  extraction.
+
 ### Internal libexec handoff helper
+
+**Status: superseded.** Kept here for reference only. The responsibilities
+described below were absorbed into the `ofgwrite` binary itself via
+`--inject-backup` / `--inject-marker` / `--keep-last` (see
+"Schritt A+B (implemented)" above). No such helper exists in the
+runtime today, and none is planned. The section is retained so older
+plan references stay resolvable.
 
 The libexec-side handoff helper is the single choke point every
 flash path goes through after `backup.sh` has produced the staged

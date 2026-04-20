@@ -510,9 +510,8 @@ must not be conflated with the active-slot safety variables.
 **Implementation status (2026-04-20): shipped, with a simpler
 injection path than the original concept.** The `flash-ofgwrite-handoff`
 libexec helper described below was not built. Instead, ofgwrite
-itself grew the injection CLI (`--inject-backup`, `--inject-marker`,
-`--keep-last`) and the dispatcher forwards the staged files directly
-to it. The target-rootfs decision and the marker/backup layout below
+itself grew the injection CLI (`--inject-backup`, `--inject-marker`)
+and the dispatcher forwards the staged files directly to it. The target-rootfs decision and the marker/backup layout below
 are unchanged and current. The first-boot restore is an unattended
 systemd oneshot service, not a Neutrino prompt — see "Schritt A+B
 (implemented)" after this section for the actual code paths. The
@@ -582,23 +581,23 @@ The restore flow shipped in two parts. Both are live on HD60 as of
 
 **Schritt A — injection on the flash side (ofgwrite + dispatcher):**
 
-- `ofgwrite` gained three CLI flags:
+- `ofgwrite` gained two CLI flags:
   - `--inject-backup=<path>`: copy a tarball into the freshly
     extracted target rootfs under
     `<target_rootfs>/var/lib/neutrino-backups/<basename>`.
   - `--inject-marker=<path>`: copy a JSON marker into the target
     rootfs under `<target_rootfs>/etc/neutrino/flash-restore-pending.conf`.
-  - `--keep-last=<n>`: prune older tarballs in the target slot's
-    `/var/lib/neutrino-backups/` after injection (best-effort retention;
-    effectively no-op today because each target slot only ever
-    receives one backup per flash — kept in place as API stability).
+  - ofgwrite also accepts `--keep-last=<n>` for backup retention in
+    the target slot. The dispatcher does **not** pass it today: each
+    target slot only ever receives one backup per flash, so there is
+    nothing to prune. Kept available in ofgwrite for future use.
 - `flash-backend-ofgwrite.sh:run_active_slot_backup()` stages the
   tarball **and** a marker JSON in `/var/volatile/flash-backup/`
   (tmpfs, bind-mounted through ofgwrite's pivot_root) and appends
-  `--inject-backup=... --inject-marker=... --keep-last=...` to the
-  transient-unit `ExecStart=` of the active-slot flash. Paths stay
-  valid across pivot_root because the source directory is the bind
-  mount that ofgwrite preserves.
+  `--inject-backup=... --inject-marker=...` to the transient-unit
+  `ExecStart=` of the active-slot flash. Paths stay valid across
+  pivot_root because the source directory is the bind mount that
+  ofgwrite preserves.
 - The marker JSON is a flat, one-field-per-line document with the
   fields `schema_version=1`, `backup_file`, `backup_relpath`,
   `source_slot`, `target_slot`, `timestamp_utc`. `backup_relpath` is
@@ -646,7 +645,7 @@ The restore flow shipped in two parts. Both are live on HD60 as of
 
 **Status: superseded.** Kept here for reference only. The responsibilities
 described below were absorbed into the `ofgwrite` binary itself via
-`--inject-backup` / `--inject-marker` / `--keep-last` (see
+`--inject-backup` / `--inject-marker` (see
 "Schritt A+B (implemented)" above). No such helper exists in the
 runtime today, and none is planned. The section is retained so older
 plan references stay resolvable.

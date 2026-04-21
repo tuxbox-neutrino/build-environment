@@ -59,12 +59,12 @@ Target delta:
 
 Canonical repository:
 
-- `git@github.com:tuxbox-neutrino/image-portal-service.git`
+- `git@github.com:tuxbox-neutrino/online-portal-service.git`
 
 Suggested structure:
 
 ```text
-image-portal-service/
+online-portal-service/
   api/                    # backend (PHP 8.3, strict types)
   web/                    # static frontend (cards/tables/search)
   schemas/
@@ -279,7 +279,7 @@ Phase 2:
 Add dedicated recipe in a separate service layer/repository
 (`meta-tuxbox-services`), not in default STB image layers:
 
-- `recipes-support/image-portal/image-portal-service_git.bb`
+- `recipes-support/image-portal/online-portal-service_git.bb`
 
 Recipe responsibilities:
 
@@ -323,14 +323,14 @@ Dockerfile constraints:
   - `linux/arm64`,
   - `linux/arm/v7` (Raspberry Pi),
 - release tags pushed to GHCR under
-  `ghcr.io/tuxbox-neutrino/image-portal-service`.
+  `ghcr.io/tuxbox-neutrino/online-portal-service`.
 
 Runtime configuration via `docker-compose.yml` + `.env`:
 
 ```yaml
 services:
   portal:
-    image: ghcr.io/tuxbox-neutrino/image-portal-service:latest
+    image: ghcr.io/tuxbox-neutrino/online-portal-service:latest
     ports:
       - "${PORTAL_PORT:-8080}:80"
     environment:
@@ -435,7 +435,7 @@ Implemented baseline:
     - `tools/build-catalog.php`
 
 - Packaging scaffold in `meta-tuxbox`:
-  - `recipes-support/image-portal/image-portal-service_git.bb`
+  - `recipes-support/image-portal/online-portal-service_git.bb`
   - installs runtime under `/usr/share/image-portal`
   - adds catalog refresh helper + systemd timer
   - adds nginx vhost template

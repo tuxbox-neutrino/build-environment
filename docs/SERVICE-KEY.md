@@ -7,7 +7,7 @@ Deutsch: [de/SERVICE-KEY.md](de/SERVICE-KEY.md)
 
 ## Purpose
 
-The image portal service (`tuxbox-neutrino/image-portal-service`) can
+The image portal service (`tuxbox-neutrino/online-portal-service`) can
 be hosted on the public internet or in a private LAN.  When exposed
 publicly, catalog and download endpoints should be gated by a shared
 **Service Key** that travels:
@@ -96,7 +96,7 @@ Neutrino invokes  flash-online-check --key <effective> ...
 HTTP request: X-Tuxbox-Service-Key: <key>   (or no header if empty)
     |
     v
-image-portal-service validates header (or skips if keyless mode)
+online-portal-service validates header (or skips if keyless mode)
 ```
 
 The same pattern is used today for `TMDB_DEV_KEY`, `OMDB_API_KEY` and

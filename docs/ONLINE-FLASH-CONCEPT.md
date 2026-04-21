@@ -750,7 +750,10 @@ backup was still created and how to restore it manually if desired.
 
 - finalize Service Key build/runtime plumbing (see
   [SERVICE-KEY.md](SERVICE-KEY.md)),
-- add `flash-online-check`,
+- add `flash-online-check` (MVP latest-check shipped in flash-script
+  r29; auto-detects portal-wrapper `{ok,item:{...}}` vs. direct
+  `manifest.json`, exit codes per SERVICE-KEY.md;
+  `--catalog` / `--build` deferred to Phase 2),
 - add new Neutrino online-flash manager (runtime-gated) and hide the
   legacy `CFlashUpdate` entry when the new runtime is present,
 - do not modify legacy `CFlashUpdate` implementation.

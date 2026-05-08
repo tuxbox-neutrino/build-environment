@@ -29,12 +29,14 @@ REQUIRED_CMDS=(
     unzip
     wget
     curl
+    luajit
     chrpath
     cpio
     file
 )
 
 MISSING=()
+CHECK_FAILED=0
 
 for cmd in "${REQUIRED_CMDS[@]}"; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -50,11 +52,32 @@ if [ ${#MISSING[@]} -ne 0 ]; then
     echo "sudo apt install -y gawk wget git diffstat unzip texinfo \\"
     echo "  gcc g++ build-essential chrpath socat cpio python3 python3-pip \\"
     echo "  python3-pexpect xz-utils debianutils iputils-ping python3-git \\"
-    echo "  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl"
-    exit 1
+    echo "  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl luajit"
+    CHECK_FAILED=1
+else
+    echo -e "${GREEN}✓ All required tools found${NC}"
 fi
 
-echo -e "${GREEN}✓ All required tools found${NC}"
+if [ "$(uname -m)" = "x86_64" ] && command -v gcc >/dev/null 2>&1 && command -v g++ >/dev/null 2>&1; then
+    TMPDIR_CHECK=$(mktemp -d)
+    trap 'rm -rf "$TMPDIR_CHECK"' EXIT
+    printf 'int main(void) { return 0; }\n' > "$TMPDIR_CHECK/test.c"
+    printf 'int main() { return 0; }\n' > "$TMPDIR_CHECK/test.cpp"
+    if ! gcc -m32 "$TMPDIR_CHECK/test.c" -o "$TMPDIR_CHECK/gcc-m32-test" >/dev/null 2>&1 ||
+       ! g++ -m32 "$TMPDIR_CHECK/test.cpp" -o "$TMPDIR_CHECK/gxx-m32-test" >/dev/null 2>&1; then
+        echo -e "${RED}Missing 32-bit compiler/multilib support (gcc/g++ -m32)${NC}"
+        echo ""
+        echo -e "${YELLOW}Install on Debian/Ubuntu:${NC}"
+        echo "sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386"
+        CHECK_FAILED=1
+    else
+        echo -e "${GREEN}✓ 32-bit compiler/multilib support OK${NC}"
+    fi
+fi
+
+if [ "$CHECK_FAILED" -ne 0 ]; then
+    exit 1
+fi
 
 # Check Python version
 PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')

@@ -34,7 +34,8 @@ sudo apt update
 sudo apt install -y gawk wget git diffstat unzip texinfo \
   gcc g++ build-essential chrpath socat cpio python3 python3-pip \
   python3-pexpect xz-utils debianutils iputils-ping python3-git \
-  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl
+  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl \
+  luajit
 ```
 
 For 32-bit target builds on a 64-bit host (for example `armhf` machines such as
@@ -43,6 +44,8 @@ HD60/HD61):
 ```bash
 sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386
 ```
+
+`make check` verifies this with a real `gcc -m32` and `g++ -m32` compile test.
 
 Optional but recommended locale check:
 

@@ -9,10 +9,12 @@ Manages OE-Alliance integration, submodules, configuration, and builds.
 import argparse
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -172,8 +174,9 @@ class TuxboxBuilder:
         self.log("Checking system prerequisites...", Colors.BOLD, bold=True)
 
         required_cmds = [
-            'git', 'gcc', 'make', 'python3', 'patch', 'diffstat',
-            'tar', 'gzip', 'bzip2', 'xz', 'unzip', 'wget', 'curl'
+            'git', 'gcc', 'g++', 'make', 'python3', 'patch', 'diffstat',
+            'tar', 'gzip', 'bzip2', 'xz', 'unzip', 'wget', 'curl',
+            'luajit'
         ]
 
         missing = []
@@ -182,13 +185,24 @@ class TuxboxBuilder:
             if result.returncode != 0:
                 missing.append(cmd)
 
+        multilib_missing = False
+        if platform.machine() in ('x86_64', 'amd64') and 'gcc' not in missing and 'g++' not in missing:
+            multilib_missing = not self._check_multilib_compiler()
+
         if missing:
             self.error(f"Missing required tools: {', '.join(missing)}")
             self.info("\nInstall on Debian/Ubuntu:")
             self.info("sudo apt install -y gawk wget git diffstat unzip texinfo \\")
-            self.info("  gcc build-essential chrpath socat cpio python3 python3-pip \\")
+            self.info("  gcc g++ build-essential chrpath socat cpio python3 python3-pip \\")
             self.info("  python3-pexpect xz-utils debianutils iputils-ping python3-git \\")
-            self.info("  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1")
+            self.info("  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 luajit")
+
+        if multilib_missing:
+            self.error("Missing 32-bit compiler/multilib support (gcc/g++ -m32)")
+            self.info("\nInstall on Debian/Ubuntu:")
+            self.info("sudo apt install -y gcc-multilib g++-multilib libc6-dev-i386")
+
+        if missing or multilib_missing:
             return False
 
         # Check disk space
@@ -207,6 +221,27 @@ class TuxboxBuilder:
             return False
 
         self.success("All prerequisites met")
+        return True
+
+    def _check_multilib_compiler(self) -> bool:
+        """Verify that 32-bit host binaries can be built on 64-bit hosts."""
+        checks = [
+            ('gcc', 'int main(void) { return 0; }', 'test.c'),
+            ('g++', 'int main() { return 0; }', 'test.cpp'),
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            for compiler, source, filename in checks:
+                src = tmp / filename
+                out = tmp / f'{compiler}-m32-test'
+                src.write_text(source)
+                result = self.run_cmd(
+                    [compiler, '-m32', str(src), '-o', str(out)],
+                    capture=True,
+                    check=False,
+                )
+                if result.returncode != 0:
+                    return False
         return True
 
     def init_submodules(self):

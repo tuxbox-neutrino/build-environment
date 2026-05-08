@@ -175,7 +175,7 @@ class TuxboxBuilder:
 
         required_cmds = [
             'git', 'gcc', 'g++', 'make', 'python3', 'patch', 'diffstat',
-            'tar', 'gzip', 'bzip2', 'xz', 'unzip', 'wget', 'curl',
+            'tar', 'gzip', 'bzip2', 'xz', 'lz4', 'unzip', 'wget', 'curl',
             'luajit'
         ]
 
@@ -195,7 +195,7 @@ class TuxboxBuilder:
             self.info("sudo apt install -y gawk wget git diffstat unzip texinfo \\")
             self.info("  gcc g++ build-essential chrpath socat cpio python3 python3-pip \\")
             self.info("  python3-pexpect xz-utils debianutils iputils-ping python3-git \\")
-            self.info("  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 luajit")
+            self.info("  python3-jinja2 python3-subunit zstd lz4 file locales libacl1 luajit")
 
         if multilib_missing:
             self.error("Missing 32-bit compiler/multilib support (gcc/g++ -m32)")

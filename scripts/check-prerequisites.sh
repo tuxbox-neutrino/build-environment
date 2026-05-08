@@ -26,6 +26,7 @@ REQUIRED_CMDS=(
     gzip
     bzip2
     xz
+    lz4
     unzip
     wget
     curl
@@ -52,7 +53,7 @@ if [ ${#MISSING[@]} -ne 0 ]; then
     echo "sudo apt install -y gawk wget git diffstat unzip texinfo \\"
     echo "  gcc g++ build-essential chrpath socat cpio python3 python3-pip \\"
     echo "  python3-pexpect xz-utils debianutils iputils-ping python3-git \\"
-    echo "  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl luajit"
+    echo "  python3-jinja2 python3-subunit zstd lz4 file locales libacl1 curl luajit"
     CHECK_FAILED=1
 else
     echo -e "${GREEN}✓ All required tools found${NC}"

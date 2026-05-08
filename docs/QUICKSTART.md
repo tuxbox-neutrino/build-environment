@@ -34,7 +34,7 @@ sudo apt update
 sudo apt install -y gawk wget git diffstat unzip texinfo \
   gcc g++ build-essential chrpath socat cpio python3 python3-pip \
   python3-pexpect xz-utils debianutils iputils-ping python3-git \
-  python3-jinja2 python3-subunit zstd liblz4-tool file locales libacl1 curl \
+  python3-jinja2 python3-subunit zstd lz4 file locales libacl1 curl \
   luajit
 ```
 

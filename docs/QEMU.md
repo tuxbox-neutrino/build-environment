@@ -144,12 +144,14 @@ If you see failed units, treat them as regressions to investigate.
 ## opkg Feeds
 
 `tuxbox-feed-config` generates `/etc/opkg/base-feeds.conf` when
-`IPK_FEED_SERVER` or `FEED_DEPLOYDIR_BASE_URI` is set at build time.
+`IPK_FEED_SERVER` or `FEED_DEPLOYDIR_BASE_URI` is set at build time. The
+builder now creates `builds/conf/local-feed.inc` automatically, so normal
+`make image` and `make feeds` runs point new images at the local feed server.
 
-Example (host HTTP server pointing at build deploy dir):
+Default host URL:
 
-```conf
-IPK_FEED_SERVER = "http://192.168.1.202:33333/tmp-${MACHINE}/deploy/ipk"
+```text
+http://<host-ip>:33333/<MACHINE>/ipk
 ```
 
 Then inside QEMU:
@@ -158,6 +160,19 @@ Then inside QEMU:
 opkg update
 opkg install <pkg>
 ```
+
+Useful host commands:
+
+```bash
+make feed-server-url MACHINE=qemux86-64
+make feed-server-urls
+make feed-server-start-all
+make feed-server-status
+make feed-server-stop
+```
+
+Override `IPK_FEED_SERVER` in `builds/conf/local.conf.user.inc` for a public
+or custom feed URL. Use `LOCAL_FEED=0` to suppress the generated local default.
 
 ## Rootfs Size (opkg Testing)
 

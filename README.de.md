@@ -24,7 +24,7 @@ Das passiert dabei:
 2. Du prüfst Host-Abhängigkeiten.
 3. Du führst den sicheren Zwei-Phasen-Sync für Repository und gepinnte
    Submodule aus (`make update`, sicherer Standard).
-4. Du baust dein erstes Image.
+4. Du baust dein erstes Image und bereitest dafür einen lokalen IPK-Feed vor.
 
 Wenn `make check` fehlende Pakete meldet, nutze den Abhängigkeits-Abschnitt in
 [docs/de/QUICKSTART.md](docs/de/QUICKSTART.md).
@@ -48,6 +48,9 @@ make update
 
 # Image bauen (nutzt vorhandene Konfiguration weiter)
 make image MACHINE=hd51 MACHINEBUILD=mutant51
+
+# Feed-URL anzeigen, die in neue Images geschrieben wird
+make feed-server-url MACHINE=hd51
 
 # Optional: Build-Artefakte löschen, Caches behalten
 make clean
@@ -156,6 +159,50 @@ und nicht Teil des empfohlenen Standard-Workflows.
 Details stehen in der separaten Anleitung:
 
 - [Toaster (Experimentell)](docs/de/TOASTER_EXPERIMENTAL.md)
+
+## Lokaler IPK-Feed
+
+`make image` und `make feeds` veröffentlichen den aktuellen `deploy/ipk`-Baum
+unter `feed-server/www/<MACHINE>/ipk` und starten einen kleinen statischen
+HTTP-Server. Die erzeugte Feed-Konfiguration im Image zeigt auf:
+
+```text
+http://<host-ip>:33333/<MACHINE>/ipk
+```
+
+Im Image reicht danach:
+
+```bash
+opkg update
+opkg install <paket>
+```
+
+Nützliche Kommandos:
+
+```bash
+make feed-server-url MACHINE=hd60
+make feed-server-urls
+make feed-server-start-all
+make feed-server-status
+make feed-server-stop
+```
+
+Wenn `lighttpd` installiert ist, nutzt der Builder ihn; sonst fällt er auf
+`python3 -m http.server` zurück. Port `33333/tcp` muss in der Host-Firewall
+erlaubt sein, wenn die Box den Feed im Heimnetz erreichen soll.
+
+Für einen öffentlichen Feed überschreibst du die URL in
+`builds/conf/local.conf.user.inc`:
+
+```conf
+IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
+```
+
+Der automatische lokale Feed-Default lässt sich pro Build deaktivieren:
+
+```bash
+make image MACHINE=hd60 LOCAL_FEED=0
+```
 
 ## Image-Portal Feed-Workflow
 

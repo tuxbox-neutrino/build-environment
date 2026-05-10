@@ -24,7 +24,7 @@ What this does:
 2. Checks host dependencies.
 3. Runs the safe two-phase sync for the repository and pinned submodule
    commits (`make update`, safe default).
-4. Builds your first image.
+4. Builds your first image and prepares a local IPK feed for it.
 
 Fastboot/multiboot machines such as HD60 include the STB Lua plugin bundle by
 default in the image. That covers runtime tools such as `stb-startup`,
@@ -47,6 +47,9 @@ make update
 
 # Build image (reuses existing config)
 make image MACHINE=hd51 MACHINEBUILD=mutant51
+
+# Show the feed URL that is embedded in new images
+make feed-server-url MACHINE=hd51
 
 # Optional: clean build artifacts but keep shared caches
 make clean
@@ -161,6 +164,50 @@ make toaster-import-build
 Defaults:
 - `TOASTER_IMPORT_NAME=$(DISTRO)-build`
 - `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
+
+## Local IPK Feed
+
+`make image` and `make feeds` publish the current `deploy/ipk` tree under
+`feed-server/www/<MACHINE>/ipk` and start a small static HTTP server. The
+generated image feed config points to:
+
+```text
+http://<host-ip>:33333/<MACHINE>/ipk
+```
+
+Inside the image, run:
+
+```bash
+opkg update
+opkg install <package>
+```
+
+Useful commands:
+
+```bash
+make feed-server-url MACHINE=hd60
+make feed-server-urls
+make feed-server-start-all
+make feed-server-status
+make feed-server-stop
+```
+
+`lighttpd` is used when installed; otherwise the builder falls back to
+`python3 -m http.server`. Allow TCP port `33333` through the host firewall if
+the box should reach the feed from your LAN.
+
+To use a public feed instead, override the URL in
+`builds/conf/local.conf.user.inc`:
+
+```conf
+IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
+```
+
+To disable the automatic local feed default for a build:
+
+```bash
+make image MACHINE=hd60 LOCAL_FEED=0
+```
 
 ## Image Portal Feed Workflow
 

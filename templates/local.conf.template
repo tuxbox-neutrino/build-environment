@@ -309,5 +309,8 @@ DEFAULT_TIMEZONE = "Europe/Berlin"
 # Avoid: slashes in IMAGE_NAME (must be a filename)
 # Avoid: changing IMAGE_NAME_SUFFIX unless your tooling expects it
 #
+# Generated local IPK feed default. User overrides below can replace
+# IPK_FEED_SERVER with a public or disabled feed configuration.
+include conf/local-feed.inc
 include conf/local.conf.user.inc
 include conf/local.conf.${MACHINE}.inc

@@ -74,6 +74,14 @@ PORTAL_SYNC_DEST ?=
 PORTAL_RSYNC_OPTS ?= -a
 PORTAL_SYNC_DRYRUN ?= 1
 PORTAL_SYNC_DELETE ?=
+LOCAL_FEED ?= 1
+LOCAL_FEED_PORT ?= 33333
+LOCAL_FEED_HOST ?= auto
+LOCAL_FEED_BIND ?= 0.0.0.0
+LOCAL_FEED_BACKEND ?= auto
+LOCAL_FEED_BASE_URL ?=
+FEED_SERVER_SCRIPT := $(TOPDIR)/scripts/feed-server.sh
+LOCAL_FEED_ENV = LOCAL_FEED="$(LOCAL_FEED)" LOCAL_FEED_PORT="$(LOCAL_FEED_PORT)" LOCAL_FEED_HOST="$(LOCAL_FEED_HOST)" LOCAL_FEED_BIND="$(LOCAL_FEED_BIND)" LOCAL_FEED_BACKEND="$(LOCAL_FEED_BACKEND)" LOCAL_FEED_BASE_URL="$(LOCAL_FEED_BASE_URL)"
 
 # Build directories
 DEFAULT_BUILDDIR := $(TOPDIR)/builds
@@ -169,6 +177,11 @@ help:
 	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)  (or $(COLOR_GREEN)make up$(COLOR_RESET))               Update repo + pinned submodules (safe/default)"
 	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Same as make update (safe/pinned)"
 	@echo -e "  $(COLOR_GREEN)make update-upstream$(COLOR_RESET)  (or $(COLOR_GREEN)make up-upstream$(COLOR_RESET))  Update submodules to upstream HEAD (DEV ONLY, unpinned)"
+	@echo -e "  $(COLOR_GREEN)make feed-server-url MACHINE=hd60$(COLOR_RESET)    Show local IPK feed URL"
+	@echo -e "  $(COLOR_GREEN)make feed-server-urls$(COLOR_RESET)                Show all published local IPK feed URLs"
+	@echo -e "  $(COLOR_GREEN)make feed-server-start MACHINE=hd60$(COLOR_RESET)  Start local IPK feed server"
+	@echo -e "  $(COLOR_GREEN)make feed-server-start-all$(COLOR_RESET)           Publish all deploy/ipk feeds and start server"
+	@echo -e "  $(COLOR_GREEN)make feed-server-stop$(COLOR_RESET)                Stop local IPK feed server"
 	@echo -e "  $(COLOR_GREEN)make portal-catalog MACHINE=hd60$(COLOR_RESET)    Build portal feed stage + catalog"
 	@echo -e "  $(COLOR_GREEN)make portal-sync PORTAL_SYNC_DEST=user@host:/srv/tuxbox/feed$(COLOR_RESET)  Sync portal feed via rsync"
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
@@ -230,6 +243,12 @@ help:
 	@echo -e "  PORTAL_SYNC_DEST Rsync destination for make portal-sync"
 	@echo -e "  PORTAL_SYNC_DRYRUN Enable dry-run for portal sync (default: 1)"
 	@echo -e "  PORTAL_SYNC_DELETE Enable --delete for portal sync (default: 0)"
+	@echo -e "  LOCAL_FEED Enable local IPK feed defaults (default: 1)"
+	@echo -e "  LOCAL_FEED_PORT Local IPK feed HTTP port (default: 33333)"
+	@echo -e "  LOCAL_FEED_HOST Local feed URL host or auto (default: auto)"
+	@echo -e "  LOCAL_FEED_BIND Local feed bind address (default: 0.0.0.0)"
+	@echo -e "  LOCAL_FEED_BACKEND Feed server backend: auto|lighttpd|python"
+	@echo -e "  LOCAL_FEED_BASE_URL Explicit full feed URL override"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"
@@ -278,7 +297,7 @@ endif
 image: init
 ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)"
-	@$(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
+	@$(LOCAL_FEED_ENV) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
 else
 ifeq ($(MACHINE_EXPLICIT),)
 	@echo -e "$(COLOR_BOLD)Building image using existing config...$(COLOR_RESET)"
@@ -293,6 +312,50 @@ endif
 qemu-run:
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(QEMU_MACHINE) IMAGE=$(QEMU_IMAGE) BUILD_DIR=$(QEMU_BUILD_DIR) ./scripts/qemu/run-qemu.sh $(QEMU_ARGS)"
 	@MACHINE=$(QEMU_MACHINE) IMAGE=$(QEMU_IMAGE) BUILD_DIR=$(QEMU_BUILD_DIR) ./scripts/qemu/run-qemu.sh $(QEMU_ARGS)
+
+.PHONY: feed-server-url
+feed-server-url:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) url --machine $(MACHINE)
+
+.PHONY: feed-server-urls
+feed-server-urls:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) urls
+
+.PHONY: feed-server-start
+feed-server-start:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) publish --machine $(MACHINE) --builddir "$(CONF_BUILDDIR)" || \
+		echo -e "$(COLOR_YELLOW)No deploy/ipk found yet; starting feed server root anyway.$(COLOR_RESET)"
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) start --machine $(MACHINE)
+
+.PHONY: feed-server-publish-all
+feed-server-publish-all:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) publish-all --builddir "$(TOPDIR)"
+
+.PHONY: feed-server-start-all
+feed-server-start-all:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) publish-all --builddir "$(TOPDIR)"
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) start
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) urls
+
+.PHONY: feed-server-stop
+feed-server-stop:
+	@$(FEED_SERVER_SCRIPT) stop
+
+.PHONY: feed-server-restart
+feed-server-restart:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) publish --machine $(MACHINE) --builddir "$(CONF_BUILDDIR)" || \
+		echo -e "$(COLOR_YELLOW)No deploy/ipk found yet; restarting feed server root anyway.$(COLOR_RESET)"
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) restart --machine $(MACHINE)
+
+.PHONY: feed-server-restart-all
+feed-server-restart-all:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) publish-all --builddir "$(TOPDIR)"
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) restart
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) urls
+
+.PHONY: feed-server-status
+feed-server-status:
+	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) status --machine $(MACHINE)
 
 .PHONY: qemu-smoke
 qemu-smoke:
@@ -623,7 +686,7 @@ toaster-open-build: init-toaster
 config: init
 ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)"
-	@$(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+	@$(LOCAL_FEED_ENV) $(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_BOLD)Generating config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
@@ -678,7 +741,7 @@ edit-conf:
 feeds: init
 	@echo -e "$(COLOR_BOLD)Building package feeds for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --target feeds $(FORCE_CONFIG_ARG)
+	@$(LOCAL_FEED_ENV) $(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) --target package-index $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1

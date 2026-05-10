@@ -175,6 +175,9 @@ make image MACHINE=hd51 MACHINEBUILD=mutant51
 # Paket-Feeds bauen
 make feeds MACHINE=hd51 MACHINEBUILD=mutant51
 
+# Lokale Feed-URL anzeigen, die in neue Images geschrieben wird
+make feed-server-url MACHINE=hd51
+
 # Build-Artefakte löschen (Caches bleiben)
 make clean
 ```
@@ -185,7 +188,53 @@ Optionale Sync-Variante:
 make sync SYNC_EXCLUDE="meta-coolstream meta-tuxbox-toolchain"
 ```
 
-## 9. Optional: Toaster-Webfrontend (experimentell)
+## 9. Lokaler IPK-Feed
+
+Standardmäßig veröffentlichen `make image` und `make feeds` den erzeugten
+IPK-Feed und starten einen statischen HTTP-Server unter `feed-server/`.
+
+Default-Feed-URL:
+
+```text
+http://<host-ip>:33333/<MACHINE>/ipk
+```
+
+Das Image bekommt diese URL über `/etc/opkg/base-feeds.conf`. Eine frisch
+geflashte Box kann die Pakete damit direkt nutzen:
+
+```bash
+opkg update
+opkg install <paket>
+```
+
+Nützliche Host-Kommandos:
+
+```bash
+make feed-server-url MACHINE=hd60
+make feed-server-urls
+make feed-server-start-all
+make feed-server-status
+make feed-server-stop
+```
+
+`lighttpd` ist optional. Wenn er nicht installiert ist, nutzt der Builder
+`python3 -m http.server`. Öffne Port `33333/tcp` in der Host-Firewall, wenn
+die Box den Feed aus dem LAN erreichen soll.
+
+Für öffentliche Feeds überschreibst du die Feed-URL in
+`builds/conf/local.conf.user.inc`:
+
+```conf
+IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
+```
+
+Bei Bedarf deaktivierst du den automatischen lokalen Feed-Default so:
+
+```bash
+make image MACHINE=hd60 LOCAL_FEED=0
+```
+
+## 10. Optional: Toaster-Webfrontend (experimentell)
 
 Diese Integration ist aktuell experimentell.
 
@@ -204,7 +253,7 @@ Defaults:
 - `TOASTER_IMPORT_NAME=$(DISTRO)-build`
 - `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
 
-## 10. Aktualisieren: Nutzer Vs Entwickler
+## 11. Aktualisieren: Nutzer Vs Entwickler
 
 ### Für Nutzer: bei `make update` bleiben
 
@@ -262,7 +311,7 @@ Wenn du einen Bug findest oder eine Änderung vorschlagen möchtest:
   für Code-Änderungen ein. Bitte teste deine Änderungen vorher.
 - Schiebe keine ungetesteten Submodul-Pins auf `master`.
 
-## 11. Fehlersuche (kurz)
+## 12. Fehlersuche (kurz)
 
 ### "No space left on device"
 
@@ -297,7 +346,7 @@ bitbake hdf-toolbox-image -c cleanall
 make image MACHINE=hdfastboot8gb MACHINEBUILD=hdfastboot8gb
 ```
 
-## 12. Nächste sinnvolle Dokus
+## 13. Nächste sinnvolle Dokus
 
 - [Layer und Submodule](SUBMODULES.md)
 - [Architektur](ARCHITECTURE.md)

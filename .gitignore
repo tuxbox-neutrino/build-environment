@@ -4,6 +4,9 @@
 /build-*/
 /sstate-cache/
 /downloads/
+/feed-server/logs/
+/feed-server/run/
+/feed-server/www/
 
 # Generated configuration
 /.tuxbox/state.json

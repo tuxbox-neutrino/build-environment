@@ -142,6 +142,16 @@ make image MACHINE=hd60 MACHINEBUILD=mutant60
 make image MACHINE=zgemmah7 MACHINEBUILD=zgemmah7
 ```
 
+Fastboot-Maschinen wie die HD60 installieren das STB-Lua-Plugin-Bündel
+standardmäßig ins Image. Dazu gehört `stb-startup` zusammen mit den zugehörigen
+Flash-, Backup- und Restore-Plugins. Multiboot-Plattformen mit
+STARTUP-Slotwechsel, etwa die HD51-Familie und H7, installieren das einzelne
+Plugin `stb-startup` auch dann, wenn sie nicht über das OE-A-Feature `fastboot`
+markiert sind. Alle Images installieren außerdem `logoupdater` mit den
+benötigten Laufzeit-Helfern standardmäßig. Die Standardlaufzeit enthält auch die
+yWeb-Helfer für OSD-Screenshots und AutoMount (`grab`, `fbshot` und
+`autofs`/`automount`).
+
 Wenn du zuerst nur Konfiguration erzeugen willst:
 
 ```bash

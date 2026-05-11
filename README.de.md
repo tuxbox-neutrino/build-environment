@@ -29,12 +29,14 @@ Das passiert dabei:
 Wenn `make check` fehlende Pakete meldet, nutze den Abhängigkeits-Abschnitt in
 [docs/de/QUICKSTART.md](docs/de/QUICKSTART.md).
 
-Fastboot-/Multiboot-Maschinen wie die HD60 enthalten das STB-Lua-Plugin-Bündel
+Fastboot-Maschinen wie die HD60 enthalten das STB-Lua-Plugin-Bündel
 standardmäßig im Image. Dazu gehören Laufzeitwerkzeuge wie `stb-startup`,
-`stb-flash`, `stb-backup` und `stb-restore`. `logoupdater` ist ebenfalls
-standardmäßig enthalten, ebenso das Neutrino-Plugin `mediathek` und die
-yWeb-Helfer für OSD-Screenshots und AutoMount (`grab`, `fbshot` und
-`autofs`/`automount`). Die
+`stb-flash`, `stb-backup` und `stb-restore`. Multiboot-Plattformen mit
+STARTUP-Slotwechsel, etwa die HD51-Familie und H7, enthalten das einzelne
+Plugin `stb-startup` auch dann, wenn sie nicht über das OE-A-Feature `fastboot`
+markiert sind. `logoupdater` ist ebenfalls standardmäßig enthalten, ebenso das
+Neutrino-Plugin `mediathek` und die yWeb-Helfer für OSD-Screenshots und
+AutoMount (`grab`, `fbshot` und `autofs`/`automount`). Die
 Standardeinstellungssicherung für Flash-Abläufe läuft über Neutrinos
 `backup.sh` mit `/etc/neutrino/config/tobackup.conf`; `etckeeper` bleibt als
 optionales Extra-/Feed-Paket verfügbar und wird nicht mehr standardmäßig

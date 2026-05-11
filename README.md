@@ -26,13 +26,15 @@ What this does:
    commits (`make update`, safe default).
 4. Builds your first image and prepares a local IPK feed for it.
 
-Fastboot/multiboot machines such as HD60 include the STB Lua plugin bundle by
-default in the image. That covers runtime tools such as `stb-startup`,
-`stb-flash`, `stb-backup`, and `stb-restore`. All images also install
-`logoupdater` and the Neutrino `mediathek` plugin by default. The standard
-runtime now also includes the yWeb helper tools for OSD screenshots and
-AutoMount (`grab`, `fbshot`, and `autofs`/`automount`). Settings backup for the
-default flash workflows comes from Neutrino's `backup.sh` with
+Fastboot machines such as HD60 include the STB Lua plugin bundle by default in
+the image. That covers runtime tools such as `stb-startup`, `stb-flash`,
+`stb-backup`, and `stb-restore`. Multiboot platforms with STARTUP slot
+switching, such as the HD51 family and H7, include the standalone `stb-startup`
+plugin even when they are not marked with the OE-A `fastboot` feature. All
+images also install `logoupdater` and the Neutrino `mediathek` plugin by
+default. The standard runtime now also includes the yWeb helper tools for OSD
+screenshots and AutoMount (`grab`, `fbshot`, and `autofs`/`automount`). Settings
+backup for the default flash workflows comes from Neutrino's `backup.sh` with
 `/etc/neutrino/config/tobackup.conf`; `etckeeper` stays available as an
 optional extra-tool/feed package instead of being installed by default.
 

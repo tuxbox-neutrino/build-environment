@@ -137,12 +137,14 @@ make image MACHINE=hd60 MACHINEBUILD=mutant60
 make image MACHINE=zgemmah7 MACHINEBUILD=zgemmah7
 ```
 
-Fastboot/multiboot machines such as HD60 install the STB Lua plugin bundle by
-default in the image. That includes `stb-startup` together with the related
-flash, backup, and restore plugins. All images also install `logoupdater`
-with its required runtime helper tools by default. The default runtime also
-ships the yWeb helpers for OSD screenshots and AutoMount (`grab`, `fbshot`,
-and `autofs`/`automount`).
+Fastboot machines such as HD60 install the STB Lua plugin bundle by default in
+the image. That includes `stb-startup` together with the related flash, backup,
+and restore plugins. Multiboot platforms with STARTUP slot switching, such as
+the HD51 family and H7, install the standalone `stb-startup` plugin even when
+they are not marked with the OE-A `fastboot` feature. All images also install
+`logoupdater` with its required runtime helper tools by default. The default
+runtime also ships the yWeb helpers for OSD screenshots and AutoMount (`grab`,
+`fbshot`, and `autofs`/`automount`).
 
 If you only want to generate configuration first:
 

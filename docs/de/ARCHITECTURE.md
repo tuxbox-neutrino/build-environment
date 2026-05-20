@@ -58,9 +58,9 @@ Neutrino-fokussierte Distribution bereitstellt.
     - recipes-core/external-toolchain/
       |
 [Build-Artefakte]
-  - Images: builds/build/tmp/deploy/images/<machine>/
-  - Packages: builds/build/tmp/deploy/ipk/
-  - SDK: builds/build/tmp/deploy/sdk/
+  - Images: builds/<machine>/tmp/deploy/images/<machine>/
+  - Packages: builds/<machine>/tmp/deploy/ipk/
+  - SDK: builds/<machine>/tmp/deploy/sdk/
 ```
 
 ## Grundkonzepte
@@ -217,7 +217,7 @@ sich ändern.
    +- Image zusammenbauen
 
 7. Artefakte bereitstellen
-   +- builds/build/tmp/deploy/images/hd51/
+   +- builds/hd51/tmp/deploy/images/hd51/
        +- tuxbox-image-hd51.zip
        +- bzImage (Kernel)
        +- rootfs.tar.bz2
@@ -368,7 +368,7 @@ DL_DIR = "/opt/tuxbox-os/downloads"
 **Default**: BitBake setzt Parallelität automatisch auf CPU-Anzahl, wenn
 Variablen nicht gesetzt sind (siehe `poky/meta/conf/bitbake.conf`).
 
-**Optionales Override** (in `local.conf.user.inc`):
+**Optionales Override** (in `builds/conf/local.conf`):
 ```
 BB_NUMBER_THREADS = "8"  # 8 Recipes parallel
 PARALLEL_MAKE = "-j 8"   # 8 gcc Jobs parallel

@@ -44,8 +44,10 @@ MACHINEBUILD_ORIGIN := $(origin MACHINEBUILD)
 MACHINEBUILD_EXPLICIT := $(filter command line environment override,$(MACHINEBUILD_ORIGIN))
 ifeq ($(MACHINEBUILD_EXPLICIT),)
   MACHINEBUILD_ARG :=
+  PORTAL_MACHINEBUILD :=
 else
   MACHINEBUILD_ARG := --machinebuild $(MACHINEBUILD)
+  PORTAL_MACHINEBUILD := $(MACHINEBUILD)
 endif
 MACHIME_ORIGIN := $(origin MACHIME)
 MACHIME_EXPLICIT := $(filter command line,$(MACHIME_ORIGIN))
@@ -63,7 +65,7 @@ DEVTOOL_ARGS ?= $(ARGS)
 QEMU_MACHINE ?= qemux86-64
 QEMU_IMAGE ?= tuxbox-qemu-image
 QEMU_ARGS ?=
-QEMU_BUILD_DIR ?= $(BUILDDIR)
+QEMU_BUILD_DIR ?= $(TOPDIR)/builds/$(QEMU_MACHINE)
 PORTAL_FEED_ROOT ?= $(TOPDIR)/portal-feed
 PORTAL_CATALOG_OUT ?= $(PORTAL_FEED_ROOT)/catalog.json
 PORTAL_ARTIFACT_BASE_URL ?= https://images.tuxbox-neutrino.org/feed
@@ -84,18 +86,11 @@ FEED_SERVER_SCRIPT := $(TOPDIR)/scripts/feed-server.sh
 LOCAL_FEED_ENV = LOCAL_FEED="$(LOCAL_FEED)" LOCAL_FEED_PORT="$(LOCAL_FEED_PORT)" LOCAL_FEED_HOST="$(LOCAL_FEED_HOST)" LOCAL_FEED_BIND="$(LOCAL_FEED_BIND)" LOCAL_FEED_BACKEND="$(LOCAL_FEED_BACKEND)" LOCAL_FEED_BASE_URL="$(LOCAL_FEED_BASE_URL)"
 
 # Build directories
-DEFAULT_BUILDDIR := $(TOPDIR)/builds
-ifneq ($(wildcard $(TOPDIR)/builds/conf/local.conf),)
-DEFAULT_BUILDDIR := $(TOPDIR)/builds
-else ifneq ($(wildcard $(TOPDIR)/build/conf/local.conf),)
-DEFAULT_BUILDDIR := $(TOPDIR)/build
-else ifneq ($(wildcard $(TOPDIR)/builds),)
-DEFAULT_BUILDDIR := $(TOPDIR)/builds
-endif
+DEFAULT_BUILDDIR := $(TOPDIR)/builds/$(MACHINE)
 BUILDDIR := $(DEFAULT_BUILDDIR)
 DL_DIR := $(TOPDIR)/downloads
 SSTATE_DIR := $(TOPDIR)/sstate-cache
-CONF_BUILDDIR = $(if $(filter coolstream%,$(MACHINE)),$(TOPDIR)/build-$(MACHINE),$(BUILDDIR))
+CONF_BUILDDIR = $(BUILDDIR)
 TOASTER_BUILD_DIR ?= $(CONF_BUILDDIR)
 TOASTER_DIR ?= $(TOPDIR)/.tuxbox/toaster
 TOASTER_VENV ?= $(TOPDIR)/.tuxbox/toaster-venv
@@ -177,12 +172,15 @@ help:
 	@echo -e "  $(COLOR_GREEN)make update$(COLOR_RESET)  (or $(COLOR_GREEN)make up$(COLOR_RESET))               Update repo + pinned submodules (safe/default)"
 	@echo -e "  $(COLOR_GREEN)make sync$(COLOR_RESET)                            Same as make update (safe/pinned)"
 	@echo -e "  $(COLOR_GREEN)make update-upstream$(COLOR_RESET)  (or $(COLOR_GREEN)make up-upstream$(COLOR_RESET))  Update submodules to upstream HEAD (DEV ONLY, unpinned)"
+	@echo -e "  $(COLOR_GREEN)make migrate-configs$(COLOR_RESET)                 Migrate legacy configs to builds/conf + builds/<machine>"
+	@echo -e "  $(COLOR_GREEN)make check-configs$(COLOR_RESET)                   Check config migration/identity state"
+	@echo -e "  $(COLOR_GREEN)make audit-machine-mapping$(COLOR_RESET)           Audit MACHINE/MACHINEBUILD/kernel mapping"
 	@echo -e "  $(COLOR_GREEN)make feed-server-url MACHINE=hd60$(COLOR_RESET)    Show local IPK feed URL"
 	@echo -e "  $(COLOR_GREEN)make feed-server-urls$(COLOR_RESET)                Show all published local IPK feed URLs"
 	@echo -e "  $(COLOR_GREEN)make feed-server-start MACHINE=hd60$(COLOR_RESET)  Start local IPK feed server"
 	@echo -e "  $(COLOR_GREEN)make feed-server-start-all$(COLOR_RESET)           Publish all deploy/ipk feeds and start server"
 	@echo -e "  $(COLOR_GREEN)make feed-server-stop$(COLOR_RESET)                Stop local IPK feed server"
-	@echo -e "  $(COLOR_GREEN)make portal-catalog MACHINE=hd60$(COLOR_RESET)    Build portal feed stage + catalog"
+	@echo -e "  $(COLOR_GREEN)make portal-catalog MACHINE=hd60 MACHINEBUILD=ax60$(COLOR_RESET)  Build portal feed stage + catalog"
 	@echo -e "  $(COLOR_GREEN)make portal-sync PORTAL_SYNC_DEST=user@host:/srv/tuxbox/feed$(COLOR_RESET)  Sync portal feed via rsync"
 	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
@@ -215,7 +213,7 @@ help:
 	@echo -e "  QEMU_MACHINE QEMU machine (default: qemux86-64)"
 	@echo -e "  QEMU_IMAGE   QEMU image name (default: tuxbox-qemu-image)"
 	@echo -e "  QEMU_ARGS    Extra args for run-qemu.sh (default: auto net)"
-	@echo -e "  QEMU_BUILD_DIR Build dir for QEMU (default: builds, legacy: build)"
+	@echo -e "  QEMU_BUILD_DIR Build dir for QEMU (default: builds/\$${QEMU_MACHINE})"
 	@echo -e "  TOASTER_BUILD_DIR Build dir for Toaster env (default: $(CONF_BUILDDIR))"
 	@echo -e "  TOASTER_VENV Toaster Python venv (default: .tuxbox/toaster-venv)"
 	@echo -e "  TOASTER_PYTHON Python executable for Toaster venv (default: python3)"
@@ -364,8 +362,8 @@ qemu-smoke:
 
 .PHONY: stb-smoke
 stb-smoke:
-	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) BUILD_DIR=$(BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh"
-	@MACHINE=$(MACHINE) BUILD_DIR=$(BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) BUILD_DIR=$(CONF_BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh"
+	@MACHINE=$(MACHINE) BUILD_DIR=$(CONF_BUILDDIR) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE) ./scripts/stb-plugins-smoke.sh
 
 .PHONY: flash-preflight-smoke
 flash-preflight-smoke:
@@ -374,8 +372,10 @@ flash-preflight-smoke:
 
 .PHONY: portal-catalog
 portal-catalog:
-	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) DISTRO_TYPE=$(DISTRO_TYPE) SOURCE_DIR=$(PORTAL_SOURCE_DIR) FEED_ROOT=$(PORTAL_FEED_ROOT) CATALOG_OUT=$(PORTAL_CATALOG_OUT) ARTIFACT_BASE_URL=$(PORTAL_ARTIFACT_BASE_URL) ONLINE_UPDATE_REPO=$(PORTAL_ONLINE_UPDATE_REPO) ALLOWED_CHANNELS=$(PORTAL_ALLOWED_CHANNELS) ./scripts/portal-catalog.sh"
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) MACHINEBUILD=$(PORTAL_MACHINEBUILD) BUILD_DIR=$(CONF_BUILDDIR) DISTRO_TYPE=$(DISTRO_TYPE) SOURCE_DIR=$(PORTAL_SOURCE_DIR) FEED_ROOT=$(PORTAL_FEED_ROOT) CATALOG_OUT=$(PORTAL_CATALOG_OUT) ARTIFACT_BASE_URL=$(PORTAL_ARTIFACT_BASE_URL) ONLINE_UPDATE_REPO=$(PORTAL_ONLINE_UPDATE_REPO) ALLOWED_CHANNELS=$(PORTAL_ALLOWED_CHANNELS) ./scripts/portal-catalog.sh"
 	@MACHINE="$(MACHINE)" \
+	 MACHINEBUILD="$(PORTAL_MACHINEBUILD)" \
+	 BUILD_DIR="$(CONF_BUILDDIR)" \
 	 DISTRO_TYPE="$(DISTRO_TYPE)" \
 	 SOURCE_DIR="$(PORTAL_SOURCE_DIR)" \
 	 FEED_ROOT="$(PORTAL_FEED_ROOT)" \
@@ -414,7 +414,7 @@ init-toaster: init
 	bblayers_conf="$$conf_dir/bblayers.conf"; \
 	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
 		echo -e "$(COLOR_YELLOW)Config missing in $(TOASTER_BUILD_DIR). Running make config...$(COLOR_RESET)"; \
-		$(MAKE) --no-print-directory config MACHINE=$(MACHINE) MACHINEBUILD=$(MACHINEBUILD) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE); \
+		$(MAKE) --no-print-directory config MACHINE=$(MACHINE) $(if $(MACHINEBUILD_EXPLICIT),MACHINEBUILD=$(MACHINEBUILD),) DISTRO=$(DISTRO) DISTRO_TYPE=$(DISTRO_TYPE); \
 	fi; \
 	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
 		echo -e "$(COLOR_RED)Config missing after generation: $$conf_dir$(COLOR_RESET)"; \
@@ -704,27 +704,56 @@ else
 	@exit 1
 endif
 
+.PHONY: migrate-configs
+migrate-configs:
+ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) migrate-configs --apply"
+	@$(CLI) migrate-configs --apply
+else
+	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
+	@exit 1
+endif
+
+.PHONY: check-configs
+check-configs:
+ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) migrate-configs --check"
+	@$(CLI) migrate-configs --check
+else
+	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
+	@exit 1
+endif
+
+.PHONY: audit-machine-mapping
+audit-machine-mapping:
+ifeq ($(USE_CLI),1)
+	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) audit-machine-mapping"
+	@$(CLI) audit-machine-mapping
+else
+	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
+	@exit 1
+endif
+
 .PHONY: edit-conf
 edit-conf:
 	@echo -e "$(COLOR_BOLD)Editing config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
-	@conf_dir="$(CONF_BUILDDIR)/conf"; \
+	@shared_conf_dir="$(TOPDIR)/builds/conf"; \
+	conf_dir="$(CONF_BUILDDIR)/conf"; \
+	shared_local_conf="$$shared_conf_dir/local.conf"; \
 	local_conf="$$conf_dir/local.conf"; \
 	bblayers_conf="$$conf_dir/bblayers.conf"; \
-	local_user_conf="$$conf_dir/local.conf.user.inc"; \
 	machine_conf="$$conf_dir/local.conf.$(MACHINE).inc"; \
-	bblayers_user_conf="$$conf_dir/bblayers.conf.user.inc"; \
-	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" ]]; then \
+	bblayers_user_conf="$$shared_conf_dir/bblayers.conf.user.inc"; \
+	if [[ ! -f "$$local_conf" || ! -f "$$bblayers_conf" || ! -f "$$shared_local_conf" ]]; then \
 		echo -e "$(COLOR_RED)Config missing. Run 'make config MACHINE=$(MACHINE)' first.$(COLOR_RESET)"; \
 		exit 1; \
 	fi; \
-	if [[ ! -f "$$local_user_conf" ]]; then \
-		printf "# Local overrides (not tracked)\n" > "$$local_user_conf"; \
-	fi; \
+	mkdir -p "$$shared_conf_dir"; \
 	if [[ ! -f "$$machine_conf" ]]; then \
 		printf "# Local overrides for MACHINE=$(MACHINE) (not tracked)\n" > "$$machine_conf"; \
 	fi; \
 	if [[ ! -f "$$bblayers_user_conf" ]]; then \
-		printf "# Local layer overrides (not tracked)\n" > "$$bblayers_user_conf"; \
+		printf "# Shared local layer overrides (not tracked)\n" > "$$bblayers_user_conf"; \
 	fi; \
 	editor="$${EDITOR:-$${VISUAL:-}}"; \
 	if [[ -z "$$editor" ]]; then \
@@ -735,7 +764,7 @@ edit-conf:
 			exit 1; \
 		fi; \
 	fi; \
-	"$$editor" "$$local_conf" "$$bblayers_conf" "$$local_user_conf" "$$machine_conf" "$$bblayers_user_conf"
+	"$$editor" "$$shared_local_conf" "$$machine_conf" "$$bblayers_user_conf"
 
 .PHONY: feeds
 feeds: init
@@ -806,7 +835,12 @@ devtool: init
 		exit 1; \
 	fi; \
 	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) source $$oe_init $(CONF_BUILDDIR) >/dev/null && devtool $(DEVTOOL_ARGS)"; \
-	bash -c "source $$oe_init $(CONF_BUILDDIR) >/dev/null && devtool $(DEVTOOL_ARGS)"
+	bash -c "source $$oe_init $(CONF_BUILDDIR) >/dev/null && devtool $(DEVTOOL_ARGS)"; \
+	status=$$?; \
+	if [[ $$status -eq 0 && -x "$(CLI)" ]]; then \
+		"$(CLI)" migrate-configs --apply; \
+	fi; \
+	exit $$status
 
 .PHONY: deploy-sstate
 deploy-sstate:
@@ -911,6 +945,7 @@ update-upstream up-upstream:
 	@echo -e "$(COLOR_BOLD)Updating submodules to upstream HEAD (unpinned)...$(COLOR_RESET)"
 	@git submodule update --remote --recursive
 	@$(MAKE) --no-print-directory checkout-branches
+	@$(MAKE) --no-print-directory migrate-configs
 	@echo -e "$(COLOR_GREEN)Submodules updated (unpinned). Test your build before committing.$(COLOR_RESET)"
 	@echo -e "$(COLOR_YELLOW)Run make update (or make up) to return to the stable pinned state.$(COLOR_RESET)"
 
@@ -939,6 +974,7 @@ sync:
 		done < <(git config -f .gitmodules --get-regexp path); \
 	fi
 	@$(MAKE) --no-print-directory checkout-branches
+	@$(MAKE) --no-print-directory migrate-configs
 	@echo -e "$(COLOR_GREEN)Repository and submodules updated.$(COLOR_RESET)"
 
 # Check out configured branch in each submodule so layer metadata shows

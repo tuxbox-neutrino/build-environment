@@ -11,6 +11,7 @@
 # Generated configuration
 /.tuxbox/state.json
 /.tuxbox/deploy.conf
+/.tuxbox/config-backups/
 /.tuxbox/toaster/
 /.tuxbox/toaster-venv/
 /conf/

@@ -23,10 +23,10 @@ Kurze Begriffsdefinitionen findest du im [GLOSSARY.md](GLOSSARY.md).
 
 ## Build
 
-Wenn `builds/conf` bereits auf eine andere Maschine zeigt, entweder neu
-generieren oder ein separates Build-Verzeichnis nutzen.
+QEMU nutzt ein eigenes Maschinen-Builddir `builds/qemux86-64` und verwendet
+damit keine Config einer anderen Maschine wieder.
 
-Option A (Build in `builds/`):
+QEMU-Config erzeugen oder aktualisieren:
 
 ```bash
 make config MACHINE=qemux86-64
@@ -145,7 +145,7 @@ Falls failed Units auftreten, bitte als Regression ansehen und prüfen.
 
 `tuxbox-feed-config` erzeugt `/etc/opkg/base-feeds.conf`, wenn
 `IPK_FEED_SERVER` oder `FEED_DEPLOYDIR_BASE_URI` beim Build gesetzt ist. Der
-Builder erzeugt `builds/conf/local-feed.inc` jetzt automatisch, sodass normale
+Builder erzeugt `builds/<machine>/conf/local-feed.inc` jetzt automatisch, sodass normale
 `make image`- und `make feeds`-Läufe neue Images auf den lokalen Feed-Server
 zeigen lassen.
 
@@ -173,8 +173,8 @@ make feed-server-stop
 ```
 
 Für öffentliche oder angepasste Feed-URLs überschreibst du `IPK_FEED_SERVER`
-in `builds/conf/local.conf.user.inc`. Mit `LOCAL_FEED=0` unterdrückst du den
-generierten lokalen Default.
+in `builds/conf/local.conf`. Mit `LOCAL_FEED=0`
+unterdrückst du den generierten lokalen Default.
 
 ## Rootfs-Größe (opkg-Tests)
 

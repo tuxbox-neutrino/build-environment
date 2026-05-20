@@ -81,10 +81,12 @@ Wenn du Zugriff auf private GitHub-Submodule hast und SSH statt HTTPS nutzen wil
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
 
-Die Standard-Flash-Abläufe der STB-Plugins sichern Einstellungen über
-Neutrinos `backup.sh` und `/etc/neutrino/config/tobackup.conf`. `etckeeper`
-bleibt als optionales Extra-/Feed-Paket verfügbar und gehört nicht mehr zum
-Standard-Image-Inhalt. Zum Standard-Laufzeitsatz gehört außerdem das
+Die älteren STB-Flash-, Backup-, Restore- und Image-Move-Plugins bleiben bis
+zur Neutrino-Flashmanager-Integration als optionale Pakete verfügbar und
+gehören nicht mehr zum Standard-Image-Inhalt. Die Einstellungssicherung für
+künftige Flash-Abläufe läuft über Neutrinos `backup.sh` und
+`/etc/neutrino/config/tobackup.conf`. `etckeeper` bleibt als optionales
+Extra-/Feed-Paket verfügbar. Zum Standard-Laufzeitsatz gehört außerdem das
 Neutrino-Plugin `mediathek`.
 
 ## 4. Host prüfen und sicher synchronisieren
@@ -142,14 +144,16 @@ make image MACHINE=hd60 MACHINEBUILD=mutant60
 make image MACHINE=zgemmah7 MACHINEBUILD=zgemmah7
 ```
 
-Fastboot-Maschinen wie die HD60 installieren das STB-Lua-Plugin-Bündel
-standardmäßig ins Image. Dazu gehört `stb-startup` zusammen mit den zugehörigen
-Flash-, Backup- und Restore-Plugins. Multiboot-Plattformen mit
-STARTUP-Slotwechsel, etwa die HD51-Familie und H7, installieren das einzelne
-Plugin `stb-startup` auch dann, wenn sie nicht über das OE-A-Feature `fastboot`
-markiert sind. Alle Images installieren außerdem `logoupdater` mit den
-benötigten Laufzeit-Helfern standardmäßig. Die Standardlaufzeit enthält auch die
-yWeb-Helfer für OSD-Screenshots und AutoMount (`grab`, `fbshot` und
+Fastboot-Maschinen wie die HD60 installieren das reduzierte STB-Lua-
+Laufzeitbündel standardmäßig ins Image. Dazu gehören `stb-startup`, `stb-log`
+und `stb-shell`; ältere Flash-, Backup-, Restore- und Image-Move-Plugins
+bleiben bis zur Neutrino-Flashmanager-Integration optional. Multiboot-
+Plattformen mit STARTUP-Slotwechsel, etwa die HD51-Familie und H7, installieren
+das einzelne Plugin `stb-startup` auch dann, wenn sie nicht über das
+OE-A-Feature `fastboot` markiert sind. Alle Images installieren außerdem
+`logoupdater` mit den benötigten Laufzeit-Helfern standardmäßig. Die
+Standardlaufzeit enthält auch die yWeb-Helfer für OSD-Screenshots und AutoMount
+(`grab`, `fbshot` und
 `autofs`/`automount`).
 
 Wenn du zuerst nur Konfiguration erzeugen willst:
@@ -163,15 +167,22 @@ make show-config MACHINE=hd51
 
 Image-Artefakte liegen typischerweise hier:
 
-- `builds/build/tmp/deploy/images/<machine>/`
-- `build/build/tmp/deploy/images/<machine>/`
+- `builds/<machine>/tmp/deploy/images/<machine>/`
 
 Beispiel:
 
 ```bash
-ls -lah builds/build/tmp/deploy/images/hd51 2>/dev/null || \
-ls -lah build/build/tmp/deploy/images/hd51
+ls -lah builds/hd51/tmp/deploy/images/hd51
 ```
+
+Gemeinsame Config liegt unter `builds/conf`. Die generierte
+`builds/<machine>/conf/local.conf` ist nur ein Machine-Einstieg. Globale
+User-/Site-Einstellungen gehören nach `builds/conf/local.conf`; der Builder
+legt diese Datei nur an, wenn sie fehlt, und überschreibt sie danach nicht mehr.
+Reine Machine-Anpassungen gehören nach
+`builds/<machine>/conf/local.conf.<machine>.inc`. Gemeinsame lokale Layer und
+der zentrale Devtool-Workspace bleiben in
+`builds/conf/bblayers.conf.user.inc`.
 
 ## 8. Täglicher Workflow (sicher)
 
@@ -232,7 +243,7 @@ make feed-server-stop
 die Box den Feed aus dem LAN erreichen soll.
 
 Für öffentliche Feeds überschreibst du die Feed-URL in
-`builds/conf/local.conf.user.inc`:
+`builds/conf/local.conf`:
 
 ```conf
 IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"

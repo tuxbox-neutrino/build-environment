@@ -77,7 +77,8 @@ Die Klasse unterstützt folgende optionale Overrides:
 
 - `TUXBOX_IMAGEBUILD` (Standard `${DATETIME}`)
 - `TUXBOX_IMAGE_DESCRIPTION` (Standard `${IMAGE_NAME}`)
-- `TUXBOX_IMAGE_DIR` (Standard `${IMAGEDIR}` oder `${MACHINE}`)
+- `TUXBOX_IMAGE_DIR` (Builder-Standard: URL-sicherer Image-Verzeichnis-Alias;
+  raw OE-Alliance `${IMAGEDIR}` bleibt für Flash-/Image-Klassen erhalten)
 - `TUXBOX_IMAGE_CHANNEL` (Standard aus `DISTRO_TYPE` abgeleitet)
 - `TUXBOX_IMAGE_UPDATE_BASE_URL` (Standard `${IMAGE_LOCATION_URL}` oder `${DISTRO_FEED_URI}`)
 - `TUXBOX_IMAGE_UPDATE_URL` (Standard leer; wird bei Bedarf aus Basis/Kanal/Imagedir abgeleitet)
@@ -193,3 +194,7 @@ Host-seitiger Smoke-Helper:
 
 - Schlüsselnamen stabil halten. Bestehende Plugins parsen Namen wörtlich.
 - Ergänzungen sind erlaubt, Entfernen/Umbenennen sind Breaking Changes.
+- Host-Publishing-Tools behandeln Manifest-`imagedir` als Online-/API-Slug.
+  Werte mit Pfadtrennern sind für Portal-Feeds ungültig; raw
+  Flash-spezifische Verzeichniswerte bleiben in
+  `/etc/tuxbox/flash-machine-profile.conf`.

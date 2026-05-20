@@ -88,7 +88,8 @@ The class supports these optional overrides:
 
 - `TUXBOX_IMAGEBUILD` (default `${DATETIME}`)
 - `TUXBOX_IMAGE_DESCRIPTION` (default `${IMAGE_NAME}`)
-- `TUXBOX_IMAGE_DIR` (default `${IMAGEDIR}` or `${MACHINE}`)
+- `TUXBOX_IMAGE_DIR` (builder default: URL-safe image directory alias; raw
+  OE-Alliance `${IMAGEDIR}` remains available to flash/image classes)
 - `TUXBOX_IMAGE_CHANNEL` (default mapped from `DISTRO_TYPE`)
 - `TUXBOX_IMAGE_UPDATE_BASE_URL` (default `${IMAGE_LOCATION_URL}` or `${DISTRO_FEED_URI}`)
 - `TUXBOX_IMAGE_UPDATE_URL` (default empty; auto-derived from base/channel/imagedir if unset)
@@ -205,3 +206,6 @@ Host-side smoke helper:
 
 - Keep key names stable. Existing plugins parse names literally.
 - Additions are allowed; removals or renames are breaking changes.
+- Host publishing tools must treat manifest `imagedir` as an online/API slug.
+  Values containing path separators are invalid for portal feeds; keep raw
+  flash-specific directory values in `/etc/tuxbox/flash-machine-profile.conf`.

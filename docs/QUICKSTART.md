@@ -137,14 +137,15 @@ make image MACHINE=hd60 MACHINEBUILD=mutant60
 make image MACHINE=zgemmah7 MACHINEBUILD=zgemmah7
 ```
 
-Fastboot machines such as HD60 install the STB Lua plugin bundle by default in
-the image. That includes `stb-startup` together with the related flash, backup,
-and restore plugins. Multiboot platforms with STARTUP slot switching, such as
-the HD51 family and H7, install the standalone `stb-startup` plugin even when
-they are not marked with the OE-A `fastboot` feature. All images also install
-`logoupdater` with its required runtime helper tools by default. The default
-runtime also ships the yWeb helpers for OSD screenshots and AutoMount (`grab`,
-`fbshot`, and `autofs`/`automount`).
+Fastboot machines such as HD60 install the reduced STB Lua runtime bundle by
+default in the image. That includes `stb-startup`, `stb-log`, and `stb-shell`;
+legacy flash, backup, restore, and image-move plugins stay optional until the
+Neutrino Flashmanager integration is ready. Multiboot platforms with STARTUP
+slot switching, such as the HD51 family and H7, install the standalone
+`stb-startup` plugin even when they are not marked with the OE-A `fastboot`
+feature. All images also install `logoupdater` with its required runtime helper
+tools by default. The default runtime also ships the yWeb helpers for OSD
+screenshots and AutoMount (`grab`, `fbshot`, and `autofs`/`automount`).
 
 If you only want to generate configuration first:
 
@@ -157,15 +158,20 @@ make show-config MACHINE=hd51
 
 Image artifacts are typically here:
 
-- `builds/build/tmp/deploy/images/<machine>/`
-- `build/build/tmp/deploy/images/<machine>/`
+- `builds/<machine>/tmp/deploy/images/<machine>/`
 
 Example:
 
 ```bash
-ls -lah builds/build/tmp/deploy/images/hd51 2>/dev/null || \
-ls -lah build/build/tmp/deploy/images/hd51
+ls -lah builds/hd51/tmp/deploy/images/hd51
 ```
+
+Shared config is under `builds/conf`. The generated
+`builds/<machine>/conf/local.conf` is only a machine entrypoint. Put global
+user/site settings in `builds/conf/local.conf`; the builder creates this file
+only when it is missing and does not overwrite it later. Keep machine-only
+tweaks in `builds/<machine>/conf/local.conf.<machine>.inc`. Keep shared local
+layers and the central devtool workspace in `builds/conf/bblayers.conf.user.inc`.
 
 ## 8. Daily Workflow (Safe)
 
@@ -225,7 +231,7 @@ make feed-server-stop
 `python3 -m http.server`. Open TCP port `33333` in the host firewall if the
 box should reach the feed from the LAN.
 
-Override the feed URL for public feeds in `builds/conf/local.conf.user.inc`:
+Override the feed URL for public feeds in `builds/conf/local.conf`:
 
 ```conf
 IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"

@@ -4,15 +4,7 @@ set -euo pipefail
 TOPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 resolve_default_build_dir() {
-  if [[ -d "${TOPDIR}/builds/conf" ]]; then
-    echo "${TOPDIR}/builds"
-  elif [[ -d "${TOPDIR}/build/conf" ]]; then
-    echo "${TOPDIR}/build"
-  elif [[ -d "${TOPDIR}/builds" ]]; then
-    echo "${TOPDIR}/builds"
-  else
-    echo "${TOPDIR}/builds"
-  fi
+  echo "${TOPDIR}/builds/${MACHINE:-qemux86-64}"
 }
 
 BUILD_DIR="${BUILD_DIR:-$(resolve_default_build_dir)}"
@@ -38,7 +30,7 @@ fi
 
 if [[ ! -f "${BUILD_DIR}/conf/local.conf" || ! -f "${BUILD_DIR}/conf/bblayers.conf" ]]; then
   echo "Build config missing in ${BUILD_DIR}, generating it..."
-  "${CLI}" config --machine "${MACHINE}" --distro "${DISTRO}" --distro-type "${DISTRO_TYPE}"
+  "${CLI}" config --machine "${MACHINE}" --distro "${DISTRO}" --distro-type "${DISTRO_TYPE}" --builddir "${BUILD_DIR}"
 fi
 
 read -r -a task_list <<< "${TASKS}"

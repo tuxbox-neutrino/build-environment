@@ -24,7 +24,7 @@ cd /home/tg/sources/tuxbox-os-builder
 
 make portal-catalog \
   MACHINE=hd60 \
-  SOURCE_DIR=/home/tg/sources/tuxbox-os-builder/build/build/tmp-hd60/deploy/images/hd60 \
+  MACHINEBUILD=ax60 \
   PORTAL_FEED_ROOT=/tmp/tuxbox-feed \
   PORTAL_CATALOG_OUT=/tmp/tuxbox-feed/catalog.json \
   PORTAL_ARTIFACT_BASE_URL=http://127.0.0.1:18091 \

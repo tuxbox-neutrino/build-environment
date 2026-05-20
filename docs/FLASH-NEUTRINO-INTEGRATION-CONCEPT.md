@@ -6,8 +6,12 @@ Stand: 2026-03-11
 
 Eine saubere, datengetriebene Flash-Architektur für Neutrino, bei der:
 
-- `flash` die stabile öffentliche API ist (UI/Lua/Shell).
-- `ofgwrite` die robuste Low-Level-Schreibschicht bleibt.
+- `ofgwrite` der primäre Neutrino-Flashpfad ist und die bisher über
+  `flash`/`flash-script` validierten Kernfähigkeiten eigenständig
+  abbildet.
+- `flash` als optionale öffentliche Kompatibilitäts-API für Lua-Plugins,
+  Shell und Tests erhalten bleibt, aber keine harte Neutrino-Abhängigkeit
+  mehr ist.
 - Legacy-Updatepfade (`CFlashUpdate` in `update.cpp`) für ältere Boxen
   unverändert weiter funktionieren.
 
@@ -23,11 +27,14 @@ Eine saubere, datengetriebene Flash-Architektur für Neutrino, bei der:
 
 - Neutrino-Legacy-Flow enthält direkte Flashlogik in `update.cpp` (`fileType == 'Z'`,
   Slotauswahl, `STARTUP`-Umschaltung, Aufruf `ofgwrite_caller`).
-- Runtime liefert bereits Dispatcher und Profile:
+- Runtime lieferte für die Validierungsphase Dispatcher und Profile:
   - `/usr/bin/flash` (dispatch `script|ofgwrite`)
   - `/etc/tuxbox/flash-backend.conf`
   - `/etc/tuxbox/flash-machine-profile.conf`
   - `flash-backend-preflight`
+- Diese Dispatcher-Schicht war wichtig, um Local-/Active-/Inactive-Flash
+  reproduzierbar zu testen. Sie beschreibt nicht mehr automatisch den
+  finalen Neutrino-Aufrufpfad.
 - `ofgwrite` unterstützt Multiboot-Slotparameter (`-m`), `-n` (nowrite), weitere
   device-spezifische Optionen.
 - STB-Lua-Plugins nutzen aktuell überwiegend servicebasierte Shell-Aufrufe
@@ -37,32 +44,42 @@ Eine saubere, datengetriebene Flash-Architektur für Neutrino, bei der:
 
 ### Schichtmodell
 
-1. UI/Lua/API-Schicht:
-- Neutrino-Menü und Lua-Plugins fragen nur hohe Intentionsparameter ab:
+1. Neutrino-UI-Schicht:
+- Neutrino fragt nur hohe Intentionsparameter ab:
   - Zielslot
   - Quelle (`online`/`local`/`restore`)
   - optional `force`
+- Neutrino übergibt diese Parameter an den Ofgwrite-basierten Runtimepfad
+  bzw. dessen internen Handoff. Neutrino soll nicht von `/usr/bin/flash`
+  oder einem optional installierten STB-Plugin abhängen.
 
-2. Orchestrierung:
-- Einziger Einstieg: `/usr/bin/flash <slot> <mode> [<arg>] [force]`
+2. Optionale Plugin-/Shell-Schicht:
+- Lua-Plugins und Shell-Tools können weiterhin `/usr/bin/flash` verwenden:
+  `/usr/bin/flash <slot> <mode> [<arg>] [force]`
   - `mode=online|local|restore`
+- Diese Schicht bleibt als Bedien- und Kompatibilitäts-API erhalten, wenn
+  der Nutzer das entsprechende STB-Plugin bzw. Runtimepaket installiert.
+
+3. Ofgwrite-Orchestrierung:
 - Verantwortlich für:
   - Preflight
   - Slotschutz
   - ggf. Settings-Backup
-  - Backendwahl
+  - Archiv-/Payload-Handoff
+  - Active-/Inactive-Slot-Ablauf
 
-3. Schreibschicht:
-- `ofgwrite` (für Maschinen/Layouts, die davon profitieren)
-- `script`-Backend (Legacy/andere Layouts)
+4. Schreibschicht:
+- `ofgwrite` ist der primäre Pfad für Neutrino.
+- `script`/`flash-script` bleibt als Plugin-/Shell-Kompatibilität und für
+  Alt- bzw. Sonderpfade verfügbar.
 
 ## Runtime-Entscheidung: Legacy vs neues Modell
 
 Neuer Neutrino-Flashpfad wird nur angeboten, wenn alle Bedingungen erfüllt sind:
 
-- `/usr/bin/flash` existiert und ist ausführbar.
-- `/etc/tuxbox/flash-machine-profile.conf` existiert.
-- `/etc/tuxbox/flash-backend.conf` ist lesbar.
+- `ofgwrite` bzw. der Ofgwrite-Handoff ist vorhanden.
+- Die für Ofgwrite benötigten Maschinen-/Slotinformationen sind verfügbar.
+- Preflight kann das reale Systemlayout erfolgreich verifizieren.
 
 Wenn nicht erfüllt:
 
@@ -75,19 +92,13 @@ Damit bleibt Althardware ohne neues Profil vollständig kompatibel.
 Neue Dateien in `gui-neutrino`:
 
 - `src/gui/flash_manager.h/.cpp`
-  - Enthält den neuen, datengetriebenen Flash-Flow **ausschließlich**
-    über `/usr/bin/flash`. Neutrino ruft `ofgwrite_caller` nicht mehr
-    direkt auf.
-  - Der bisherige `ofgwrite_caller` wird durch den internen
-    Handoff-Helper `/usr/libexec/tuxbox/flash-ofgwrite-handoff`
-    ersetzt. Dieser Helper ist die einzige Stelle, an der nach der
-    Target-Rootfs-Injection noch Richtung Flash-Device geschrieben
-    wird (Inactive-Slot via `flash-backend-ofgwrite.sh`, Active-Slot
-    via transient systemd unit mit `--active-slot`). Er hat keine
-    öffentliche CLI in `${bindir}`; Callsites gehen ausnahmslos über
-    `/usr/bin/flash`. Die Spec steht in
-    [ONLINE-FLASH-CONCEPT.md](ONLINE-FLASH-CONCEPT.md) unter
-    "Internal libexec handoff helper".
+  - Enthält den neuen, datengetriebenen Neutrino-Flash-Flow über den
+    Ofgwrite-basierten Runtimepfad. `/usr/bin/flash` ist nicht die
+    Neutrino-Ziel-API, sondern bleibt der optionale Plugin-/Shell-Pfad.
+  - Der bisherige öffentliche `ofgwrite_caller` wird durch einen internen
+    Ofgwrite-Handoff ersetzt. Direkte Aufrufe eines öffentlichen
+    `ofgwrite_caller` aus Neutrino sollen verschwinden; der Handoff ist
+    Implementierungsdetail des Ofgwrite-Pfads und keine Plugin-API.
   - Implementiert `CFlashManager` als additive Einheit neben Legacy.
   - Slot-Auswahl, Archiv-Extraktion (soweit vor dem Dispatcher-Aufruf
     nötig), Exitcode-Mapping zu Locale-UI.
@@ -103,7 +114,9 @@ Bestehende Dateien:
 
 ## Exitcode-/Fehlervertrag
 
-Zwischen `flash` und Neutrino wird ein stabiler Exitcodevertrag festgelegt:
+Zwischen Ofgwrite-Handoff und Neutrino wird ein stabiler Exitcodevertrag
+festgelegt. `/usr/bin/flash` soll denselben Vertrag spiegeln, damit optionale
+Plugin-/Shell-Caller konsistent bleiben:
 
 - `0`: Erfolg
 - `1`: generischer Fehler
@@ -116,8 +129,8 @@ Zwischen `flash` und Neutrino wird ein stabiler Exitcodevertrag festgelegt:
 
 Wichtig:
 
-- `flash-dispatch.sh`, `flash-backend-script.sh` und
-  `flash-backend-ofgwrite.sh` müssen denselben Vertrag liefern.
+- Ofgwrite-Handoff und optionale `flash`-Wrapper müssen denselben Vertrag
+  liefern.
 - Lokales Runtime-Profil hat Vorrang gegenüber Remote-Metadaten:
   `flash-backend.conf`/`flash-machine-profile.conf` schlagen manifestbasierte
   Backend-Hinweise.
@@ -131,7 +144,8 @@ Kurzfristig:
 Mittelfristig:
 
 - Lua entfernt eigene Slot-/Layout-Heuristiken und delegiert vollständig an
-  `flash` (Datenquelle bleibt Profil + `/etc/image-version`).
+  `flash` als optionale Plugin-/Shell-API. Diese Plugin-Schicht bleibt von
+  der Neutrino-internen Ofgwrite-Integration getrennt.
 
 ## Sicherheits- und Stabilitätsanforderungen
 
@@ -156,15 +170,22 @@ Mittelfristig:
   minimaler Hook).
 - Legacypfad unverändert lassen.
 
-### Phase 2: Lua entkoppeln
+### Phase 2: Zielarchitektur trennen
+
+- Neutrino vom Dispatcher-/Pluginpfad entkoppeln und auf den Ofgwrite-Pfad
+  fokussieren.
+- `flash` als optionalen Plugin-/Shell-Vertrag dokumentieren und aus der
+  Neutrino-Verfügbarkeitsprüfung entfernen.
+
+### Phase 3: Lua entkoppeln
 
 - `stb_flash`/`stb_local-flash` Slot-/Layoutlogik abbauen.
 - Plugins an die `flash`-API andocken (nur Parameterübergabe + UI).
 
-### Phase 3: WebIF/APIv4 Vorbereitung
+### Phase 4: WebIF/APIv4 Vorbereitung
 
 - Gemeinsamen Laufzeitvertrag für GUI und WebIF festziehen:
-  - gleicher `flash`-Aufrufvertrag,
+  - gleicher Intent-/Exitcodevertrag,
   - gleiche Exitcodes,
   - gleicher Statuskanal (`/run/tuxbox/flash/status.json`).
 - APIv4-Endpunkte vorplanen für:
@@ -173,7 +194,7 @@ Mittelfristig:
 - Schnittstelle so vorbereiten, dass eine spätere WebIF-Übernahme
   ohne Umbau der Flash-Core-Logik möglich ist.
 
-### Phase 4: Härtung und Rollout
+### Phase 5: Härtung und Rollout
 
 - Fehler-/Statusmodell in UI verbessern.
 - Optional maschinenabhängige Deep-Preflight-Checks erweitern.
@@ -186,20 +207,19 @@ Alle Punkte müssen erfüllt sein:
 1. Kein Flash startet ohne erfolgreichen Preflight.
 2. Active-Slot-Schutz reproduzierbar aktiv (inkl. Backup-Policy-Gates).
 3. Legacy-Updateflow auf Altsystemen unverändert lauffähig.
-4. Dispatcher-Routing `script|ofgwrite` deterministisch verifiziert.
+4. Ofgwrite-Pfad deterministisch verifiziert; optionaler `flash`-Wrapper
+   spiegelt den Exitcodevertrag.
 5. Mindestens ein realer HD60-Testlauf mit neuem UI-Flow erfolgreich
    (Flash, Boot, Versionsverifikation).
 
 ## Konkrete Risiken und Gegenmaßnahmen
 
-- Risiko: Bypass am Dispatcher (direkte `ofgwrite_caller`-Aufrufe).
-  Maßnahme: Der interne Handoff-Helper wird als
-  `/usr/libexec/tuxbox/flash-ofgwrite-handoff` installiert und ist
-  nicht mehr Teil des öffentlichen `${bindir}`-Pfads. Der bisherige
-  `ofgwrite_caller` verschwindet aus `${bindir}` vollständig (optional
-  kurzfristig als libexec-lokaler Kompatibilitäts-Symlink auf
-  `flash-ofgwrite-handoff`, nicht als `${bindir}`-Eintrag). Alle
-  UI/Lua/API-Callsites gehen ausschließlich über `/usr/bin/flash`.
+- Risiko: Vermischung von Test-Dispatcher und finalem Neutrino-Pfad.
+  Maßnahme: Workitems und Code trennen zwischen validierter Testhistorie,
+  Neutrino-Ofgwrite-Pfad und optionalem `flash`-Plugin-/Shell-Pfad.
+- Risiko: Öffentlicher `ofgwrite_caller` wird zur zweiten API.
+  Maßnahme: Öffentliche Caller verschwinden; Neutrino nutzt nur den internen
+  Ofgwrite-Handoff, Plugins nutzen bei Bedarf `/usr/bin/flash`.
 - Risiko: Duplizierte Slot-Erkennung in mehreren Stellen.
   Maßnahme: gemeinsame Helper/Lib-Funktion für Slot-Detection.
 - Risiko: Profil passt nicht zur realen Partitionierung.
@@ -210,7 +230,7 @@ Alle Punkte müssen erfüllt sein:
 
 ## Ergebnis
 
-Dieses Modell hält die Legacy stabil, verschiebt neue Komplexität in eine
-profilegetriebene Orchestrierungsschicht und nutzt `ofgwrite` weiter dort, wo
-es robust ist. Dadurch werden Neutrino-UI, Lua-Plugins und Shell-Aufrufe auf
-eine gemeinsame, wartbare Flash-API konsolidiert.
+Dieses Modell hält die Legacy stabil, verschiebt den Neutrino-Pfad klar auf
+Ofgwrite und lässt `flash` als optionale Plugin-/Shell-Kompatibilität stehen.
+Damit werden Testhistorie, Neutrino-Integration und optionale Erweiterungen
+nicht mehr vermischt.

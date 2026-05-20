@@ -12,7 +12,8 @@ Related: [SERVICE-KEY.md](SERVICE-KEY.md),
 
 Define a robust online-flash workflow for Neutrino that:
 
-- uses `/usr/bin/flash` as the single runtime flash API,
+- uses Ofgwrite as the primary Neutrino flash path,
+- keeps `/usr/bin/flash` as an optional plugin/headless compatibility API,
 - keeps legacy update paths available for older boxes,
 - matches current Yocto/OE deploy artifacts and naming,
 - delivers clear, fail-safe UX on real devices.
@@ -42,6 +43,41 @@ Implementation update (2026-03-10, bootstrap):
   `image_discovery_api_url`, `channel`).
 - Verification on a fresh image build and real hardware runtime is still
   pending.
+
+Architecture clarification (2026-05-02):
+
+- Earlier dispatcher work validated that the flash tools can write Active and
+  Inactive slots safely. That validation remains useful history, but it should
+  not be read as the final Neutrino call graph.
+- Target split:
+  - Neutrino online/local flash focuses on Ofgwrite and its internal Handoff.
+  - `/usr/bin/flash` remains available for optional STB-Plugin, Lua, Shell and
+    automation use, if the user installs that runtime/plugin path.
+  - Both paths should share image metadata, preflight semantics and exit-code
+    mapping, but Neutrino should not depend on the optional plugin dispatcher.
+
+Online service status (2026-05-02):
+
+- First online-flash experiments have already been implemented and tested
+  locally against the service workspace at `/home/tg/sources/online-update`.
+- The service is the intended rollout counterpart for future flash updates:
+  an arbitrary server can expose one configured base URL, and Neutrino uses
+  settings plus `/etc/image-version` metadata to discover the correct image
+  for the current box/channel.
+- Current local service capabilities:
+  - API v1 endpoints:
+    `/api/v1/catalog.php`, `/api/v1/latest.php`,
+    `/api/v1/download.php`.
+  - Legacy compatibility endpoints under `/legacy/`.
+  - Static feed route for simple clients:
+    `/feed/<channel>/<imagedir>/manifest.json` and
+    `/feed/<channel>/<imagedir>/<filename>`.
+  - `LocalDisk` artifact streaming with Range support and HTTP redirect mode
+    for externally hosted artifacts.
+  - Catalog generation via `tools/build-catalog.php` and smoke tests via
+    `tests/smoke.sh`.
+- These local tests prove the API/service direction, but are not yet the
+  final Neutrino/HD60 rollout validation.
 
 ## Target Feed Layout
 
@@ -148,15 +184,34 @@ New key for modern clients:
 - `image_service_key` (build-time default for portal access; runtime override
   via Neutrino settings. See [SERVICE-KEY.md](SERVICE-KEY.md).)
 
+Neutrino settings must allow overriding the online-flash service URL and
+service key. The effective URL can point to any operator-controlled server,
+as long as it exposes either the portal API or the static feed route described
+above.
+
 Important:
 
 - For multiboot machines, set `image_file_name` to `*_multi.zip` in build-time
   metadata generation.
 - Do not rely on `*_usb.zip` default where deploy does not produce it.
 
-## Runtime API Contract (UI -> Flash Stack)
+## Runtime API Contract
 
-### Main Execution
+### Neutrino Execution
+
+Neutrino starts online/local flash through the Ofgwrite-based runtime path.
+The exact internal helper name is an implementation detail, not a public API.
+The Neutrino contract is:
+
+- select source (`online` latest/build or `local` archive),
+- select target slot,
+- pass the effective Service Key for online requests,
+- show progress and map the common exit-code contract.
+
+Neutrino must not require the optional STB-Plugin or `/usr/bin/flash` to be
+installed in order to expose the native Ofgwrite flash flow.
+
+### Optional Plugin/Shell Execution
 
 `/usr/bin/flash <slot> <mode> [<arg>] [force]`
 
@@ -184,6 +239,10 @@ Examples:
 - `flash 3 online 20260403190212 force`
 - `flash 2 local /media/hdd/images/hd60`
 - `flash 4 restore`
+
+This API is the compatibility path for optional STB-Plugin, Lua, Shell and
+automation callers. It should mirror the same exit-code and status semantics
+as the Neutrino Ofgwrite path, but it is not the Neutrino-internal API.
 
 ### Pre-Check API (new helper)
 
@@ -220,6 +279,9 @@ Discovery source priority:
 1. `image_discovery_api_url` (if present),
 2. `image_update_url` + `image_manifest_file`,
 3. legacy `image_update_info_file` marker (`imageversion`).
+
+The local `/home/tg/sources/online-update` service supports both priority 1
+through `/api/v1/*` and priority 2 through `/feed/<channel>/<imagedir>/`.
 
 Output:
 
@@ -277,7 +339,9 @@ stable API once introduced.
 Planned APIv4 endpoints should be thin wrappers over existing runtime tools:
 
 - `POST /api/v4/flash/precheck` -> `flash-online-check --json`
-- `POST /api/v4/flash/start` -> `/usr/bin/flash <slot> online [<build_date>] [force]`
+- `POST /api/v4/flash/start` -> same Ofgwrite runtime contract as Neutrino,
+  or optional `/usr/bin/flash <slot> online [<build_date>] [force]` where the
+  plugin/headless runtime path is deliberately installed
 - `GET /api/v4/flash/status` -> read `/run/tuxbox/flash/status.json`
 - `POST /api/v4/opkg/precheck` -> feed/repo reachability + lock checks
 - `POST /api/v4/opkg/run` -> controlled opkg action with explicit mode
@@ -356,11 +420,15 @@ have user value:
 From the detail view, the user can directly proceed to slot selection
 and flash. The runtime handoff for that selected retained build is:
 
+Neutrino Ofgwrite-Handoff with `<slot>` and `<build_date>`.
+
+The optional plugin/headless mirror for the same selected retained build is:
+
 `/usr/bin/flash <slot> online <build_date>`
 
 This reuses exactly the same confirmation + flash flow as the "latest"
 path while keeping `build_date` as the single stable selector across
-UI, helper, runtime, and later APIv4/WebIF callers.
+UI, helper, runtime, optional plugin path and later APIv4/WebIF callers.
 
 #### Downgrade safety
 
@@ -650,11 +718,13 @@ described below were absorbed into the `ofgwrite` binary itself via
 runtime today, and none is planned. The section is retained so older
 plan references stay resolvable.
 
-The libexec-side handoff helper is the single choke point every
-flash path goes through after `backup.sh` has produced the staged
-tarball and before `ofgwrite` touches the target slot. It is **not**
-part of the public runtime contract and must never appear in
-`${bindir}`.
+The libexec-side handoff helper was specified during the dispatcher
+validation phase as the choke point after `backup.sh` has produced the
+staged tarball and before `ofgwrite` touches the target slot. In the
+target split, the same boundary remains useful, but it belongs to the
+internal Ofgwrite path, not to a public Neutrino dependency on
+`/usr/bin/flash`. It is **not** part of the public runtime contract and
+must never appear in `${bindir}`.
 
 Spec:
 
@@ -662,7 +732,7 @@ Spec:
   (supersedes the previous `${bindir}/ofgwrite_caller`; the old
   caller is reclassified as libexec and kept, if at all, only as a
   compatibility symlink inside the same libexec directory).
-- **Callers** (exactly two, enforced):
+- **Dispatcher-validation callers**:
   1. **Inactive-slot flow**:
      `/usr/libexec/tuxbox/flash-backend-ofgwrite.sh` calls the helper
      synchronously after the target rootfs has been populated and is
@@ -806,11 +876,15 @@ and out of scope for the STB-side rollout.
 Prioritize these build-side changes first:
 
 1. Ensure `TUXBOX_IMAGE_UPDATE_URL` is set by distro/machine policy (not empty).
-2. Add machine-aware online image filename policy:
-- multiboot targets default to `${IMAGE_NAME}_multi.zip`.
-3. Add feed marker generation in deploy (`imageversion`) if missing.
-4. Generate and publish `manifest.json` + SHA256 in image deploy pipeline.
-5. Add `TUXBOX_SERVICE_KEY` distro default in `tuxbox.conf` and
+2. Add machine-aware online image filename policy: multiboot targets default
+   to `${IMAGE_NAME}_multi.zip`.
+3. Keep online image directory identifiers URL-safe: host-side publishing uses
+   `online_imagedir` from `deploy-info`, raw OE-A `IMAGEDIR` remains in the
+   flash machine profile for local flash helpers, and portal/API paths must
+   never depend on slash-containing raw `IMAGEDIR` values.
+4. Add feed marker generation in deploy (`imageversion`) if missing.
+5. Generate and publish `manifest.json` + SHA256 in image deploy pipeline.
+6. Add `TUXBOX_SERVICE_KEY` distro default in `tuxbox.conf` and
    propagate to `/etc/image-version` + Neutrino compile-time default
    (see [SERVICE-KEY.md](SERVICE-KEY.md)).
 

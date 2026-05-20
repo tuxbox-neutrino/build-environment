@@ -5,6 +5,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TOPDIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 
 MACHINE=${MACHINE:-hd51}
+MACHINEBUILD=${MACHINEBUILD:-}
+BUILD_DIR=${BUILD_DIR:-"${TOPDIR}/builds/${MACHINE}"}
 DISTRO_TYPE=${DISTRO_TYPE:-release}
 SOURCE_DIR=${SOURCE_DIR:-}
 FEED_ROOT=${FEED_ROOT:-"${TOPDIR}/portal-feed"}
@@ -12,6 +14,7 @@ CATALOG_OUT=${CATALOG_OUT:-"${FEED_ROOT}/catalog.json"}
 ARTIFACT_BASE_URL=${ARTIFACT_BASE_URL:-"https://images.tuxbox-neutrino.org/feed"}
 ONLINE_UPDATE_REPO=${ONLINE_UPDATE_REPO:-"${TOPDIR}/../online-update"}
 ALLOWED_CHANNELS=${ALLOWED_CHANNELS:-"release,beta,nightly"}
+CLI=${CLI:-"${TOPDIR}/cli.py"}
 
 if [[ ! -d "${ONLINE_UPDATE_REPO}" ]]; then
     echo "online-update repo not found: ${ONLINE_UPDATE_REPO}" >&2
@@ -23,22 +26,36 @@ if [[ ! -x "${ONLINE_UPDATE_REPO}/tools/build-catalog.php" ]]; then
     exit 1
 fi
 
+raw_imagedir=""
+online_imagedir=""
+
 if [[ -z "${SOURCE_DIR}" ]]; then
-    candidates=(
-        "${TOPDIR}/build/build/tmp-${MACHINE}/deploy/images/${MACHINE}"
-        "${TOPDIR}/build/tmp-${MACHINE}/deploy/images/${MACHINE}"
-        "${TOPDIR}/builds/tmp-${MACHINE}/deploy/images/${MACHINE}"
-    )
-    for candidate in "${candidates[@]}"; do
-        if [[ -d "${candidate}" ]]; then
-            SOURCE_DIR="${candidate}"
-            break
-        fi
-    done
+    if [[ ! -x "${CLI}" ]]; then
+        echo "cli.py not found or not executable: ${CLI}" >&2
+        exit 1
+    fi
+
+    deploy_info_tmp=$(mktemp)
+    cleanup_deploy_info() {
+        rm -f "${deploy_info_tmp}"
+    }
+    trap cleanup_deploy_info EXIT INT TERM
+
+    deploy_args=(deploy-info --machine "${MACHINE}" --builddir "${BUILD_DIR}" --require-images --json)
+    if [[ -n "${MACHINEBUILD}" ]]; then
+        deploy_args+=(--machinebuild "${MACHINEBUILD}")
+    fi
+    "${CLI}" "${deploy_args[@]}" > "${deploy_info_tmp}"
+    SOURCE_DIR=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["deploy_images"])' "${deploy_info_tmp}")
+    raw_imagedir=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["raw_imagedir"])' "${deploy_info_tmp}")
+    online_imagedir=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["online_imagedir"])' "${deploy_info_tmp}")
+    rm -f "${deploy_info_tmp}"
+    trap - EXIT INT TERM
 fi
 
 if [[ -z "${SOURCE_DIR}" ]]; then
-    SOURCE_DIR=$(find "${TOPDIR}" -maxdepth 6 -type d -path "*/tmp-${MACHINE}/deploy/images/${MACHINE}" | head -n 1 || true)
+    echo "cannot locate deploy source directory for machine ${MACHINE}" >&2
+    exit 1
 fi
 
 if [[ -z "${SOURCE_DIR}" || ! -d "${SOURCE_DIR}" ]]; then
@@ -55,6 +72,7 @@ fi
 
 manifest_channel=$(jq -r '.channel // empty' "${manifest_src}")
 manifest_imagedir=$(jq -r '.imagedir // empty' "${manifest_src}")
+manifest_machine=$(jq -r '.machine // empty' "${manifest_src}")
 manifest_build_date=$(jq -r '.build_date // empty' "${manifest_src}")
 manifest_image_name=$(jq -r '.image_name // empty' "${manifest_src}")
 
@@ -62,11 +80,32 @@ if [[ -z "${manifest_channel}" || -z "${manifest_imagedir}" || -z "${manifest_bu
     echo "manifest is missing required fields (channel/imagedir/build_date): ${manifest_src}" >&2
     exit 1
 fi
+if [[ "${manifest_machine}" != "${MACHINE}" ]]; then
+    echo "manifest machine mismatch: ${manifest_machine} (expected ${MACHINE})" >&2
+    exit 1
+fi
+if [[ -z "${raw_imagedir}" ]]; then
+    raw_imagedir="${manifest_imagedir}"
+fi
+if [[ -z "${online_imagedir}" ]]; then
+    online_imagedir="${manifest_imagedir}"
+fi
+if [[ "${manifest_imagedir}" != "${online_imagedir}" && "${manifest_imagedir}" != "${raw_imagedir}" ]]; then
+    echo "manifest imagedir mismatch: ${manifest_imagedir} (expected ${online_imagedir} or ${raw_imagedir})" >&2
+    exit 1
+fi
 
-stage_dir="${FEED_ROOT}/${manifest_channel}/${manifest_imagedir}/${manifest_build_date}"
+stage_dir="${FEED_ROOT}/${manifest_channel}/${online_imagedir}/${manifest_build_date}"
 mkdir -p "${stage_dir}"
 
-cp -f "${manifest_src}" "${stage_dir}/manifest.json"
+manifest_normalized=0
+if [[ "${manifest_imagedir}" != "${online_imagedir}" ]]; then
+    jq --arg imagedir "${online_imagedir}" '.imagedir = $imagedir' \
+        "${manifest_src}" > "${stage_dir}/manifest.json"
+    manifest_normalized=1
+else
+    cp -f "${manifest_src}" "${stage_dir}/manifest.json"
+fi
 
 marker_src="${SOURCE_DIR}/imageversion"
 if [[ -f "${marker_src}" ]]; then
@@ -112,7 +151,7 @@ for name in "${manifest_files[@]}"; do
     fi
 done
 
-if [[ -f "${SOURCE_DIR}/manifest.json.sha256" ]]; then
+if [[ "${manifest_normalized}" -eq 0 && -f "${SOURCE_DIR}/manifest.json.sha256" ]]; then
     cp -f "${SOURCE_DIR}/manifest.json.sha256" "${stage_dir}/manifest.json.sha256"
 else
     sha256sum "${stage_dir}/manifest.json" | awk '{print $1 "  manifest.json"}' > "${stage_dir}/manifest.json.sha256"

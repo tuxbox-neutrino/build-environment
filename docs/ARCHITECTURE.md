@@ -53,7 +53,7 @@ Tuxbox-OS Builder is a **parasitic integration** system that leverages OE-Allian
 │                                                            │
 │  ┌────────────────────────────────────────────────┐      │
 │  │ meta-neutrino (Submodule - master branch)      │      │
-│  │  • neutrino-mp recipes                         │      │
+│  │  • Neutrino recipes                         │      │
 │  │  • libstb-hal                                  │      │
 │  │  • Plugins (standard + Lua)                    │      │
 │  │  • Themes                                      │      │
@@ -80,9 +80,9 @@ Tuxbox-OS Builder is a **parasitic integration** system that leverages OE-Allian
                       ▼
 ┌──────────────────────────────────────────────────────────┐
 │ Build Artifacts                                          │
-│  • Images: builds/build/tmp/deploy/images/<machine>/            │
-│  • Packages: builds/build/tmp/deploy/ipk/                       │
-│  • SDK: builds/build/tmp/deploy/sdk/                            │
+│  • Images: builds/<machine>/tmp/deploy/images/<machine>/        │
+│  • Packages: builds/<machine>/tmp/deploy/ipk/                   │
+│  • SDK: builds/<machine>/tmp/deploy/sdk/                        │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -159,7 +159,7 @@ tuxbox-image.bb
        └─ ... (system essentials)
 
   └─ requires: packagegroup-tuxbox-neutrino
-       ├─ neutrino-mp
+       ├─ Neutrino
        ├─ libstb-hal
        ├─ neutrino-plugins
        ├─ neutrino-webif
@@ -239,7 +239,7 @@ Configurations are **hash-tracked** - regenerated only when variables change.
    └─ Assemble image
 
 7. Deploy artifacts
-   └─ builds/build/tmp/deploy/images/hd51/
+   └─ builds/hd51/tmp/deploy/images/hd51/
        ├─ tuxbox-image-hd51.zip
        ├─ bzImage (kernel)
        └─ rootfs.tar.bz2
@@ -390,7 +390,7 @@ DL_DIR = "/opt/tuxbox-os/downloads"
 **Default**: BitBake already sets parallelism to CPU count when variables are
 unset (see `poky/meta/conf/bitbake.conf`).
 
-**Optional override** (in `local.conf.user.inc`):
+**Optional override** (in `builds/conf/local.conf`):
 ```
 BB_NUMBER_THREADS = "8"  # Run 8 recipes in parallel
 PARALLEL_MAKE = "-j 8"   # Run 8 gcc jobs in parallel

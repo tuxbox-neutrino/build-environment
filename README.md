@@ -26,17 +26,19 @@ What this does:
    commits (`make update`, safe default).
 4. Builds your first image and prepares a local IPK feed for it.
 
-Fastboot machines such as HD60 include the STB Lua plugin bundle by default in
-the image. That covers runtime tools such as `stb-startup`, `stb-flash`,
-`stb-backup`, and `stb-restore`. Multiboot platforms with STARTUP slot
-switching, such as the HD51 family and H7, include the standalone `stb-startup`
-plugin even when they are not marked with the OE-A `fastboot` feature. All
-images also install `logoupdater` and the Neutrino `mediathek` plugin by
-default. The standard runtime now also includes the yWeb helper tools for OSD
-screenshots and AutoMount (`grab`, `fbshot`, and `autofs`/`automount`). Settings
-backup for the default flash workflows comes from Neutrino's `backup.sh` with
-`/etc/neutrino/config/tobackup.conf`; `etckeeper` stays available as an
-optional extra-tool/feed package instead of being installed by default.
+Fastboot machines such as HD60 include the reduced STB Lua runtime bundle by
+default in the image. That keeps safe runtime tools such as `stb-startup`,
+`stb-log`, and `stb-shell`, while legacy flash, backup, restore, and image-move
+plugins stay available as optional packages until the Neutrino Flashmanager
+integration is ready. Multiboot platforms with STARTUP slot switching, such as
+the HD51 family and H7, include the standalone `stb-startup` plugin even when
+they are not marked with the OE-A `fastboot` feature. All images also install
+`logoupdater` and the Neutrino `mediathek` plugin by default. The standard
+runtime now also includes the yWeb helper tools for OSD screenshots and
+AutoMount (`grab`, `fbshot`, and `autofs`/`automount`). Settings backup for
+future flash workflows comes from Neutrino's `backup.sh` with
+`/etc/neutrino/config/tobackup.conf`; `etckeeper` stays available as an optional
+extra-tool/feed package instead of being installed by default.
 
 If `make check` reports missing packages, use the dependency section in
 [docs/QUICKSTART.md](docs/QUICKSTART.md).
@@ -81,12 +83,18 @@ Use `make machine-info` to confirm machine-specific values.
 
 Default image output paths are:
 
-- `builds/build/tmp/deploy/images/<machine>/`
-- `build/build/tmp/deploy/images/<machine>/`
+- `builds/<machine>/tmp/deploy/images/<machine>/`
 
 Example for `hd51`:
 
-- `builds/build/tmp/deploy/images/hd51/`
+- `builds/hd51/tmp/deploy/images/hd51/`
+
+Shared BitBake/User configuration lives in `builds/conf`. The generated
+`builds/<machine>/conf/local.conf` files are thin machine entrypoints that set
+`MACHINE`, `MACHINEBUILD`, `TMPDIR`, and image identity, then include the shared
+config and `builds/<machine>/conf/local.conf.<machine>.inc`. Shared local
+layers, including the central devtool workspace, stay in
+`builds/conf/bblayers.conf.user.inc`.
 
 ## Updating: Users Vs Developers
 
@@ -97,11 +105,11 @@ make update
 ```
 
 This checks out the **pinned submodule commits** that have been tested together.
-It first fast-forwards only the top-level repo, then syncs submodule URLs, then
-updates submodules explicitly to the pinned tested revisions. This avoids the
-older recursive-fetch failure mode during the top-level pull and keeps the
-normal workflow reproducible. Always use this unless you know what you are
-doing.
+It first fast-forwards only the top-level repo, syncs submodule URLs, updates
+submodules explicitly to the pinned tested revisions, and runs the local config
+migration helper. Legacy shared configs such as `build/conf` are backed up and
+migrated to the shared `builds/conf` plus thin `builds/<machine>/conf`
+entrypoints when safe.
 
 If `make update` still stops, the usual remaining reason is local state inside
 a submodule, for example local commits or uncommitted changes. Resolve that
@@ -198,8 +206,8 @@ make feed-server-stop
 `python3 -m http.server`. Allow TCP port `33333` through the host firewall if
 the box should reach the feed from your LAN.
 
-To use a public feed instead, override the URL in
-`builds/conf/local.conf.user.inc`:
+To use a public feed instead, override the URL in the central user/site config
+`builds/conf/local.conf`:
 
 ```conf
 IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
@@ -216,7 +224,7 @@ make image MACHINE=hd60 LOCAL_FEED=0
 Build portal feed stage and `catalog.json` from the latest machine deploy:
 
 ```bash
-make portal-catalog MACHINE=hd60 \
+make portal-catalog MACHINE=hd60 MACHINEBUILD=ax60 \
   PORTAL_ARTIFACT_BASE_URL=https://images.tuxbox-neutrino.org/feed
 ```
 

@@ -29,18 +29,19 @@ Das passiert dabei:
 Wenn `make check` fehlende Pakete meldet, nutze den Abhängigkeits-Abschnitt in
 [docs/de/QUICKSTART.md](docs/de/QUICKSTART.md).
 
-Fastboot-Maschinen wie die HD60 enthalten das STB-Lua-Plugin-Bündel
-standardmäßig im Image. Dazu gehören Laufzeitwerkzeuge wie `stb-startup`,
-`stb-flash`, `stb-backup` und `stb-restore`. Multiboot-Plattformen mit
-STARTUP-Slotwechsel, etwa die HD51-Familie und H7, enthalten das einzelne
-Plugin `stb-startup` auch dann, wenn sie nicht über das OE-A-Feature `fastboot`
-markiert sind. `logoupdater` ist ebenfalls standardmäßig enthalten, ebenso das
-Neutrino-Plugin `mediathek` und die yWeb-Helfer für OSD-Screenshots und
-AutoMount (`grab`, `fbshot` und `autofs`/`automount`). Die
-Standardeinstellungssicherung für Flash-Abläufe läuft über Neutrinos
-`backup.sh` mit `/etc/neutrino/config/tobackup.conf`; `etckeeper` bleibt als
-optionales Extra-/Feed-Paket verfügbar und wird nicht mehr standardmäßig
-installiert.
+Fastboot-Maschinen wie die HD60 enthalten das reduzierte STB-Lua-Laufzeitbündel
+standardmäßig im Image. Es behält sichere Laufzeitwerkzeuge wie `stb-startup`,
+`stb-log` und `stb-shell`; ältere Flash-, Backup-, Restore- und
+Image-Move-Plugins bleiben bis zur Neutrino-Flashmanager-Integration als
+optionale Pakete verfügbar. Multiboot-Plattformen mit STARTUP-Slotwechsel, etwa die
+HD51-Familie und H7, enthalten das einzelne Plugin `stb-startup` auch dann,
+wenn sie nicht über das OE-A-Feature `fastboot` markiert sind. `logoupdater`
+ist ebenfalls standardmäßig enthalten, ebenso das Neutrino-Plugin `mediathek`
+und die yWeb-Helfer für OSD-Screenshots und AutoMount (`grab`, `fbshot` und
+`autofs`/`automount`). Die Einstellungssicherung für künftige Flash-Abläufe
+läuft über Neutrinos `backup.sh` mit `/etc/neutrino/config/tobackup.conf`;
+`etckeeper` bleibt als optionales Extra-/Feed-Paket verfügbar und wird nicht
+mehr standardmäßig installiert.
 
 ## Täglicher Workflow (Sicherer Standard)
 
@@ -82,12 +83,19 @@ Mit `make machine-info` prüfst du die maschinenspezifischen Werte.
 
 Standardpfade für Images sind:
 
-- `builds/build/tmp/deploy/images/<machine>/`
-- `build/build/tmp/deploy/images/<machine>/`
+- `builds/<machine>/tmp/deploy/images/<machine>/`
 
 Beispiel für `hd51`:
 
-- `builds/build/tmp/deploy/images/hd51/`
+- `builds/hd51/tmp/deploy/images/hd51/`
+
+Gemeinsame BitBake-/User-Konfiguration liegt in `builds/conf`. Die generierten
+`builds/<machine>/conf/local.conf` Dateien sind dünne Machine-Einstiege: Sie
+setzen `MACHINE`, `MACHINEBUILD`, `TMPDIR` und die Image-Identität und
+inkludieren danach die gemeinsame Config sowie
+`builds/<machine>/conf/local.conf.<machine>.inc`. Gemeinsame lokale Layer,
+inklusive zentralem Devtool-Workspace, bleiben in
+`builds/conf/bblayers.conf.user.inc`.
 
 ## Aktualisieren: Nutzer Vs Entwickler
 
@@ -99,9 +107,11 @@ make update
 
 Damit werden die **gepinnten Submodul-Commits** ausgecheckt, die zusammen
 getestet wurden. Zuerst wird nur das Top-Level-Repository per Fast-Forward
-aktualisiert, danach werden die Submodul-URLs synchronisiert und die
-Submodule explizit auf die gepinnten Stände gesetzt. Das vermeidet den
-früheren Fehlerfall mit rekursivem Submodul-Fetch während des Top-Level-Pulls
+aktualisiert, danach werden die Submodul-URLs synchronisiert, die Submodule
+explizit auf die gepinnten Stände gesetzt und die lokale Config-Migration
+ausgeführt. Alte Shared-Configs wie `build/conf` werden gesichert und, wenn
+eindeutig möglich, nach `builds/conf` plus dünne `builds/<machine>/conf`
+Einstiegskonfigurationen migriert.
 und hält den normalen Workflow reproduzierbar. Nutze immer diesen Befehl, es
 sei denn du weißt was du tust.
 
@@ -193,8 +203,8 @@ Wenn `lighttpd` installiert ist, nutzt der Builder ihn; sonst fällt er auf
 `python3 -m http.server` zurück. Port `33333/tcp` muss in der Host-Firewall
 erlaubt sein, wenn die Box den Feed im Heimnetz erreichen soll.
 
-Für einen öffentlichen Feed überschreibst du die URL in
-`builds/conf/local.conf.user.inc`:
+Für einen öffentlichen Feed überschreibst du die URL in der zentralen
+User-/Site-Config `builds/conf/local.conf`:
 
 ```conf
 IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
@@ -211,7 +221,7 @@ make image MACHINE=hd60 LOCAL_FEED=0
 Portal-Feed-Staging und `catalog.json` aus dem letzten Machine-Deploy erzeugen:
 
 ```bash
-make portal-catalog MACHINE=hd60 \
+make portal-catalog MACHINE=hd60 MACHINEBUILD=ax60 \
   PORTAL_ARTIFACT_BASE_URL=https://images.tuxbox-neutrino.org/feed
 ```
 

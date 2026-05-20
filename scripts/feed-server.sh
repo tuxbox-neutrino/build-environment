@@ -145,6 +145,10 @@ machine_from_deploy_ipk() {
 
     parent="${parent%/tmp}"
     name="${parent##*/}"
+    if [[ "${parent%/*}" == */builds && -n "${name}" ]]; then
+        printf '%s\n' "${name}"
+        return 0
+    fi
     if [[ "${name}" == build-* ]]; then
         printf '%s\n' "${name#build-}"
         return 0
@@ -174,9 +178,11 @@ discover_deploy_ipks() {
     local root="$1"
     shopt -s nullglob
     local candidates=(
+        "${root}"/builds/*/tmp/deploy/ipk
         "${root}"/build/tmp-*/deploy/ipk
         "${root}"/build/build/tmp-*/deploy/ipk
         "${root}"/builds/build/tmp-*/deploy/ipk
+        "${root}"/builds/*/build/tmp-*/deploy/ipk
         "${root}"/tmp-*/deploy/ipk
         "${root}"/build-*/tmp/deploy/ipk
     )
@@ -214,6 +220,13 @@ do_publish() {
     local deploy_ipk="$3"
     validate_machine "${machine}"
     [[ -d "${builddir}" ]] || die "--builddir does not exist: ${builddir}"
+
+    if [[ -x "${TOPDIR}/cli.py" && -z "${deploy_ipk}" ]]; then
+        "${TOPDIR}/cli.py" deploy-info \
+            --machine "${machine}" \
+            --builddir "${builddir}" \
+            --require-ipk >/dev/null
+    fi
 
     deploy_ipk="$(find_deploy_ipk "${builddir}" "${machine}" "${deploy_ipk}")"
     publish_deploy_ipk "${machine}" "${deploy_ipk}"
@@ -262,16 +275,13 @@ do_publish_all() {
     while IFS= read -r deploy_ipk; do
         [[ -n "${deploy_ipk}" ]] || continue
         if ! machine="$(machine_from_deploy_ipk "${deploy_ipk}")"; then
-            warn "skip unsupported deploy layout: ${deploy_ipk}"
-            continue
+            die "unsupported deploy layout: ${deploy_ipk}"
         fi
         if ! is_valid_machine "${machine}"; then
-            warn "skip invalid machine from ${deploy_ipk}"
-            continue
+            die "invalid machine from ${deploy_ipk}"
         fi
         if [[ -n "${seen[${machine}]:-}" ]]; then
-            warn "skip duplicate machine ${machine}: ${deploy_ipk}"
-            continue
+            die "duplicate deploy/ipk for ${machine}: ${deploy_ipk}"
         fi
         if ! deploy_has_content "${deploy_ipk}"; then
             warn "skip empty deploy/ipk for ${machine}: ${deploy_ipk}"

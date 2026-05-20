@@ -1,6 +1,6 @@
 # Image Portal Service Concept (Landing Page + Download API)
 
-Date: 2026-04-12
+Date: 2026-05-02
 Status: design + bootstrap implementation started
 
 Related: [ONLINE-FLASH-CONCEPT.md](ONLINE-FLASH-CONCEPT.md),
@@ -17,6 +17,15 @@ API access, replacing ad-hoc feed scripts with:
 
 The service is independent from STB runtime and should live in its own git repo,
 with dedicated packaging/deployment integration.
+
+Current local workspace:
+
+- `/home/tg/sources/online-update`
+- Branch `master`, latest observed commit:
+  `3671aa9 chore (ci): drop PHP 7.4, require ^8.0`
+- Local tests have already been run against this service during the first
+  online-flash experiments. Treat that as API/service validation, not as final
+  Neutrino/HD60 rollout validation.
 
 ## NI Reference and Delta
 
@@ -161,12 +170,30 @@ Optional:
 
 ### Endpoints
 
-- `GET /api/v1/catalog?channel=nightly&imagedir=hd60`
-- `GET /api/v1/machines`
-- `GET /api/v1/images/{imagedir}/latest?channel=nightly`
-- `GET /api/v1/images/{imagedir}/{build_date}`
-- `GET /api/v1/download/{imagedir}/{build_date}/{filename}`
-  - returns 302 redirect to static artifact location
+- Implemented local MVP:
+  - `GET /api/v1/catalog.php?channel=nightly&imagedir=hd60`
+  - `GET /api/v1/latest.php?channel=nightly&imagedir=hd60`
+  - `GET /api/v1/download.php?channel=nightly&imagedir=hd60&build_date=<YYYYMMDDHHMMSS>&filename=<zip>`
+- Planned REST shape can still evolve later:
+  - `GET /api/v1/machines`
+  - `GET /api/v1/images/{imagedir}/latest?channel=nightly`
+  - `GET /api/v1/images/{imagedir}/{build_date}`
+  - `GET /api/v1/download/{imagedir}/{build_date}/{filename}`
+    - returns 302 redirect to static artifact location or streams from a
+      local artifact source.
+
+### Static Feed Route
+
+The local MVP also exposes a static-feed compatibility route for Neutrino
+clients that only need one configured base URL:
+
+- `GET /feed/<channel>/<imagedir>/manifest.json`
+- `GET /feed/<channel>/<imagedir>/<filename>`
+
+With Neutrino settings or `/etc/image-version` pointing `image_update_url` to
+`/feed/<channel>/<imagedir>` and `image_manifest_file=manifest.json`, the same
+arbitrary server URL can deliver the matching flash artifact for the
+box/channel.
 
 ### Legacy Compatibility Endpoint
 
@@ -361,7 +388,8 @@ trivial to deploy.
 Add helper in builder repo (script/make target):
 
 - `make portal-catalog`
-  - scans published machine directories,
+  - resolves machine deploy paths via `./cli.py deploy-info`,
+  - validates machine/builddir/manifest identity before staging,
   - validates manifests/checksums,
   - emits normalized `catalog.json`.
 
@@ -377,8 +405,10 @@ This portal complements:
 
 Usage relationship:
 
-- Neutrino online flash consumes static feed by default and may optionally use
-  the portal API via `image_discovery_api_url`.
+- Neutrino online flash consumes either the static feed route via
+  `image_update_url` or the portal API via `image_discovery_api_url`. The base
+  URL is intentionally configurable so private or public operators can host the
+  service on any server.
 - Humans use landing page for manual download.
 - Legacy clients use compatibility adapter endpoint temporarily.
 

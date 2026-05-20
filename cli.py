@@ -7,15 +7,22 @@ Manages OE-Alliance integration, submodules, configuration, and builds.
 """
 
 import argparse
+import configparser
+import contextlib
+import io
 import json
 import os
 import platform
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import tarfile
 import tempfile
 import textwrap
+import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -38,6 +45,9 @@ class TuxboxBuilder:
         self.state_file = self.topdir / '.tuxbox' / 'state.json'
         self.preferred_builddir = self.topdir / 'builds'
         self.legacy_builddir = self.topdir / 'build'
+        self.global_conf_dir = self.preferred_builddir / 'conf'
+        self.workspace_dir = self.preferred_builddir / 'workspace'
+        self.legacy_workspace_dir = self.legacy_builddir / 'workspace'
         self.builddir = self._default_non_coolstream_builddir()
         self.dl_dir = self.topdir / 'downloads'
         self.sstate_dir = self.topdir / 'sstate-cache'
@@ -69,24 +79,74 @@ class TuxboxBuilder:
         self.log(message, Colors.CYAN)
 
     def _default_non_coolstream_builddir(self) -> Path:
-        """Return shared build dir default with legacy fallback."""
-        if self.preferred_builddir.exists():
-            return self.preferred_builddir
+        """Return the legacy shared build dir fallback."""
         if (self.legacy_builddir / 'conf' / 'local.conf').exists():
             return self.legacy_builddir
         return self.preferred_builddir
 
     def _default_builddir_for_machine(self, machine: str) -> Path:
         """Return default build dir for a machine."""
-        if machine.startswith('coolstream'):
-            return self.topdir / f"build-{machine}"
-        return self._default_non_coolstream_builddir()
+        return self.preferred_builddir / machine
+
+    def _resolve_user_path(self, value) -> Path:
+        """Resolve a user-supplied path relative to the current shell."""
+        path = Path(value).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        return path.resolve()
+
+    def _shared_conf_dir_for_builddir(self, builddir: Optional[Path] = None) -> Path:
+        if not builddir:
+            return self.global_conf_dir
+        builddir = self._resolve_user_path(builddir)
+        if (
+            builddir == self.legacy_builddir.resolve()
+            or builddir.parent == self.preferred_builddir.resolve()
+        ):
+            return self.global_conf_dir
+        return builddir.parent / 'conf'
+
+    def _global_local_conf(self, builddir: Optional[Path] = None) -> Path:
+        return self._shared_conf_dir_for_builddir(builddir) / 'local.conf'
+
+    def _legacy_global_local_user_conf(self, builddir: Optional[Path] = None) -> Path:
+        return self._shared_conf_dir_for_builddir(builddir) / 'local.conf.user.inc'
+
+    def _global_bblayers_user_conf(self, builddir: Optional[Path] = None) -> Path:
+        return self._shared_conf_dir_for_builddir(builddir) / 'bblayers.conf.user.inc'
+
+    def _machine_conf_sources(self, conf_dir: Path, machine: str) -> List[Path]:
+        builddir = conf_dir.parent
+        return [
+            conf_dir / 'local.conf',
+            self._global_local_conf(builddir),
+            conf_dir / 'local-feed.inc',
+            conf_dir / f'local.conf.{machine}.inc',
+        ]
+
+    def _machine_layer_sources(self, conf_dir: Path) -> List[Path]:
+        builddir = conf_dir.parent
+        return [
+            conf_dir / 'bblayers.conf',
+            self._global_bblayers_user_conf(builddir),
+            conf_dir / 'bblayers.conf.user.inc',
+        ]
 
     def _discover_builddirs(self) -> List[Path]:
         """Return candidate build dirs ordered by preference."""
         builddirs: List[Path] = []
-        for candidate in (self.preferred_builddir, self.legacy_builddir):
-            if candidate.is_dir() and candidate not in builddirs:
+        if self.preferred_builddir.is_dir():
+            for candidate in sorted(self.preferred_builddir.iterdir()):
+                if candidate.name in {'conf', 'workspace'}:
+                    continue
+                if (candidate / 'conf' / 'local.conf').exists() and candidate not in builddirs:
+                    builddirs.append(candidate)
+        for candidate in (self.legacy_builddir,):
+            if (
+                candidate.is_dir()
+                and (candidate / 'conf' / 'local.conf').exists()
+                and candidate not in builddirs
+            ):
                 builddirs.append(candidate)
         if not builddirs:
             builddirs.append(self.preferred_builddir)
@@ -97,12 +157,7 @@ class TuxboxBuilder:
 
     def _tmpdir_override_value(self, target_builddir: Path, machine: str) -> str:
         """Return TMPDIR override string for machine include file examples."""
-        if machine.startswith('coolstream'):
-            return f"${{TOPDIR}}/build-{machine}/tmp"
-        # Keep historic layout for non-coolstream builds:
-        # TOPDIR is the selected build dir, so this resolves to
-        # <builddir>/build/tmp-<machine> (e.g. builds/build/tmp-hd60).
-        return f"${{TOPDIR}}/build/tmp-{machine}"
+        return "${TOPDIR}/tmp"
 
     def _migrate_saved_tmpdir_markers(self, target_builddir: Path) -> int:
         """Rewrite saved_tmpdir markers after one-time build->builds migration."""
@@ -193,6 +248,14 @@ class TuxboxBuilder:
         port = os.environ.get("LOCAL_FEED_PORT", "33333").strip() or "33333"
         return f"http://{host}:{port}/{machine}/ipk"
 
+    def _online_imagedir_slug(self, value: str) -> str:
+        """Return a URL/catalog safe image directory identifier."""
+        raw = (value or "").strip().lower()
+        raw = raw.replace("/", "-")
+        raw = re.sub(r"[^a-z0-9_-]+", "-", raw)
+        raw = re.sub(r"-+", "-", raw).strip("-")
+        return raw or "unknown"
+
     def _write_if_changed(self, path: Path, content: str):
         if path.exists():
             try:
@@ -217,7 +280,8 @@ class TuxboxBuilder:
 
         insert_at = len(lines)
         for index, line in enumerate(lines):
-            if line.strip() == "include conf/local.conf.user.inc":
+            stripped = line.strip()
+            if stripped == "include conf/local.conf.${MACHINE}.inc":
                 insert_at = index
                 break
         lines.insert(insert_at, include_line)
@@ -225,7 +289,7 @@ class TuxboxBuilder:
         self.info(f"Added local feed include: {local_conf}")
 
     def ensure_local_feed_config(self, conf_dir: Path, machine: str):
-        """Generate local-feed.inc and include it before user overrides."""
+        """Generate local-feed.inc and include it before machine overrides."""
         local_conf = conf_dir / "local.conf"
         local_feed_conf = conf_dir / "local-feed.inc"
         enabled = self._local_feed_enabled()
@@ -234,7 +298,7 @@ class TuxboxBuilder:
             feed_url = self._local_feed_base_url(machine)
             content = (
                 "# Local package feed generated by tuxbox-os-builder.\n"
-                "# Override IPK_FEED_SERVER in local.conf.user.inc for public feeds.\n"
+                "# Override IPK_FEED_SERVER in builds/conf/local.conf for public feeds.\n"
                 f"IPK_FEED_SERVER ?= \"{feed_url}\"\n"
             )
         else:
@@ -769,6 +833,21 @@ class TuxboxBuilder:
         self.info(f"Available: {', '.join(build_display)}")
         sys.exit(1)
 
+    def _oem_values_for_machinebuild(self, brand: str, machinebuild: str) -> Dict[str, Set[str]]:
+        values = {'imagedir': set(), 'driver': set()}
+        layer_root = self.topdir / 'oe-alliance' / 'meta-brands' / f"meta-{brand}"
+        include_dir = layer_root / 'conf' / 'machine' / 'include'
+        if not include_dir.is_dir():
+            return values
+
+        for oem_file in include_dir.glob('*oem.inc'):
+            mapping = self._collect_machinebuilds_from_oem(oem_file)
+            for key in ['imagedir', 'driver']:
+                for build, value in mapping.get(key, []):
+                    if build == machinebuild and value:
+                        values[key].add(value)
+        return values
+
     def _read_conf_value(self, conf_path: Path, key: str) -> Optional[str]:
         if not conf_path.exists():
             return None
@@ -942,11 +1021,14 @@ class TuxboxBuilder:
             return []
         layers = []
         topdir_str = str(self.topdir)
-        for match in re.findall(r'(/[^\\s"\']+)', text):
-            if not match.startswith(topdir_str):
+        for line in text.splitlines():
+            if line.strip().startswith('include '):
                 continue
-            if match not in layers:
-                layers.append(match)
+            for match in re.findall(r"(/[^\s\"']+)", line):
+                if not match.startswith(topdir_str):
+                    continue
+                if match not in layers:
+                    layers.append(match)
         return layers
 
     def detect_machine_brand(self, machine: str) -> str:
@@ -1100,6 +1182,1468 @@ class TuxboxBuilder:
         self.info(f"  oem:imagedir: {', '.join(oem_imagedir) if oem_imagedir else '-'}")
         self.info(f"  oem:driver: {', '.join(oem_driver) if oem_driver else '-'}")
 
+    def _coolstream_machines(self) -> List[str]:
+        conf_dir = self.topdir / 'meta-coolstream' / 'conf' / 'machine'
+        if not conf_dir.is_dir():
+            return []
+        return sorted(p.stem for p in conf_dir.glob('coolstream-*.conf') if p.is_file())
+
+    def _audit_matrix(self, machine: Optional[str] = None,
+                      machinebuild: Optional[str] = None,
+                      brand_filter: Optional[str] = None) -> List[Dict[str, str]]:
+        rows: List[Dict[str, str]] = []
+        brand_map = self._load_brand_machines()
+
+        if machine:
+            brand = self.detect_machine_brand(machine)
+            if brand == 'unknown' and machine.startswith('coolstream-'):
+                brand = 'coolstream'
+            builds, _ = self._machinebuild_candidates(machine)
+            build_values = [machinebuild] if machinebuild else (builds or [machine])
+            for build in build_values:
+                rows.append({'brand': brand, 'machine': machine, 'machinebuild': build})
+            return rows
+
+        for brand in sorted(brand_map.keys()):
+            if brand_filter and brand != brand_filter:
+                continue
+            machines = brand_map[brand]
+            builds_map = self._machinebuilds_for_brand(brand, machines)
+            for mach in machines:
+                build_info = builds_map.get(
+                    mach, {'explicit': set(), 'oem_imagedir': set(), 'oem_driver': set()}
+                )
+                build_names = sorted(
+                    set(build_info.get('explicit', set()))
+                    | set(build_info.get('oem_imagedir', set()))
+                    | set(build_info.get('oem_driver', set()))
+                )
+                for build in build_names or [mach]:
+                    rows.append({'brand': brand, 'machine': mach, 'machinebuild': build})
+
+        if not brand_filter or brand_filter == 'coolstream':
+            for mach in self._coolstream_machines():
+                rows.append({'brand': 'coolstream', 'machine': mach, 'machinebuild': mach})
+
+        return rows
+
+    def _audit_slug(self, machine: str, machinebuild: str) -> str:
+        value = f"{machine}-{machinebuild}"
+        return re.sub(r'[^A-Za-z0-9_.-]+', '_', value)
+
+    def _audit_scratch_root(self, requested: Optional[str]) -> Path:
+        if requested:
+            root = self._resolve_user_path(requested)
+            root.mkdir(parents=True, exist_ok=True)
+            return root
+        Path('/tmp/tuxbox-audit').mkdir(parents=True, exist_ok=True)
+        root = Path(tempfile.mkdtemp(prefix='run-', dir='/tmp/tuxbox-audit'))
+        return root
+
+    def _audit_generate_config(self, machine: str, machinebuild: str,
+                               builddir: Path, distro: str,
+                               distro_type: str) -> Optional[str]:
+        if builddir.exists():
+            shutil.rmtree(builddir)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.generate_config(machine, distro, distro_type, machinebuild, builddir)
+        except SystemExit as exc:
+            code = exc.code if isinstance(exc.code, int) else 1
+            return f"config generation exited {code}"
+        except Exception as exc:  # pragma: no cover - defensive CLI boundary
+            return f"config generation failed: {exc}"
+        return None
+
+    def _audit_read_generated_values(self, builddir: Path, machine: str) -> Dict[str, Optional[str]]:
+        conf_dir = builddir / 'conf'
+        keys = ['MACHINE', 'MACHINEBUILD', 'DISTRO', 'DISTRO_TYPE', 'TMPDIR']
+        values_with_sources = self._read_conf_values_with_sources(
+            self._machine_conf_sources(conf_dir, machine),
+            keys,
+        )
+        return {key: values_with_sources.get(key, (None, None))[0] for key in keys}
+
+    def _audit_bitbake_keys(self) -> List[str]:
+        return [
+            'MACHINE',
+            'MACHINEBUILD',
+            'PREFERRED_PROVIDER_virtual/kernel',
+            'PREFERRED_VERSION_linux-gfutures',
+            'PREFERRED_VERSION_linux-maxytec',
+            'PREFERRED_VERSION_linux-airdigital',
+            'PREFERRED_VERSION_linux-coolstream',
+            'PN',
+            'PV',
+            'FILESPATH',
+            'SRC_URI',
+            'KERNEL_IMAGETYPE',
+            'KERNEL_OUTPUT',
+            'KERNEL_FILE',
+            'IMAGE_FSTYPES',
+            'IMAGE_CLASSES',
+            'IMAGEDIR',
+            'MACHINE_DRIVER',
+            'MTD_KERNEL',
+            'MTD_ROOTFS',
+        ]
+
+    def _audit_parse_bitbake_env(self, builddir: Path,
+                                 timeout: int) -> Tuple[Dict[str, str], Optional[str]]:
+        oe_init = self.topdir / 'poky' / 'oe-init-build-env'
+        if not oe_init.exists():
+            return {}, f"missing {oe_init}"
+        cmd = (
+            f"cd {self.topdir}\n"
+            "unset MACHINE MACHINEBUILD BUILDDIR BBPATH\n"
+            f"source {oe_init} {builddir} >/dev/null\n"
+            "bitbake -e virtual/kernel"
+        )
+        env = os.environ.copy()
+        env.pop('MACHINE', None)
+        env.pop('MACHINEBUILD', None)
+        proc = subprocess.Popen(
+            ['bash', '-c', cmd],
+            cwd=self.topdir,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except OSError:
+                pass
+            stdout, stderr = proc.communicate()
+            return {}, f"bitbake -e timed out after {timeout}s"
+        if proc.returncode != 0:
+            message = (stderr or stdout).strip().splitlines()
+            return {}, message[0] if message else f"bitbake -e exited {proc.returncode}"
+
+        wanted = set(self._audit_bitbake_keys())
+        values: Dict[str, str] = {}
+        pattern = re.compile(r'^([A-Za-z0-9_+./:-]+)="(.*)"$')
+        for line in stdout.splitlines():
+            match = pattern.match(line)
+            if not match:
+                continue
+            key, value = match.group(1), match.group(2)
+            if key in wanted:
+                values[key] = value
+        return values, None
+
+    def _audit_defconfig_path(self, env_values: Dict[str, str]) -> str:
+        src_uri = env_values.get('SRC_URI', '')
+        if 'file://defconfig' not in src_uri:
+            return '-'
+        filespath = env_values.get('FILESPATH', '')
+        for entry in filespath.split(':'):
+            if not entry:
+                continue
+            candidate = Path(entry) / 'defconfig'
+            if candidate.exists():
+                try:
+                    return str(candidate.relative_to(self.topdir))
+                except ValueError:
+                    return str(candidate)
+        return 'missing'
+
+    def _audit_high_risk_keys(self, rows: List[Dict[str, str]]) -> Set[Tuple[str, str]]:
+        machines = {
+            'hd51', 'hd60', 'hd61', 'hd66se',
+            'multibox', 'multiboxse',
+            'h7', 'h9', 'h10', 'h11',
+            'coolstream-nevis', 'coolstream-tank',
+        }
+        representative_brands = {'vuplus', 'edision', 'octagon', 'gigablue'}
+        keys: Set[Tuple[str, str]] = set()
+        seen_brands: Set[str] = set()
+        for row in rows:
+            key = (row['machine'], row['machinebuild'])
+            if row['machine'] in machines:
+                keys.add(key)
+            brand = row['brand']
+            if brand in representative_brands and brand not in seen_brands:
+                keys.add(key)
+                seen_brands.add(brand)
+        return keys
+
+    def _audit_should_bitbake(self, mode: str, row: Dict[str, str],
+                              high_risk: Set[Tuple[str, str]],
+                              static_errors: List[str],
+                              selected: bool) -> bool:
+        if mode == 'none':
+            return False
+        if mode == 'all':
+            return True
+        if mode == 'selected':
+            return selected
+        if mode == 'suspicious':
+            return bool(static_errors)
+        if mode == 'high-risk':
+            return (row['machine'], row['machinebuild']) in high_risk or bool(static_errors)
+        return False
+
+    def _audit_latest_zip(self, machine: str) -> Optional[Path]:
+        candidates: List[Path] = []
+        for builddir in self._discover_builddirs():
+            candidates.extend(
+                builddir.glob(f"tmp/deploy/images/{machine}/*_multi.zip")
+            )
+            candidates.extend(
+                builddir.glob(f"tmp/deploy/images/{machine}/*_usb.zip")
+            )
+            candidates.extend(
+                builddir.glob(f"tmp/deploy/images/{machine}/*_single_mmc.zip")
+            )
+            candidates.extend(
+                builddir.glob(f"**/tmp-{machine}/deploy/images/{machine}/*_multi.zip")
+            )
+            candidates.extend(
+                builddir.glob(f"**/tmp-{machine}/deploy/images/{machine}/*_usb.zip")
+            )
+            candidates.extend(
+                builddir.glob(f"**/tmp-{machine}/deploy/images/{machine}/*_single_mmc.zip")
+            )
+        if not candidates:
+            return None
+        return max(candidates, key=lambda path: path.stat().st_mtime)
+
+    def _audit_inspect_deploy_zip(self, machine: str, expected_driver: Optional[str],
+                                  expected_kernel_file: Optional[str]) -> Tuple[str, List[str]]:
+        archive = self._audit_latest_zip(machine)
+        if not archive:
+            return '-', [f"no deploy zip for {machine}"]
+        errors: List[str] = []
+        try:
+            with zipfile.ZipFile(archive) as zf:
+                names = zf.namelist()
+                kernel_names = [name for name in names if name.endswith(('kernel.bin', 'uImage'))]
+                rootfs_names = [name for name in names if name.endswith('rootfs.tar.bz2')]
+                if expected_kernel_file and not any(name.endswith(expected_kernel_file) for name in kernel_names):
+                    errors.append(f"deploy missing {expected_kernel_file}")
+                if not rootfs_names:
+                    errors.append("deploy missing rootfs.tar.bz2")
+                if expected_driver and rootfs_names:
+                    driver_token = expected_driver.replace('-', '_')
+                    package_token = expected_driver.replace('_', '-')
+                    found_driver = False
+                    wrong_hd60 = False
+                    with zf.open(rootfs_names[0]) as rootfs:
+                        with tarfile.open(fileobj=rootfs, mode='r:bz2') as tf:
+                            for member in tf:
+                                name = member.name
+                                if f"/{driver_token}_" in name or package_token in name:
+                                    found_driver = True
+                                if machine == 'multiboxse' and 'gfutures-' in name:
+                                    wrong_hd60 = True
+                                if found_driver and not wrong_hd60:
+                                    break
+                    if not found_driver:
+                        errors.append(f"deploy rootfs missing driver {expected_driver}")
+                    if wrong_hd60:
+                        errors.append("multiboxse rootfs contains gfutures packages")
+        except (OSError, zipfile.BadZipFile, tarfile.TarError) as exc:
+            errors.append(f"cannot inspect deploy zip: {exc}")
+        return archive.name, errors
+
+    def _audit_live_box(self, machine: str) -> Tuple[str, List[str]]:
+        hosts = {'hd51': '192.168.1.54', 'hd60': '192.168.1.99'}
+        host = hosts.get(machine)
+        if not host:
+            return '-', []
+        remote = (
+            "uname -a; "
+            "cat /proc/cmdline 2>/dev/null; "
+            "cat /proc/device-tree/model 2>/dev/null; printf '\\n'; "
+            "find /lib/modules -maxdepth 1 -mindepth 1 -type d -printf '%f\\n' 2>/dev/null; "
+            "opkg list-installed 2>/dev/null | grep -E 'kernel|gfutures|maxytec|dvb|bootargs|partitions|recovery' | head -40; "
+            "cat /etc/image-version /var/etc/.version 2>/dev/null | head -40"
+        )
+        proc = subprocess.run(
+            [
+                'ssh',
+                '-o', 'BatchMode=yes',
+                '-o', 'ConnectTimeout=5',
+                '-o', 'StrictHostKeyChecking=accept-new',
+                f'root@{host}',
+                remote,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            message = (proc.stderr or proc.stdout).strip().splitlines()
+            return host, [message[0] if message else f"ssh exited {proc.returncode}"]
+        problems: List[str] = []
+        output = proc.stdout
+        if machine == 'hd51' and '4.10.12' not in output:
+            problems.append("live hd51 is not running 4.10.12")
+        if machine == 'hd60' and '4.4.35' not in output:
+            problems.append("live hd60 is not running 4.4.35")
+        return host, problems
+
+    def audit_machine_mapping(self, args):
+        """Audit MACHINE/MACHINEBUILD and kernel mapping without building images."""
+        rows = self._audit_matrix(args.machine, args.machinebuild, args.brand)
+        if args.limit:
+            rows = rows[:args.limit]
+        if not rows:
+            self.error("No audit rows selected")
+            sys.exit(1)
+
+        scratch_root = self._audit_scratch_root(args.scratch_root)
+        high_risk = self._audit_high_risk_keys(rows)
+        selected = bool(args.machine)
+        result_rows: List[Tuple[str, ...]] = []
+        json_rows: List[Dict[str, object]] = []
+        failed = False
+
+        for row in rows:
+            brand = row['brand']
+            machine = row['machine']
+            machinebuild = row['machinebuild']
+            builddir = scratch_root / self._audit_slug(machine, machinebuild)
+            errors: List[str] = []
+            warnings: List[str] = []
+            kernel = '-'
+            image_type = '-'
+            imagedir = '-'
+            driver = '-'
+
+            config_error = self._audit_generate_config(
+                machine, machinebuild, builddir, args.distro, args.distro_type
+            )
+            if config_error:
+                errors.append(config_error)
+            else:
+                values = self._audit_read_generated_values(builddir, machine)
+                if values.get('MACHINE') != machine:
+                    errors.append(f"local.conf MACHINE={values.get('MACHINE')}")
+                if values.get('MACHINEBUILD') != machinebuild:
+                    errors.append(f"local.conf MACHINEBUILD={values.get('MACHINEBUILD')}")
+
+                conf_dir = builddir / 'conf'
+                bblayers = []
+                for layer_source in self._machine_layer_sources(conf_dir):
+                    bblayers += self._extract_layer_paths(layer_source)
+                if brand == 'coolstream':
+                    if not any(path.endswith('/meta-coolstream') for path in bblayers):
+                        errors.append("missing meta-coolstream layer")
+                elif brand != 'unknown':
+                    expected = f"/oe-alliance/meta-brands/meta-{brand}"
+                    if not any(expected in path for path in bblayers):
+                        errors.append(f"missing meta-{brand} layer")
+
+                builds, display = self._machinebuild_candidates(machine)
+                if builds and machinebuild not in builds:
+                    errors.append(
+                        f"invalid MACHINEBUILD, available: {', '.join(display)}"
+                    )
+
+            oem_values = (
+                self._oem_values_for_machinebuild(brand, machinebuild)
+                if brand not in ('unknown', 'coolstream') else {'imagedir': set(), 'driver': set()}
+            )
+            if oem_values['imagedir']:
+                imagedir = ",".join(sorted(oem_values['imagedir']))
+            if oem_values['driver']:
+                driver = ",".join(sorted(oem_values['driver']))
+
+            env_values: Dict[str, str] = {}
+            bitbake_error = None
+            if not errors or args.bitbake in ('all', 'selected', 'high-risk', 'suspicious'):
+                if self._audit_should_bitbake(args.bitbake, row, high_risk, errors, selected):
+                    env_values, bitbake_error = self._audit_parse_bitbake_env(
+                        builddir, args.bitbake_timeout
+                    )
+                    if bitbake_error:
+                        errors.append(f"bitbake: {bitbake_error}")
+                    else:
+                        resolved_machine = env_values.get('MACHINE')
+                        resolved_machinebuild = env_values.get('MACHINEBUILD')
+                        if resolved_machine != machine:
+                            errors.append(f"bitbake MACHINE={resolved_machine}")
+                        if resolved_machinebuild != machinebuild:
+                            errors.append(f"bitbake MACHINEBUILD={resolved_machinebuild}")
+
+                        kernel_pn = env_values.get('PN') or env_values.get('PREFERRED_PROVIDER_virtual/kernel') or '-'
+                        kernel_pv = env_values.get('PV') or '-'
+                        kernel = f"{kernel_pn} {kernel_pv}".strip()
+                        image_type = env_values.get('KERNEL_FILE') or env_values.get('KERNEL_IMAGETYPE') or '-'
+                        imagedir = env_values.get('IMAGEDIR') or imagedir
+                        driver = env_values.get('MACHINE_DRIVER') or driver
+
+                        expected_imagedirs = oem_values['imagedir'] or ({machine} if machinebuild == machine else set())
+                        expected_drivers = oem_values['driver'] or ({machine} if machinebuild == machine else set())
+                        if expected_imagedirs and imagedir not in expected_imagedirs:
+                            errors.append(f"IMAGEDIR={imagedir}")
+                        if expected_drivers and driver not in expected_drivers:
+                            errors.append(f"MACHINE_DRIVER={driver}")
+
+                        defconfig = self._audit_defconfig_path(env_values)
+                        if defconfig == 'missing':
+                            errors.append("defconfig missing from FILESPATH")
+                        elif defconfig != '-':
+                            warnings.append(f"defconfig={defconfig}")
+
+            if args.deploy:
+                deploy_name, deploy_errors = self._audit_inspect_deploy_zip(
+                    machine,
+                    driver if driver != '-' else None,
+                    image_type if image_type in ('kernel.bin', 'uImage') else None,
+                )
+                if deploy_name != '-':
+                    warnings.append(f"deploy={deploy_name}")
+                errors.extend(deploy_errors)
+
+            if args.live:
+                host, live_errors = self._audit_live_box(machine)
+                if host != '-':
+                    warnings.append(f"live={host}")
+                errors.extend(live_errors)
+
+            if errors:
+                status = 'FAIL'
+                failed = True
+                reason = "; ".join(errors[:3])
+            elif warnings:
+                status = 'PASS'
+                reason = "; ".join(warnings[:2])
+            else:
+                status = 'PASS'
+                reason = '-'
+
+            result_rows.append((
+                machine,
+                machinebuild,
+                brand,
+                kernel,
+                image_type,
+                imagedir,
+                driver,
+                status,
+                reason,
+            ))
+            json_rows.append({
+                'machine': machine,
+                'machinebuild': machinebuild,
+                'brand': brand,
+                'kernel': kernel,
+                'image': image_type,
+                'imagedir': imagedir,
+                'driver': driver,
+                'status': status,
+                'reason': reason,
+                'scratch_builddir': str(builddir),
+            })
+
+        if args.json:
+            print(json.dumps(json_rows, indent=2))
+        else:
+            self._print_table(
+                "Machine/kernel mapping audit",
+                ['machine', 'machinebuild', 'brand', 'kernel', 'image',
+                 'imagedir', 'driver', 'status', 'reason'],
+                result_rows,
+            )
+            self.info(f"Scratch root: {scratch_root}")
+
+        if not args.keep_scratch:
+            shutil.rmtree(scratch_root, ignore_errors=True)
+
+        if failed:
+            sys.exit(1)
+
+    def _config_identity(self, conf_dir: Path) -> Tuple[Optional[str], Optional[str]]:
+        return self._read_machine_values_from_conf(conf_dir)
+
+    def _config_scan_dirs(self) -> List[Path]:
+        """Return legacy and per-machine config dirs that may need migration."""
+        dirs: List[Path] = []
+        for conf_dir in [
+            self.legacy_builddir / 'conf',
+            self.preferred_builddir / 'conf',
+        ]:
+            if (conf_dir / 'local.conf').exists() and conf_dir not in dirs:
+                dirs.append(conf_dir)
+        for builddir in sorted(self.topdir.glob('build-*')):
+            conf_dir = builddir / 'conf'
+            if (conf_dir / 'local.conf').exists() and conf_dir not in dirs:
+                dirs.append(conf_dir)
+        if self.preferred_builddir.is_dir():
+            for builddir in sorted(self.preferred_builddir.iterdir()):
+                conf_dir = builddir / 'conf'
+                if (conf_dir / 'local.conf').exists() and conf_dir not in dirs:
+                    dirs.append(conf_dir)
+        return dirs
+
+    def _backup_path_for(self, path: Path, backup_root: Path) -> Path:
+        try:
+            rel = path.resolve().relative_to(self.topdir)
+        except ValueError:
+            rel = Path(path.name)
+        return backup_root / rel
+
+    def _backup_path(self, path: Path, backup_root: Path):
+        if not path.exists():
+            return
+        dst = self._backup_path_for(path, backup_root)
+        if dst.exists():
+            return
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if path.is_dir():
+            shutil.copytree(
+                path,
+                dst,
+                dirs_exist_ok=True,
+                symlinks=True,
+                ignore_dangling_symlinks=True,
+                ignore=self._backup_ignore,
+            )
+        else:
+            shutil.copy2(path, dst)
+
+    def _backup_ignore(self, directory: str, names: List[str]) -> Set[str]:
+        ignored = set()
+        for name in names:
+            candidate = Path(directory) / name
+            if name in {'oe-workdir', 'tmp', 'pseudo'}:
+                ignored.add(name)
+                continue
+            try:
+                if candidate.is_socket() or candidate.is_fifo():
+                    ignored.add(name)
+            except OSError:
+                ignored.add(name)
+        return ignored
+
+    def _copyable_conf_files(self, src_conf: Path, machine: str) -> List[Path]:
+        """Return legacy config files safe to copy into one machine builddir."""
+        allowed_names = {
+            'local.conf',
+            'bblayers.conf',
+            'local-feed.inc',
+            'local.conf.user.inc',
+            'bblayers.conf.user.inc',
+            'templateconf.cfg',
+            f'local.conf.{machine}.inc',
+        }
+        return [
+            item
+            for item in sorted(src_conf.iterdir())
+            if item.is_file() and item.name in allowed_names
+        ]
+
+    def _copy_conf_dir(self, src_conf: Path, dst_conf: Path, machine: str):
+        dst_conf.mkdir(parents=True, exist_ok=True)
+        for item in self._copyable_conf_files(src_conf, machine):
+            shutil.copy2(item, dst_conf / item.name)
+
+    def _foreign_machine_include_files(self, conf_dir: Path, machine: str) -> List[Path]:
+        foreign = []
+        for item in sorted(conf_dir.glob('local.conf.*.inc')):
+            if not item.is_file():
+                continue
+            name = item.name
+            if name in {'local.conf.user.inc', f'local.conf.{machine}.inc'}:
+                continue
+            foreign.append(item)
+        return foreign
+
+    def _remove_foreign_machine_includes(self, conf_dir: Path, machine: str) -> List[str]:
+        removed = []
+        for item in self._foreign_machine_include_files(conf_dir, machine):
+            try:
+                item.unlink()
+                removed.append(item.name)
+            except OSError:
+                pass
+        return removed
+
+    def _strip_generated_tmpdir_override(self, conf_dir: Path, machine: str) -> bool:
+        machine_conf = conf_dir / f'local.conf.{machine}.inc'
+        if not machine_conf.exists():
+            return False
+        try:
+            lines = machine_conf.read_text(errors='ignore').splitlines()
+        except OSError:
+            return False
+        generated_hint = any('Default TMPDIR uses per-machine subdirs' in line for line in lines)
+        if not generated_hint:
+            return False
+        changed = False
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if re.match(r'^TMPDIR\s*=\s*"\$\{TOPDIR\}/(?:build/)?tmp-[^"]+"$', stripped):
+                new_lines.append(f"# Migrated away from generated shared TMPDIR: {stripped}")
+                changed = True
+            else:
+                new_lines.append(line)
+        if changed:
+            machine_conf.write_text("\n".join(new_lines).rstrip() + "\n")
+        return changed
+
+    def _has_generated_tmpdir_override(self, conf_dir: Path, machine: str) -> bool:
+        machine_conf = conf_dir / f'local.conf.{machine}.inc'
+        if not machine_conf.exists():
+            return False
+        try:
+            text = machine_conf.read_text(errors='ignore')
+        except OSError:
+            return False
+        if 'Default TMPDIR uses per-machine subdirs' not in text:
+            return False
+        return bool(re.search(r'^\s*TMPDIR\s*=\s*"\$\{TOPDIR\}/(?:build/)?tmp-[^"]+"\s*$', text, re.MULTILINE))
+
+    def _conf_assignment_refs(self, conf_path: Path, keys: Set[str]) -> List[str]:
+        if not conf_path.exists():
+            return []
+        key_pattern = "|".join(re.escape(key) for key in sorted(keys))
+        pattern = re.compile(rf"^\s*({key_pattern})\s*(?:\?\?=|\?=|=|:=|\+=|:append\s*=)")
+        refs = []
+        try:
+            lines = conf_path.read_text(errors='ignore').splitlines()
+        except OSError:
+            return refs
+        for idx, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if not stripped or stripped.startswith('#'):
+                continue
+            match = pattern.match(line)
+            if match:
+                refs.append(f"{conf_path}:{idx}: {match.group(1)}")
+        return refs
+
+    def _central_forbidden_assignment_refs(self, builddir: Optional[Path] = None) -> List[str]:
+        forbidden = {'MACHINE', 'MACHINEBUILD', 'TMPDIR', 'TUXBOX_IMAGE_DIR'}
+        refs = []
+        for conf_path in [
+            self._global_local_conf(builddir),
+            self._legacy_global_local_user_conf(builddir),
+        ]:
+            refs.extend(self._conf_assignment_refs(conf_path, forbidden))
+        return refs
+
+    def _strip_central_forbidden_lines(self, text: str) -> str:
+        forbidden = {'MACHINE', 'MACHINEBUILD', 'TMPDIR', 'TUXBOX_IMAGE_DIR'}
+        key_pattern = "|".join(re.escape(key) for key in sorted(forbidden))
+        assign_pattern = re.compile(rf"^\s*({key_pattern})\s*(?:\?\?=|\?=|=|:=|\+=|:append\s*=)")
+        cleaned = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith('include conf/local-feed.inc'):
+                continue
+            if stripped.startswith('include conf/local.conf.user.inc'):
+                continue
+            if stripped.startswith('include conf/local.conf.${MACHINE}.inc'):
+                continue
+            if not stripped.startswith('#') and assign_pattern.match(line):
+                continue
+            cleaned.append(line)
+        return "\n".join(cleaned).rstrip() + "\n"
+
+    def _read_text_if_exists(self, path: Path) -> Optional[str]:
+        if not path.exists():
+            return None
+        try:
+            return path.read_text(errors='ignore')
+        except OSError:
+            return None
+
+    def _normalized_conf_text(self, text: str) -> str:
+        return "\n".join(line.rstrip() for line in text.strip().splitlines()).strip()
+
+    def _shared_local_conf_is_generated(self, text: str) -> bool:
+        header = "\n".join(text.splitlines()[:12])
+        has_generated_marker = "This file is auto-generated by tuxbox-os-builder" in header
+        has_local_header = (
+            "Shared local configuration for Tuxbox-OS builds" in header
+            or "Local configuration for Tuxbox-OS builds" in header
+        )
+        return has_generated_marker and has_local_header
+
+    def _strip_migrated_generated_local_conf_block(self, text: str) -> Tuple[str, bool]:
+        marker = "# Migrated from legacy build/conf/local.conf\n"
+        start = text.find(marker)
+        if start < 0:
+            return text, False
+        next_marker = text.find("\n# Migrated from legacy ", start + len(marker))
+        if next_marker < 0:
+            return text, False
+        block = text[start:next_marker]
+        if not self._shared_local_conf_is_generated(block):
+            return text, False
+        cleaned = text[:start].rstrip() + "\n\n" + text[next_marker + 1:].lstrip()
+        return cleaned.rstrip() + "\n", True
+
+    def _conf_values_from_paths(self, conf_paths: List[Path], keys: List[str]) -> Dict[str, Optional[str]]:
+        values = self._read_conf_values_with_sources(conf_paths, keys)
+        return {key: values.get(key, (None, None))[0] for key in keys}
+
+    def _assignment_key_from_line(self, line: str) -> Optional[str]:
+        match = re.match(
+            r"^\s*([A-Za-z0-9_${}/.+-]+(?::[A-Za-z0-9_${}/.+-]+)*)\s*(?:\?\?=|\?=|:=|=|\+=|:append\s*=)",
+            line,
+        )
+        return match.group(1) if match else None
+
+    def _normalize_legacy_local_user_content(self, text: str, base_text: str) -> str:
+        """Keep user edits from the old default local.conf.user.inc without duplicating defaults."""
+        cleaned = self._strip_central_forbidden_lines(text)
+        if "# Use this file for personal settings" not in cleaned:
+            return cleaned
+
+        lines = cleaned.splitlines()
+        default_end = -1
+        for index, line in enumerate(lines):
+            if "Avoid: changing IMAGE_NAME_SUFFIX" in line:
+                default_end = index
+                break
+        if default_end < 0:
+            return cleaned
+
+        base_lines = {line.strip() for line in base_text.splitlines() if line.strip()}
+        base_keys = {
+            key
+            for line in base_text.splitlines()
+            for key in [self._assignment_key_from_line(line)]
+            if key
+        }
+        skip_if_base_has_key = {"DL_DIR", "SSTATE_DIR"}
+
+        kept: List[str] = []
+        for line in lines[:default_end + 1]:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            key = self._assignment_key_from_line(line)
+            if stripped in base_lines:
+                continue
+            if key in skip_if_base_has_key and key in base_keys:
+                continue
+            kept.append(line)
+
+        tail = lines[default_end + 1:]
+        while tail and not tail[0].strip():
+            tail.pop(0)
+
+        result_lines = kept
+        if kept and tail:
+            result_lines.append("")
+        result_lines.extend(tail)
+        return "\n".join(result_lines).rstrip() + "\n"
+
+    def _legacy_local_user_is_machine_specific(self, text: str, machine: str) -> bool:
+        stripped = self._strip_central_forbidden_lines(text)
+        if stripped != text:
+            return True
+        machine_tokens = [
+            f":{machine}",
+            f"_{machine}",
+            f"-{machine}",
+            f"/{machine}",
+        ]
+        return any(token in text for token in machine_tokens)
+
+    def _append_unique_block(self, path: Path, header: str, block: str) -> bool:
+        block = block.strip()
+        if not block:
+            return False
+        existing = self._read_text_if_exists(path) or ""
+        if self._normalized_conf_text(block) in self._normalized_conf_text(existing):
+            return False
+        new_text = existing.rstrip()
+        if new_text:
+            new_text += "\n\n"
+        new_text += f"{header}\n{block}\n"
+        path.write_text(new_text)
+        return True
+
+    def _rewrite_workspace_paths_in_text(self, text: str) -> str:
+        return text.replace(str(self.legacy_workspace_dir), str(self.workspace_dir))
+
+    def _workspace_layer_lines(self, workspace_path: Optional[Path] = None) -> str:
+        workspace = workspace_path or self.workspace_dir
+        return (
+            "BBLAYERS += \" \\\n"
+            f"  {workspace} \\\n"
+            "\"\n"
+        )
+
+    def _ensure_workspace_layer_in_shared_bblayers(self) -> bool:
+        if not (self.workspace_dir / 'conf' / 'layer.conf').exists():
+            return False
+        path = self._global_bblayers_user_conf()
+        existing = self._read_text_if_exists(path) or ""
+        rewritten = self._rewrite_workspace_paths_in_text(existing)
+        changed = rewritten != existing
+        if str(self.workspace_dir) not in rewritten:
+            rewritten = rewritten.rstrip() + "\n\n# Central devtool workspace shared by all machines.\n"
+            rewritten += self._workspace_layer_lines()
+            changed = True
+        if changed:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(rewritten.rstrip() + "\n")
+        return changed
+
+    def _remove_workspace_layer_from_machine_bblayers(self, bblayers_conf: Path) -> bool:
+        if not bblayers_conf.exists():
+            return False
+        text = self._read_text_if_exists(bblayers_conf)
+        if text is None:
+            return False
+        new_lines = []
+        skip_block = False
+        changed = False
+        workspace_paths = {str(self.workspace_dir), str(self.legacy_workspace_dir)}
+        for line in text.splitlines():
+            if any(path in line for path in workspace_paths):
+                changed = True
+                continue
+            if skip_block:
+                if '"' in line:
+                    skip_block = False
+                changed = True
+                continue
+            new_lines.append(line)
+        if changed:
+            bblayers_conf.write_text("\n".join(new_lines).rstrip() + "\n")
+        return changed
+
+    def _machine_local_is_thin(self, conf_dir: Path, machine: str, machinebuild: str) -> bool:
+        local_conf = conf_dir / 'local.conf'
+        text = self._read_text_if_exists(local_conf) or ""
+        required = [
+            f'MACHINE ?= "{machine}"',
+            f'MACHINEBUILD ?= "{machinebuild}"',
+            f"include {self._global_local_conf(conf_dir.parent)}",
+            'include conf/local-feed.inc',
+            'include conf/local.conf.${MACHINE}.inc',
+        ]
+        forbidden = [
+            "include conf/local.conf.user.inc",
+            f"include {self._legacy_global_local_user_conf(conf_dir.parent)}",
+        ]
+        return all(item in text for item in required) and not any(item in text for item in forbidden)
+
+    def _migration_rows(self, apply_changes: bool) -> Tuple[List[Dict[str, str]], bool]:
+        rows: List[Dict[str, str]] = []
+        failed = False
+        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+        backup_root = self.topdir / '.tuxbox' / 'config-backups' / timestamp
+
+        def add_row(source: Path, target: Optional[Path], machine: str,
+                    machinebuild: str, action: str, status: str, reason: str):
+            rows.append({
+                'source': str(source),
+                'target': str(target) if target else '-',
+                'machine': machine or '-',
+                'machinebuild': machinebuild or '-',
+                'action': action,
+                'status': status,
+                'reason': reason,
+            })
+
+        legacy_conf = self.legacy_builddir / 'conf'
+        legacy_local = legacy_conf / 'local.conf'
+        legacy_user = legacy_conf / 'local.conf.user.inc'
+        legacy_bblayers_user = legacy_conf / 'bblayers.conf.user.inc'
+        workspace_conflict = (
+            self.legacy_workspace_dir.exists()
+            and self.workspace_dir.exists()
+            and self.legacy_workspace_dir.resolve() != self.workspace_dir.resolve()
+        )
+        effective_apply = apply_changes and not workspace_conflict
+
+        # Shared config migration/normalization.
+        shared_reasons = []
+        shared_action = 'ok'
+        shared_status = 'PASS'
+        shared_target = self.global_conf_dir
+        shared_local_conf = self._global_local_conf()
+        legacy_shared_user = self._legacy_global_local_user_conf()
+        shared_local_text = self._read_text_if_exists(shared_local_conf) or ""
+        legacy_local_text = self._read_text_if_exists(legacy_local) or ""
+        shared_local_generated = (
+            bool(shared_local_text)
+            and self._shared_local_conf_is_generated(shared_local_text)
+        )
+        cleaned_shared_local_text, generated_migrated_block = (
+            self._strip_migrated_generated_local_conf_block(shared_local_text)
+        )
+        shared_files = [
+            shared_local_conf,
+            self._global_bblayers_user_conf(),
+        ]
+        missing_shared = [path.name for path in shared_files if not path.exists()]
+        central_forbidden = self._central_forbidden_assignment_refs()
+        if missing_shared:
+            shared_action = 'migrate' if legacy_local.exists() or legacy_user.exists() else 'normalized'
+            shared_reasons.append(f"create shared file(s): {', '.join(missing_shared)}")
+        if shared_local_generated:
+            shared_action = 'normalized'
+            shared_reasons.append("convert generated shared local.conf to user/site local.conf")
+        if legacy_shared_user.exists():
+            shared_action = 'migrate'
+            shared_reasons.append("move shared local.conf.user.inc into local.conf")
+        if legacy_user.exists():
+            shared_action = 'migrate'
+            shared_reasons.append("move legacy build/conf/local.conf.user.inc into local.conf")
+        if legacy_bblayers_user.exists():
+            shared_action = 'migrate'
+            shared_reasons.append("move legacy build/conf/bblayers.conf.user.inc into shared layer include")
+        if generated_migrated_block:
+            shared_action = 'normalized'
+            shared_reasons.append("remove generated legacy local.conf block")
+        if central_forbidden:
+            shared_action = 'normalized'
+            shared_reasons.append(
+                "remove machine-specific assignment(s): "
+                + ', '.join(ref.split(':', 1)[0] for ref in central_forbidden)
+            )
+
+        if effective_apply and shared_reasons:
+            self._backup_path(self.global_conf_dir, backup_root)
+            self._backup_path(legacy_conf, backup_root)
+            self.global_conf_dir.mkdir(parents=True, exist_ok=True)
+
+            value_sources = [
+                shared_local_conf,
+                legacy_local,
+                legacy_shared_user,
+                legacy_user,
+            ]
+            values = self._conf_values_from_paths(
+                value_sources,
+                ['DISTRO', 'DISTRO_TYPE', 'DL_DIR', 'SSTATE_DIR'],
+            )
+            if not shared_local_conf.exists() or shared_local_generated:
+                self.generate_shared_local_conf(
+                    values.get('DISTRO') or 'tuxbox',
+                    values.get('DISTRO_TYPE') or 'release',
+                    self.global_conf_dir,
+                    overwrite=True,
+                    dl_dir=values.get('DL_DIR') or str(self.dl_dir),
+                    sstate_dir=values.get('SSTATE_DIR') or str(self.sstate_dir),
+                )
+                if legacy_local.exists() and not self._shared_local_conf_is_generated(legacy_local_text):
+                    if self._append_unique_block(
+                        shared_local_conf,
+                        "# Migrated from legacy build/conf/local.conf",
+                        self._strip_central_forbidden_lines(legacy_local_text),
+                    ):
+                        pass
+            else:
+                cleaned = self._strip_central_forbidden_lines(cleaned_shared_local_text)
+                if cleaned != shared_local_text:
+                    shared_local_conf.write_text(cleaned)
+
+            if legacy_shared_user.exists():
+                text = self._normalize_legacy_local_user_content(
+                    self._read_text_if_exists(legacy_shared_user) or '',
+                    self._read_text_if_exists(shared_local_conf) or '',
+                )
+                self._append_unique_block(
+                    shared_local_conf,
+                    "# Migrated from legacy builds/conf/local.conf.user.inc",
+                    text,
+                )
+                legacy_shared_user.unlink()
+
+            if legacy_user.exists():
+                text = self._normalize_legacy_local_user_content(
+                    self._read_text_if_exists(legacy_user) or '',
+                    self._read_text_if_exists(shared_local_conf) or '',
+                )
+                self._append_unique_block(
+                    shared_local_conf,
+                    "# Migrated from legacy build/conf/local.conf.user.inc",
+                    text,
+                )
+                legacy_user.unlink()
+
+            if not self._global_bblayers_user_conf().exists():
+                if legacy_bblayers_user.exists():
+                    text = legacy_bblayers_user.read_text(errors='ignore')
+                    self._global_bblayers_user_conf().write_text(
+                        self._rewrite_workspace_paths_in_text(text).rstrip() + "\n"
+                    )
+                    legacy_bblayers_user.unlink()
+                else:
+                    self._global_bblayers_user_conf().write_text(
+                        self._default_shared_bblayers_user_conf_content()
+                    )
+            elif legacy_bblayers_user.exists():
+                text = self._rewrite_workspace_paths_in_text(
+                    self._read_text_if_exists(legacy_bblayers_user) or ''
+                )
+                self._append_unique_block(
+                    self._global_bblayers_user_conf(),
+                    "# Migrated from legacy build/conf/bblayers.conf.user.inc",
+                    text,
+                )
+                legacy_bblayers_user.unlink()
+
+        if shared_reasons:
+            add_row(
+                legacy_conf if legacy_conf.exists() else self.global_conf_dir,
+                shared_target,
+                '-',
+                '-',
+                shared_action,
+                shared_status,
+                '; '.join(shared_reasons),
+            )
+
+        # Workspace migration/normalization.
+        workspace_action = 'ok'
+        workspace_status = 'PASS'
+        workspace_reasons = []
+        if workspace_conflict:
+            workspace_status = 'FAIL'
+            workspace_action = 'blocked'
+            workspace_reasons.append(
+                f"both {self.legacy_workspace_dir} and {self.workspace_dir} exist"
+            )
+            failed = True
+        elif self.legacy_workspace_dir.exists():
+            workspace_action = 'migrate'
+            workspace_reasons.append(f"{self.legacy_workspace_dir} -> {self.workspace_dir}")
+            if effective_apply:
+                self._backup_path(self.legacy_workspace_dir, backup_root)
+                self.workspace_dir.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(self.legacy_workspace_dir), str(self.workspace_dir))
+
+        workspace_path_rewrites = []
+        if self.workspace_dir.exists():
+            for bbappend in sorted((self.workspace_dir / 'appends').glob('*.bbappend')):
+                text = self._read_text_if_exists(bbappend)
+                if text and str(self.legacy_workspace_dir) in text:
+                    workspace_path_rewrites.append(bbappend.name)
+            shared_bblayers_text = self._read_text_if_exists(self._global_bblayers_user_conf()) or ''
+            rewritten_shared_bblayers = self._rewrite_workspace_paths_in_text(shared_bblayers_text)
+            if shared_bblayers_text and str(self.legacy_workspace_dir) in shared_bblayers_text:
+                workspace_path_rewrites.append(self._global_bblayers_user_conf().name)
+            workspace_layer_missing = (
+                (self.workspace_dir / 'conf' / 'layer.conf').exists()
+                and str(self.workspace_dir) not in rewritten_shared_bblayers
+            )
+            if workspace_path_rewrites and workspace_status != 'FAIL':
+                workspace_action = 'normalized'
+                workspace_reasons.append(
+                    "rewrite legacy workspace path(s): " + ', '.join(workspace_path_rewrites)
+                )
+                if effective_apply:
+                    self._backup_path(self.workspace_dir, backup_root)
+                    self._backup_path(self._global_bblayers_user_conf(), backup_root)
+                    for bbappend in sorted((self.workspace_dir / 'appends').glob('*.bbappend')):
+                        text = self._read_text_if_exists(bbappend)
+                        if text:
+                            rewritten = self._rewrite_workspace_paths_in_text(text)
+                            if rewritten != text:
+                                bbappend.write_text(rewritten)
+                    text = self._read_text_if_exists(self._global_bblayers_user_conf())
+                    if text:
+                        rewritten = self._rewrite_workspace_paths_in_text(text)
+                        if rewritten != text:
+                            self._global_bblayers_user_conf().write_text(rewritten)
+            if workspace_layer_missing and workspace_status != 'FAIL':
+                workspace_action = 'normalized'
+                workspace_reasons.append('add central workspace layer to shared bblayers include')
+            if effective_apply and workspace_status != 'FAIL':
+                self._ensure_workspace_layer_in_shared_bblayers()
+
+        if workspace_reasons:
+            add_row(
+                self.legacy_workspace_dir if self.legacy_workspace_dir.exists() else self.workspace_dir,
+                self.workspace_dir,
+                '-',
+                '-',
+                workspace_action,
+                workspace_status,
+                '; '.join(workspace_reasons),
+            )
+
+        for conf_dir in self._config_scan_dirs():
+            if conf_dir.resolve() == self.global_conf_dir.resolve():
+                continue
+            builddir = conf_dir.parent
+            machine, machinebuild = self._config_identity(conf_dir)
+            target = self._default_builddir_for_machine(machine) if machine else None
+            target_conf = target / 'conf' if target else None
+            status = 'PASS'
+            action = 'ok'
+            reason = '-'
+
+            if not machine:
+                status = 'FAIL'
+                action = 'blocked'
+                reason = 'local.conf does not define MACHINE'
+                failed = True
+            elif not machinebuild:
+                status = 'FAIL'
+                action = 'blocked'
+                reason = 'local.conf does not define MACHINEBUILD'
+                failed = True
+            else:
+                build_names, build_display = self._machinebuild_candidates(machine)
+                if build_names and machinebuild not in build_names:
+                    status = 'FAIL'
+                    action = 'blocked'
+                    reason = (
+                        f"MACHINEBUILD {machinebuild} invalid for {machine}; "
+                        f"available: {', '.join(build_display)}"
+                    )
+                    failed = True
+                elif target_conf and conf_dir.resolve() != target_conf.resolve():
+                    if target_conf.exists():
+                        tm, tmb = self._config_identity(target_conf)
+                        if tm == machine and (not tmb or tmb == machinebuild):
+                            if conf_dir.resolve() == legacy_conf.resolve():
+                                action = 'normalized'
+                                archive_conf = self.legacy_builddir / f"conf.legacy-{timestamp}"
+                                reason = (
+                                    f"archive legacy build/conf; target already exists at {target}"
+                                )
+                                if effective_apply:
+                                    self._backup_path(conf_dir, backup_root)
+                                    archive_conf.parent.mkdir(parents=True, exist_ok=True)
+                                    suffix = 1
+                                    candidate = archive_conf
+                                    while candidate.exists():
+                                        candidate = self.legacy_builddir / f"conf.legacy-{timestamp}-{suffix}"
+                                        suffix += 1
+                                    shutil.move(str(conf_dir), str(candidate))
+                                    reason = f"archived legacy build/conf to {candidate}"
+                            else:
+                                action = 'legacy ignored'
+                                reason = f"target already exists at {target}"
+                        else:
+                            status = 'FAIL'
+                            action = 'blocked'
+                            reason = f"target {target_conf} has MACHINE={tm} MACHINEBUILD={tmb}"
+                            failed = True
+                    else:
+                        action = 'migrate'
+                        reason = f"{builddir} -> {target}"
+                        if effective_apply:
+                            self._backup_path(conf_dir, backup_root)
+                            target_conf.mkdir(parents=True, exist_ok=True)
+                            self.generate_bblayers_conf(target_conf, machine, self.detect_machine_brand(machine))
+                            self.generate_local_conf(target_conf, machine, 'tuxbox', 'release', machinebuild, target)
+                            self.ensure_local_feed_config(target_conf, machine)
+                            self.ensure_machine_overrides(target_conf, machine)
+                            self.ensure_devtool_config(target_conf)
+                elif target_conf:
+                    foreign_includes = self._foreign_machine_include_files(conf_dir, machine)
+                    has_tmpdir_override = self._has_generated_tmpdir_override(conf_dir, machine)
+                    local_user_conf = conf_dir / 'local.conf.user.inc'
+                    bblayers_user_conf = conf_dir / 'bblayers.conf.user.inc'
+                    devtool_workspace = self._devtool_workspace_value(conf_dir)
+                    needs_thin_local = not self._machine_local_is_thin(conf_dir, machine, machinebuild)
+                    needs_devtool = devtool_workspace != str(self.workspace_dir)
+                    needs_workspace_layer_cleanup = False
+                    bblayers_text = self._read_text_if_exists(conf_dir / 'bblayers.conf') or ''
+                    if str(self.workspace_dir) in bblayers_text or str(self.legacy_workspace_dir) in bblayers_text:
+                        needs_workspace_layer_cleanup = True
+                    if (
+                        has_tmpdir_override
+                        or foreign_includes
+                        or local_user_conf.exists()
+                        or bblayers_user_conf.exists()
+                        or needs_thin_local
+                        or needs_devtool
+                        or needs_workspace_layer_cleanup
+                    ):
+                        action = 'normalized'
+                        reasons = []
+                        if has_tmpdir_override:
+                            reasons.append('remove generated TMPDIR override')
+                        if foreign_includes:
+                            names = ', '.join(item.name for item in foreign_includes)
+                            reasons.append(f'remove foreign machine include(s): {names}')
+                        if local_user_conf.exists():
+                            reasons.append('move legacy local.conf.user.inc into central/machine config')
+                        if bblayers_user_conf.exists():
+                            reasons.append('move per-machine bblayers.conf.user.inc into shared include')
+                        if needs_thin_local:
+                            reasons.append('regenerate thin machine local.conf')
+                        if needs_devtool:
+                            reasons.append('set shared devtool workspace')
+                        if needs_workspace_layer_cleanup:
+                            reasons.append('remove direct workspace layer from machine bblayers.conf')
+                        reason = '; '.join(reasons)
+                    if effective_apply and action == 'normalized':
+                        self._backup_path(conf_dir, backup_root)
+                        changed = False
+                        removed = self._remove_foreign_machine_includes(conf_dir, machine)
+                        if removed:
+                            changed = True
+                        if self._strip_generated_tmpdir_override(conf_dir, machine):
+                            changed = True
+                        self.ensure_machine_overrides(conf_dir, machine)
+                        machine_conf = conf_dir / f'local.conf.{machine}.inc'
+                        if local_user_conf.exists():
+                            raw_text = self._read_text_if_exists(local_user_conf) or ''
+                            text = self._strip_central_forbidden_lines(raw_text)
+                            if self._legacy_local_user_is_machine_specific(raw_text, machine):
+                                if self._append_unique_block(
+                                    machine_conf,
+                                    "# Migrated from legacy per-machine local.conf.user.inc",
+                                    text,
+                                ):
+                                    changed = True
+                            else:
+                                if self._append_unique_block(
+                                    self._global_local_conf(),
+                                    f"# Migrated from legacy per-machine local.conf.user.inc ({machine})",
+                                    text,
+                                ):
+                                    changed = True
+                            local_user_conf.unlink()
+                            changed = True
+                        if bblayers_user_conf.exists():
+                            text = self._rewrite_workspace_paths_in_text(
+                                self._read_text_if_exists(bblayers_user_conf) or ''
+                            )
+                            global_text = self._read_text_if_exists(self._global_bblayers_user_conf()) or ''
+                            default_text = self._default_shared_bblayers_user_conf_content()
+                            normalized = self._normalized_conf_text(text)
+                            if (
+                                normalized
+                                and normalized != self._normalized_conf_text(global_text)
+                                and normalized != self._normalized_conf_text(default_text)
+                            ):
+                                if self._append_unique_block(
+                                    self._global_bblayers_user_conf(),
+                                    "# Migrated from legacy per-machine bblayers.conf.user.inc",
+                                    text,
+                                ):
+                                    changed = True
+                            bblayers_user_conf.unlink()
+                            changed = True
+                        if needs_thin_local:
+                            self.generate_local_conf(conf_dir, machine, 'tuxbox', 'release', machinebuild, builddir)
+                            changed = True
+                        if self._remove_workspace_layer_from_machine_bblayers(conf_dir / 'bblayers.conf'):
+                            changed = True
+                        self.generate_bblayers_conf(conf_dir, machine, self.detect_machine_brand(machine))
+                        self.ensure_local_feed_config(conf_dir, machine)
+                        self.ensure_devtool_config(conf_dir)
+                        if self._ensure_workspace_layer_in_shared_bblayers():
+                            changed = True
+                        if changed:
+                            action = 'normalized'
+                            reasons = []
+                            if removed:
+                                reasons.append(f"removed foreign machine include(s): {', '.join(removed)}")
+                            if not self._has_generated_tmpdir_override(conf_dir, machine) and has_tmpdir_override:
+                                reasons.append('removed generated TMPDIR override')
+                            reason = '; '.join(reasons) or 'normalized central config layout'
+
+            add_row(builddir, target, machine or '-', machinebuild or '-', action, status, reason)
+
+        return rows, failed
+
+    def migrate_configs(self, args):
+        """Migrate legacy shared configs into per-machine build dirs."""
+        apply_changes = bool(args.apply)
+        check_only = bool(args.check)
+        rows, failed = self._migration_rows(apply_changes)
+        needs_action = any(row['action'] in ('migrate', 'normalized') for row in rows)
+
+        if args.json:
+            print(json.dumps(rows, indent=2))
+        else:
+            self._print_table(
+                "Config migration",
+                ['source', 'target', 'machine', 'machinebuild', 'action', 'status', 'reason'],
+                [
+                    (
+                        row['source'], row['target'], row['machine'], row['machinebuild'],
+                        row['action'], row['status'], row['reason']
+                    )
+                    for row in rows
+                ],
+            )
+            if apply_changes and rows:
+                self.info("Backups: .tuxbox/config-backups/<timestamp>/")
+
+        if failed or (check_only and needs_action):
+            sys.exit(1)
+
+    def _resolve_topdir_value(self, value: Optional[str], builddir: Path, machine: str) -> Optional[str]:
+        if not value:
+            return None
+        resolved = value.replace('${TOPDIR}', str(builddir)).replace('${MACHINE}', machine)
+        return resolved
+
+    def _existing_or_first(self, candidates: List[Path]) -> Path:
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
+
+    def _deploy_info_data(self, machine: str, machinebuild: Optional[str],
+                          builddir: Optional[Path]) -> Dict[str, object]:
+        target_builddir = builddir or self._default_builddir_for_machine(machine)
+        conf_dir = target_builddir / 'conf'
+        local_conf = conf_dir / 'local.conf'
+        bblayers_conf = conf_dir / 'bblayers.conf'
+        keys = [
+            'MACHINE', 'MACHINEBUILD', 'DISTRO', 'DISTRO_TYPE', 'TMPDIR',
+            'TUXBOX_IMAGE_DIR',
+        ]
+        values = self._read_conf_values_with_sources(
+            self._machine_conf_sources(conf_dir, machine),
+            keys,
+        )
+        conf_machine = values.get('MACHINE', (None, None))[0]
+        conf_machinebuild = values.get('MACHINEBUILD', (None, None))[0]
+        effective_machinebuild = machinebuild or conf_machinebuild or machine
+        brand = self.detect_machine_brand(machine)
+        oem_values = (
+            self._oem_values_for_machinebuild(brand, effective_machinebuild)
+            if brand not in ('unknown', 'coolstream') else {'imagedir': set(), 'driver': set()}
+        )
+        raw_imagedir = next(iter(sorted(oem_values.get('imagedir') or {machine})))
+        driver = next(iter(sorted(oem_values.get('driver') or {machine})))
+        configured_online = values.get('TUXBOX_IMAGE_DIR', (None, None))[0]
+        online_imagedir = configured_online or self._online_imagedir_slug(raw_imagedir)
+        tmpdir_value = values.get('TMPDIR', (None, None))[0]
+        tmpdir = Path(self._resolve_topdir_value(tmpdir_value, target_builddir, machine)) if tmpdir_value else target_builddir / 'tmp'
+        deploy_ipk = self._existing_or_first([
+            tmpdir / 'deploy' / 'ipk',
+            target_builddir / 'tmp' / 'deploy' / 'ipk',
+            target_builddir / 'build' / 'tmp' / 'deploy' / 'ipk',
+            target_builddir / 'build' / f'tmp-{machine}' / 'deploy' / 'ipk',
+            target_builddir / f'tmp-{machine}' / 'deploy' / 'ipk',
+        ])
+        deploy_images = self._existing_or_first([
+            tmpdir / 'deploy' / 'images' / machine,
+            target_builddir / 'tmp' / 'deploy' / 'images' / machine,
+            target_builddir / 'build' / 'tmp' / 'deploy' / 'images' / machine,
+            target_builddir / 'build' / f'tmp-{machine}' / 'deploy' / 'images' / machine,
+            target_builddir / f'tmp-{machine}' / 'deploy' / 'images' / machine,
+        ])
+        manifest = deploy_images / 'manifest.json'
+
+        errors: List[str] = []
+        warnings: List[str] = []
+        if not local_conf.exists():
+            errors.append(f"missing {local_conf}")
+        if not bblayers_conf.exists():
+            errors.append(f"missing {bblayers_conf}")
+        if not self._global_local_conf(target_builddir).exists():
+            errors.append(f"missing {self._global_local_conf(target_builddir)}")
+        if not self._global_bblayers_user_conf(target_builddir).exists():
+            errors.append(f"missing {self._global_bblayers_user_conf(target_builddir)}")
+        legacy_shared_user = self._legacy_global_local_user_conf(target_builddir)
+        if legacy_shared_user.exists():
+            errors.append(f"legacy shared user include present: {legacy_shared_user}")
+        if (conf_dir / 'local.conf.user.inc').exists():
+            errors.append(f"legacy per-machine user include present: {conf_dir / 'local.conf.user.inc'}")
+        if (conf_dir / 'bblayers.conf.user.inc').exists():
+            errors.append(f"legacy per-machine layer include present: {conf_dir / 'bblayers.conf.user.inc'}")
+        for ref in self._central_forbidden_assignment_refs(target_builddir):
+            errors.append(f"machine-specific assignment in shared config: {ref}")
+        if conf_machine and conf_machine != machine:
+            errors.append(f"local.conf MACHINE={conf_machine} (requested {machine})")
+        if machinebuild and conf_machinebuild and conf_machinebuild != machinebuild:
+            errors.append(f"local.conf MACHINEBUILD={conf_machinebuild} (requested {machinebuild})")
+        build_names, build_display = self._machinebuild_candidates(machine)
+        if build_names and effective_machinebuild not in build_names:
+            errors.append(
+                f"MACHINEBUILD {effective_machinebuild} invalid for {machine}; "
+                f"available: {', '.join(build_display)}"
+            )
+        bblayers = []
+        for layer_source in self._machine_layer_sources(conf_dir):
+            bblayers += self._extract_layer_paths(layer_source)
+        if brand != 'unknown':
+            expected = '/meta-coolstream' if brand == 'coolstream' else f"/oe-alliance/meta-brands/meta-{brand}"
+            if not any(expected in path for path in bblayers):
+                errors.append(f"missing brand layer {expected}")
+        if raw_imagedir != online_imagedir and raw_imagedir == self._online_imagedir_slug(raw_imagedir):
+            warnings.append(f"TUXBOX_IMAGE_DIR={online_imagedir} differs from IMAGEDIR={raw_imagedir}")
+
+        data: Dict[str, object] = {
+            'machine': machine,
+            'machinebuild': effective_machinebuild,
+            'brand': brand,
+            'builddir': str(target_builddir),
+            'confdir': str(conf_dir),
+            'tmpdir': str(tmpdir),
+            'deploy_ipk': str(deploy_ipk),
+            'deploy_images': str(deploy_images),
+            'raw_imagedir': raw_imagedir,
+            'online_imagedir': online_imagedir,
+            'driver': driver,
+            'manifest': str(manifest),
+            'errors': errors,
+            'warnings': warnings,
+        }
+        data['status'] = 'FAIL' if errors else ('WARN' if warnings else 'PASS')
+        data['reason'] = '; '.join(errors or warnings) if (errors or warnings) else '-'
+        return data
+
+    def deploy_info(self, args):
+        machine = args.machine
+        builddir = self._resolve_user_path(args.builddir) if args.builddir else None
+        data = self._deploy_info_data(machine, args.machinebuild, builddir)
+        errors = list(data.get('errors', []))
+        if args.require_ipk and not Path(str(data['deploy_ipk'])).is_dir():
+            errors.append(f"missing deploy/ipk: {data['deploy_ipk']}")
+        if args.require_images and not Path(str(data['deploy_images'])).is_dir():
+            errors.append(f"missing deploy/images: {data['deploy_images']}")
+        manifest_path = Path(str(data['manifest']))
+        if args.require_manifest:
+            if not manifest_path.is_file():
+                errors.append(f"missing manifest: {manifest_path}")
+            else:
+                try:
+                    manifest = json.loads(manifest_path.read_text(errors='ignore'))
+                    if str(manifest.get('machine', '')) != machine:
+                        errors.append(f"manifest machine={manifest.get('machine')}")
+                    if str(manifest.get('imagedir', '')) != str(data['online_imagedir']):
+                        errors.append(
+                            f"manifest imagedir={manifest.get('imagedir')} "
+                            f"(expected {data['online_imagedir']})"
+                        )
+                except (OSError, json.JSONDecodeError) as exc:
+                    errors.append(f"cannot read manifest: {exc}")
+        if errors:
+            data['errors'] = errors
+            data['status'] = 'FAIL'
+            data['reason'] = '; '.join(errors)
+
+        if args.json:
+            print(json.dumps(data, indent=2))
+        else:
+            self._print_kv_table("Deploy info", [
+                ("Machine", str(data['machine'])),
+                ("MachineBuild", str(data['machinebuild'])),
+                ("Brand", str(data['brand'])),
+                ("Build dir", str(data['builddir'])),
+                ("TMPDIR", str(data['tmpdir'])),
+                ("Deploy IPK", str(data['deploy_ipk'])),
+                ("Deploy images", str(data['deploy_images'])),
+                ("Raw IMAGEDIR", str(data['raw_imagedir'])),
+                ("Online imagedir", str(data['online_imagedir'])),
+                ("Manifest", str(data['manifest'])),
+                ("Status", str(data['status'])),
+                ("Reason", str(data['reason'])),
+            ])
+        if data['status'] == 'FAIL':
+            sys.exit(1)
+
     def generate_config(self, machine: str, distro: str, distro_type: str = 'release',
                         machinebuild: Optional[str] = None, builddir: Optional[Path] = None):
         """Generate build configuration files from templates."""
@@ -1124,22 +2668,29 @@ class TuxboxBuilder:
 
         self._validate_machinebuild(machine, machinebuild)
 
-        # Create conf directory in selected build dir
-        target_builddir = Path(builddir) if builddir else self._default_builddir_for_machine(machine)
+        # Create shared and machine-specific config directories.
+        target_builddir = self._resolve_user_path(builddir) if builddir else self._default_builddir_for_machine(machine)
+        shared_conf_dir = self._shared_conf_dir_for_builddir(target_builddir)
+        shared_conf_dir.mkdir(parents=True, exist_ok=True)
         conf_dir = target_builddir / 'conf'
         conf_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate shared config first. Per-machine local.conf includes it.
+        self.generate_shared_local_conf(distro, distro_type, shared_conf_dir)
+        self.ensure_shared_overrides(shared_conf_dir)
 
         # Generate bblayers.conf
         self.generate_bblayers_conf(conf_dir, machine, brand)
 
-        # Generate local.conf
+        # Generate per-machine local.conf entrypoint
         self.generate_local_conf(conf_dir, machine, distro, distro_type, machinebuild, target_builddir)
 
         # Generate local IPK feed defaults before user override includes.
         self.ensure_local_feed_config(conf_dir, machine)
 
-        # Ensure user override include files exist
-        self.ensure_user_overrides(conf_dir, machine, target_builddir)
+        # Ensure machine-local override and devtool config files exist.
+        self.ensure_machine_overrides(conf_dir, machine)
+        self.ensure_devtool_config(conf_dir)
 
         self.success("Configuration generated")
 
@@ -1159,6 +2710,10 @@ class TuxboxBuilder:
         # Replace variables
         content = content.replace('##OEROOT##', str(self.topdir / 'oe-alliance' / 'openembedded-core'))
         content = content.replace('##TOPDIR##', str(self.topdir))
+        content = content.replace(
+            '##BBLAYERS_USER_INCLUDE##',
+            f'include {self._global_bblayers_user_conf(conf_dir.parent)}',
+        )
 
         # Add brand-specific layer
         if brand != 'unknown':
@@ -1180,31 +2735,73 @@ class TuxboxBuilder:
 
         self.info(f"Generated: {output_file}")
 
-    def generate_local_conf(self, conf_dir: Path, machine: str, distro: str, distro_type: str,
-                            machinebuild: Optional[str], target_builddir: Path):
-        """Generate local.conf from template."""
+    def generate_shared_local_conf(self, distro: str, distro_type: str,
+                                   shared_conf_dir: Optional[Path] = None,
+                                   overwrite: bool = False,
+                                   dl_dir: Optional[str] = None,
+                                   sstate_dir: Optional[str] = None):
+        """Create the central user/site local.conf when it is missing."""
         template_file = self.topdir / 'templates' / 'local.conf.template'
-        output_file = conf_dir / 'local.conf'
+        output_file = (shared_conf_dir or self.global_conf_dir) / 'local.conf'
 
         if not template_file.exists():
             self.error(f"Template not found: {template_file}")
             sys.exit(1)
+        if output_file.exists() and not overwrite:
+            return
 
-        # Read template
         with open(template_file) as f:
             content = f.read()
 
-        # Default MACHINEBUILD to MACHINE if not provided
+        content = content.replace('##DISTRO##', distro)
+        content = content.replace('##DL_DIR##', dl_dir or str(self.dl_dir))
+        content = content.replace('##SSTATE_DIR##', sstate_dir or str(self.sstate_dir))
+        content = content.replace('##DISTRO_TYPE##', distro_type)
+
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_text(content)
+
+        self.info(f"Created/updated: {output_file}")
+
+    def generate_local_conf(self, conf_dir: Path, machine: str, distro: str, distro_type: str,
+                            machinebuild: Optional[str], target_builddir: Path):
+        """Generate the per-machine local.conf entrypoint."""
+        output_file = conf_dir / 'local.conf'
         effective_machinebuild = machinebuild or machine
 
-        # Replace variables
-        content = content.replace('##MACHINE##', machine)
-        content = content.replace('##MACHINEBUILD##', effective_machinebuild)
-        content = content.replace('##DISTRO##', distro)
-        content = content.replace('##DL_DIR##', str(self.dl_dir))
-        content = content.replace('##SSTATE_DIR##', str(self.sstate_dir))
-        content = content.replace('##TMPDIR##', str(target_builddir / 'tmp'))
-        content = content.replace('##DISTRO_TYPE##', distro_type)
+        brand = self.detect_machine_brand(machine)
+        oem_values = (
+            self._oem_values_for_machinebuild(brand, effective_machinebuild)
+            if brand not in ('unknown', 'coolstream') else {'imagedir': set()}
+        )
+        raw_imagedir = next(iter(sorted(oem_values.get('imagedir') or {machine})))
+        online_imagedir = self._online_imagedir_slug(raw_imagedir)
+
+        content = (
+            "# Machine entry configuration for Tuxbox-OS builds\n"
+            "#\n"
+            "# This file is auto-generated by tuxbox-os-builder.\n"
+            "# Shared settings are included below from:\n"
+            "# {shared_local}\n"
+            f"# machine-specific overrides live in conf/local.conf.{machine}.inc.\n"
+            "\n"
+            "MACHINE ?= \"{machine}\"\n"
+            "MACHINEBUILD ?= \"{machinebuild}\"\n"
+            "TMPDIR ?= \"${{TOPDIR}}/tmp\"\n"
+            "\n"
+            "# URL-safe alias for online-flash/catalog paths. OE-Alliance IMAGEDIR\n"
+            "# remains untouched for flash/image classes.\n"
+            "TUXBOX_IMAGE_DIR ?= \"{online_imagedir}\"\n"
+            "\n"
+            "include {shared_local}\n"
+            "include conf/local-feed.inc\n"
+            "include conf/local.conf.${{MACHINE}}.inc\n"
+        ).format(
+            machine=machine,
+            machinebuild=effective_machinebuild,
+            online_imagedir=online_imagedir,
+            shared_local=self._global_local_conf(target_builddir),
+        )
 
         # Coolstream-specific toolchain defaults (HD2 uClibc, HD1 glibc)
         if machine.startswith('coolstream') and machine != 'coolstream-nevis':
@@ -1231,66 +2828,45 @@ class TuxboxBuilder:
         self.info("  Threads: default (auto)")
         self.info("  Parallel: default (auto)")
 
-    def ensure_user_overrides(self, conf_dir: Path, machine: str, target_builddir: Path):
-        """Create optional local override files if missing."""
-        tmpdir_value = self._tmpdir_override_value(target_builddir, machine)
+    def _default_shared_bblayers_user_conf_content(self) -> str:
+        content = (
+            "# Shared local layer overrides (not tracked)\n"
+            "# Example:\n"
+            "# BBLAYERS += \" \\\n"
+            "#   /path/to/your/layer \\\n"
+            "# \"\n"
+        )
+        if (self.workspace_dir / 'conf' / 'layer.conf').exists():
+            content += (
+                "\n"
+                "# Central devtool workspace shared by all machines.\n"
+                "BBLAYERS += \" \\\n"
+                f"  {self.workspace_dir} \\\n"
+                "\"\n"
+            )
+        return content
+
+    def ensure_shared_overrides(self, shared_conf_dir: Optional[Path] = None):
+        """Create shared layer override files if missing."""
+        shared_conf_dir = shared_conf_dir or self.global_conf_dir
         overrides = {
-            conf_dir / 'local.conf.user.inc': (
-                "# Local overrides (not tracked)\n"
-                "# Use this file for personal settings to avoid regeneration loss.\n"
-                "# Example:\n"
-                "# DL_DIR = \"/path/to/downloads\"\n"
-                "# SSTATE_DIR = \"/path/to/sstate-cache\"\n"
-                "#\n"
-                "# Source download mirror (enabled by default):\n"
-                "# Remove these lines if you want upstream-only fetches.\n"
-                "INHERIT += \"own-mirrors\"\n"
-                "SOURCE_MIRROR_URL = \"https://archiv.tuxbox-neutrino.org/\"\n"
-                "# Optional: fail if the mirror misses a source (no upstream fetch)\n"
-                "# BB_FETCH_PREMIRRORONLY = \"1\"\n"
-                "#\n"
-                "# Parallelism (optional; defaults are auto CPU count):\n"
-                "# BB_NUMBER_THREADS = \"8\"\n"
-                "# PARALLEL_MAKE = \"-j 8\"\n"
-                "#\n"
-                "# Image naming (examples - uncomment to use):\n"
-                "#\n"
-                "# A) Timestamped (unique per build)\n"
-                "# IMAGE_NAME = \"${IMAGE_BASENAME}-${MACHINE}-${DATETIME}\"\n"
-                "# IMAGE_NAME[vardepsexclude] = \"DATETIME\"\n"
-                "# IMAGE_VERSION ?= \"${DISTRO_VERSION}\"\n"
-                "# IMAGE_NAME_SUFFIX = \".tuxbox\"\n"
-                "# IMAGE_VER_STRING = \"${DISTRO_NAME}-${IMAGE_VERSION}-${MACHINEBUILD}-${DATE}\"\n"
-                "# IMAGE_VER_STRING[vardepsexclude] += \"DATE\"\n"
-                "#\n"
-                "# B) Deterministic (stable names, CI-friendly)\n"
-                "# IMAGE_NAME = \"${IMAGE_BASENAME}-${MACHINE}\"\n"
-                "# IMAGE_VERSION ?= \"${DISTRO_VERSION}\"\n"
-                "# IMAGE_NAME_SUFFIX = \".tuxbox\"\n"
-                "# IMAGE_VER_STRING = \"${DISTRO_NAME}-${IMAGE_VERSION}-${MACHINEBUILD}\"\n"
-                "#\n"
-                "# C) Include MACHINEBUILD in filename\n"
-                "# IMAGE_NAME = \"${IMAGE_BASENAME}-${MACHINE}-${MACHINEBUILD}-${DATETIME}\"\n"
-                "# IMAGE_NAME[vardepsexclude] = \"DATETIME\"\n"
-                "#\n"
-                "# Avoid: spaces in IMAGE_VER_STRING (breaks some OA scripts)\n"
-                "# Avoid: removing vardepsexclude when DATE/DATETIME is used (rebuild noise)\n"
-                "# Avoid: using := with DATE/DATETIME (causes basehash changes)\n"
-                "# Avoid: slashes in IMAGE_NAME (must be a filename)\n"
-                "# Avoid: changing IMAGE_NAME_SUFFIX unless your tooling expects it\n"
-            ),
+            shared_conf_dir / 'bblayers.conf.user.inc': self._default_shared_bblayers_user_conf_content(),
+        }
+
+        for path, content in overrides.items():
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, 'w') as f:
+                    f.write(content)
+                self.info(f"Created: {path}")
+
+    def ensure_machine_overrides(self, conf_dir: Path, machine: str):
+        """Create machine-local override files if missing."""
+        overrides = {
             conf_dir / f'local.conf.{machine}.inc': (
                 f"# Local overrides for MACHINE={machine} (not tracked)\n"
                 "# Use this file for machine-specific tweaks.\n"
-                "# Default TMPDIR uses per-machine subdirs for safer multi-machine builds.\n"
-                f"TMPDIR = \"{tmpdir_value}\"\n"
-            ),
-            conf_dir / 'bblayers.conf.user.inc': (
-                "# Local layer overrides (not tracked)\n"
-                "# Example:\n"
-                "# BBLAYERS += \" \\\n"
-                "#   /path/to/your/layer \\\n"
-                "# \"\n"
+                "# TMPDIR defaults to ${TOPDIR}/tmp inside this per-machine builddir.\n"
             ),
         }
 
@@ -1300,6 +2876,31 @@ class TuxboxBuilder:
                     f.write(content)
                 self.info(f"Created: {path}")
 
+    def ensure_devtool_config(self, conf_dir: Path):
+        """Ensure devtool uses the shared workspace from this builddir."""
+        path = conf_dir / 'devtool.conf'
+        parser = configparser.ConfigParser()
+        if path.exists():
+            parser.read(path)
+        if not parser.has_section('General'):
+            parser.add_section('General')
+        current = parser.get('General', 'workspace_path', fallback='')
+        desired = str(self.workspace_dir)
+        if current == desired:
+            return
+        parser.set('General', 'workspace_path', desired)
+        with open(path, 'w') as f:
+            parser.write(f)
+        self.info(f"Updated: {path}")
+
+    def _devtool_workspace_value(self, conf_dir: Path) -> Optional[str]:
+        path = conf_dir / 'devtool.conf'
+        if not path.exists():
+            return None
+        parser = configparser.ConfigParser()
+        parser.read(path)
+        return parser.get('General', 'workspace_path', fallback=None)
+
     def show_config(self, args):
         """Show current configuration and highlight issues."""
         machine = args.machine
@@ -1307,15 +2908,18 @@ class TuxboxBuilder:
         distro = args.distro
         distro_type = args.distro_type
 
-        target_builddir = Path(args.builddir) if args.builddir else (
+        target_builddir = self._resolve_user_path(args.builddir) if args.builddir else (
             self._default_builddir_for_machine(machine)
         )
         conf_dir = target_builddir / 'conf'
         local_conf = conf_dir / 'local.conf'
         bblayers_conf = conf_dir / 'bblayers.conf'
-        local_user_conf = conf_dir / 'local.conf.user.inc'
+        shared_local_conf = self._global_local_conf(target_builddir)
+        legacy_shared_local_user_conf = self._legacy_global_local_user_conf(target_builddir)
         local_machine_conf = conf_dir / f'local.conf.{machine}.inc'
-        bblayers_user_conf = conf_dir / 'bblayers.conf.user.inc'
+        bblayers_user_conf = self._global_bblayers_user_conf(target_builddir)
+        legacy_local_user_conf = conf_dir / 'local.conf.user.inc'
+        legacy_bblayers_user_conf = conf_dir / 'bblayers.conf.user.inc'
 
         self.log("=== Configuration Summary ===", Colors.BOLD, bold=True)
         self.info(f"Build dir: {target_builddir}")
@@ -1328,24 +2932,30 @@ class TuxboxBuilder:
             self.success(f"bblayers.conf: {bblayers_conf}")
         else:
             self.warning(f"bblayers.conf: missing ({bblayers_conf})")
-        if local_user_conf.exists():
-            self.success(f"local.conf.user.inc: {local_user_conf}")
+        if shared_local_conf.exists():
+            self.success(f"shared user/site local.conf: {shared_local_conf}")
         else:
-            self.info(f"local.conf.user.inc: missing ({local_user_conf})")
+            self.warning(f"shared user/site local.conf: missing ({shared_local_conf})")
+        if legacy_shared_local_user_conf.exists():
+            self.warning(f"legacy shared local.conf.user.inc: {legacy_shared_local_user_conf}")
         if local_machine_conf.exists():
             self.success(f"local.conf.{machine}.inc: {local_machine_conf}")
         else:
             self.info(f"local.conf.{machine}.inc: missing ({local_machine_conf})")
         if bblayers_user_conf.exists():
-            self.success(f"bblayers.conf.user.inc: {bblayers_user_conf}")
+            self.success(f"shared bblayers.conf.user.inc: {bblayers_user_conf}")
         else:
-            self.info(f"bblayers.conf.user.inc: missing ({bblayers_user_conf})")
+            self.info(f"shared bblayers.conf.user.inc: missing ({bblayers_user_conf})")
+        if legacy_local_user_conf.exists():
+            self.warning(f"legacy per-machine local.conf.user.inc: {legacy_local_user_conf}")
+        if legacy_bblayers_user_conf.exists():
+            self.warning(f"legacy per-machine bblayers.conf.user.inc: {legacy_bblayers_user_conf}")
 
         keys = ['MACHINE', 'MACHINEBUILD', 'DISTRO', 'DISTRO_TYPE', 'DL_DIR', 'SSTATE_DIR', 'TMPDIR']
         values = {}
         sources = {}
         if local_conf.exists():
-            conf_sources = [local_conf, local_user_conf, local_machine_conf]
+            conf_sources = self._machine_conf_sources(conf_dir, machine)
             values_with_sources = self._read_conf_values_with_sources(conf_sources, keys)
             for key in keys:
                 value, source = values_with_sources.get(key, (None, None))
@@ -1365,7 +2975,7 @@ class TuxboxBuilder:
                     self.warning(f"  {key}: not set")
 
         layer_sources: Dict[str, Path] = {}
-        for layer_file in [bblayers_conf, bblayers_user_conf]:
+        for layer_file in self._machine_layer_sources(conf_dir):
             for layer in self._extract_layer_paths(layer_file):
                 if layer not in layer_sources:
                     layer_sources[layer] = layer_file
@@ -1385,6 +2995,22 @@ class TuxboxBuilder:
             errors.append("local.conf missing (run make config)")
         if not bblayers_conf.exists():
             errors.append("bblayers.conf missing (run make config)")
+        if not shared_local_conf.exists():
+            errors.append("shared local.conf missing (run make config)")
+        if not bblayers_user_conf.exists():
+            errors.append("shared bblayers.conf.user.inc missing (run make config)")
+        if legacy_shared_local_user_conf.exists():
+            errors.append("legacy shared local.conf.user.inc present (run make migrate-configs)")
+        if legacy_local_user_conf.exists():
+            errors.append("legacy per-machine local.conf.user.inc present (run make migrate-configs)")
+        if legacy_bblayers_user_conf.exists():
+            errors.append("legacy per-machine bblayers.conf.user.inc present (run make migrate-configs)")
+        central_forbidden = self._central_forbidden_assignment_refs(target_builddir)
+        if central_forbidden:
+            errors.append(
+                "machine-specific assignment in shared config: "
+                + ', '.join(central_forbidden)
+            )
 
         required_layers = ['poky', 'oe-alliance', 'meta-openembedded', 'meta-neutrino', 'meta-tuxbox']
         for layer in required_layers:
@@ -1398,9 +3024,9 @@ class TuxboxBuilder:
         configured_distro_type = values.get('DISTRO_TYPE')
 
         if configured_machine and configured_machine != machine:
-            warnings.append(f"local.conf MACHINE={configured_machine} (requested {machine})")
+            errors.append(f"local.conf MACHINE={configured_machine} (requested {machine})")
         if requested_machinebuild and configured_machinebuild and configured_machinebuild != requested_machinebuild:
-            warnings.append(
+            errors.append(
                 f"local.conf MACHINEBUILD={configured_machinebuild} (requested {requested_machinebuild})"
             )
 
@@ -1427,7 +3053,7 @@ class TuxboxBuilder:
                 builds_display = self._format_machinebuild_list(build_info)
                 machinebuild = configured_machinebuild or requested_machinebuild or machine
                 if build_names and machinebuild not in build_names:
-                    warnings.append(
+                    errors.append(
                         f"MACHINEBUILD '{machinebuild}' not listed for {machine} "
                         f"(available: {', '.join(builds_display)})"
                     )
@@ -1439,7 +3065,7 @@ class TuxboxBuilder:
                 self.warning(f"  {item}")
 
         image_immediate = self._find_image_immediate_assignments(
-            [local_conf, local_user_conf, local_machine_conf]
+            self._machine_conf_sources(conf_dir, machine)
         )
         if image_immediate:
             self.info("")
@@ -1454,7 +3080,10 @@ class TuxboxBuilder:
                 self.error(f"  {item}")
             sys.exit(1)
 
-        self.success("Configuration looks OK")
+        if warnings:
+            self.success("Configuration has warnings")
+        else:
+            self.success("Configuration looks OK")
 
     def init(self, args):
         """Initialize build environment."""
@@ -1529,7 +3158,7 @@ class TuxboxBuilder:
         requested_target = args.target or 'tuxbox-image'
         target = 'package-index' if requested_target == 'feeds' else requested_target
 
-        target_builddir = Path(args.builddir) if args.builddir else None
+        target_builddir = self._resolve_user_path(args.builddir) if args.builddir else None
         if not machine:
             selected = self._select_build_config(target_builddir)
             if not selected:
@@ -1541,7 +3170,10 @@ class TuxboxBuilder:
                 sys.exit(1)
             if not machinebuild:
                 machinebuild = selected.get('machinebuild')
-            target_builddir = Path(selected['builddir']) if selected.get('builddir') else self.builddir
+            target_builddir = (
+                self._resolve_user_path(selected['builddir'])
+                if selected.get('builddir') else self.builddir
+            )
 
         self._print_layer_refs()
         self.log(f"=== Building {target} for {machine} ===", Colors.BOLD, bold=True)
@@ -1578,22 +3210,43 @@ class TuxboxBuilder:
         local_conf = conf_dir / 'local.conf'
         bblayers_conf = conf_dir / 'bblayers.conf'
         config_exists = local_conf.exists() and bblayers_conf.exists()
+        shared_config_exists = (
+            self._global_local_conf(target_builddir).exists()
+            and self._global_bblayers_user_conf(target_builddir).exists()
+        )
+        legacy_config_exists = (
+            (conf_dir / 'local.conf.user.inc').exists()
+            or (conf_dir / 'bblayers.conf.user.inc').exists()
+            or self._legacy_global_local_user_conf(target_builddir).exists()
+        )
         config_status = "existing"
+        if config_exists and not args.force_config and (not shared_config_exists or legacy_config_exists):
+            self.error("Config exists but is not in the central-config layout.")
+            if not shared_config_exists:
+                self.error(f"  Missing shared config under {self.global_conf_dir}")
+            if legacy_config_exists:
+                self.error("  Legacy user include files are still present")
+            self.info("Run 'make migrate-configs', 'make config FORCE_CONFIG=1', or pass --force-config.")
+            sys.exit(1)
         if config_exists and not args.force_config:
-            configured_machine = self._read_conf_value(local_conf, 'MACHINE')
-            configured_machinebuild = self._read_conf_value(local_conf, 'MACHINEBUILD')
+            values = self._read_conf_values_with_sources(
+                self._machine_conf_sources(conf_dir, machine),
+                ['MACHINE', 'MACHINEBUILD'],
+            )
+            configured_machine = values.get('MACHINE', (None, None))[0]
+            configured_machinebuild = values.get('MACHINEBUILD', (None, None))[0]
             mismatches = []
             if configured_machine and configured_machine != machine:
                 mismatches.append(f"local.conf MACHINE={configured_machine} (requested {machine})")
-            if args.machinebuild and configured_machinebuild and configured_machinebuild != args.machinebuild:
+            if machinebuild and configured_machinebuild and configured_machinebuild != machinebuild:
                 mismatches.append(
-                    f"local.conf MACHINEBUILD={configured_machinebuild} (requested {args.machinebuild})"
+                    f"local.conf MACHINEBUILD={configured_machinebuild} (requested {machinebuild})"
                 )
             if mismatches:
                 self.error("Config already exists and does not match requested values:")
                 for item in mismatches:
                     self.error(f"  {item}")
-                self.info("Run 'make config' to regenerate, or pass --force-config to overwrite.")
+                self.info("Run 'make migrate-configs', 'make config', or pass --force-config to overwrite.")
                 sys.exit(1)
             if not machinebuild and configured_machinebuild:
                 machinebuild = configured_machinebuild
@@ -1798,28 +3451,27 @@ bitbake -c devshell {target}
         if not shutil.which("ccache"):
             return result
 
-        # Check if ccache is configured in any build conf
+        # Check if ccache is configured in any shared or machine build conf
         ccache_in_conf = False
+        conf_files = [self._global_local_conf()]
         for builddir in self._discover_builddirs():
-            local_conf = builddir / "conf" / "local.conf"
-            if local_conf.exists():
-                try:
-                    text = local_conf.read_text(errors="ignore")
-                    if re.search(r'^\s*INHERIT\s*\+?=.*"ccache"', text, re.MULTILINE):
-                        ccache_in_conf = True
-                        break
-                except OSError:
-                    pass
-            # Also check user include
-            user_inc = builddir / "conf" / "local.conf.user.inc"
-            if user_inc.exists():
-                try:
-                    text = user_inc.read_text(errors="ignore")
-                    if re.search(r'^\s*INHERIT\s*\+?=.*"ccache"', text, re.MULTILINE):
-                        ccache_in_conf = True
-                        break
-                except OSError:
-                    pass
+            conf_dir = builddir / "conf"
+            machine, _ = self._read_machine_values_from_conf(conf_dir)
+            conf_files.append(conf_dir / "local.conf")
+            if machine:
+                conf_files.append(conf_dir / f"local.conf.{machine}.inc")
+        seen_conf_files: Set[Path] = set()
+        for conf_file in conf_files:
+            if conf_file in seen_conf_files or not conf_file.exists():
+                continue
+            seen_conf_files.add(conf_file)
+            try:
+                text = conf_file.read_text(errors="ignore")
+                if re.search(r'^\s*INHERIT\s*\+?=.*"ccache"', text, re.MULTILINE):
+                    ccache_in_conf = True
+                    break
+            except OSError:
+                pass
 
         if not ccache_in_conf:
             return result
@@ -1888,7 +3540,7 @@ bitbake -c devshell {target}
         configured = False
         build_config: Dict = {}
         if machine:
-            target_builddir = Path(builddir) if builddir else self._default_builddir_for_machine(machine)
+            target_builddir = self._resolve_user_path(builddir) if builddir else self._default_builddir_for_machine(machine)
             conf_dir = target_builddir / "conf"
             local_conf = conf_dir / "local.conf"
 
@@ -1896,11 +3548,7 @@ bitbake -c devshell {target}
             if local_conf.exists():
                 configured = True
                 keys = ["MACHINE", "MACHINEBUILD", "DISTRO", "DISTRO_TYPE", "DL_DIR", "SSTATE_DIR", "TMPDIR"]
-                conf_sources = [
-                    local_conf,
-                    conf_dir / "local.conf.user.inc",
-                    conf_dir / f"local.conf.{machine}.inc",
-                ]
+                conf_sources = self._machine_conf_sources(conf_dir, machine)
                 values_with_sources = self._read_conf_values_with_sources(conf_sources, keys)
                 for key in keys:
                     value, _ = values_with_sources.get(key, (None, None))
@@ -1917,9 +3565,10 @@ bitbake -c devshell {target}
                 lc = conf_dir / "local.conf"
                 if lc.exists():
                     detected_machine, _ = self._read_machine_values_from_conf(conf_dir)
-                    conf_sources = [lc, conf_dir / "local.conf.user.inc"]
-                    if detected_machine:
-                        conf_sources.append(conf_dir / f"local.conf.{detected_machine}.inc")
+                    conf_sources = (
+                        self._machine_conf_sources(conf_dir, detected_machine)
+                        if detected_machine else [lc, self._global_local_conf()]
+                    )
                     vals = self._read_conf_values_with_sources(
                         conf_sources, ["MACHINE", "MACHINEBUILD", "DISTRO", "DISTRO_TYPE", "DL_DIR", "SSTATE_DIR", "TMPDIR"]
                     )
@@ -2142,7 +3791,7 @@ def main():
     build_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
     build_parser.add_argument(
         '--builddir',
-        help='Custom build directory (default: builds, legacy build fallback, or build-<machine> for coolstream)'
+        help='Custom build directory (default: builds/<machine>)'
     )
     build_parser.add_argument('-t', '--target', help='Build target (default: tuxbox-image)')
     build_parser.add_argument('--offline', action='store_true', help='Offline build mode')
@@ -2160,7 +3809,7 @@ def main():
     config_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
     config_parser.add_argument(
         '--builddir',
-        help='Custom build directory (default: builds, legacy build fallback, or build-<machine> for coolstream)'
+        help='Custom build directory (default: builds/<machine>)'
     )
     config_parser.add_argument('--distro-type', choices=['release', 'development'],
                             default='release', help='Build type')
@@ -2172,7 +3821,7 @@ def main():
     show_config_parser.add_argument('--machinebuild', help='OEM machine variant (defaults to MACHINE or $MACHINEBUILD)')
     show_config_parser.add_argument(
         '--builddir',
-        help='Custom build directory (default: builds, legacy build fallback, or build-<machine> for coolstream)'
+        help='Custom build directory (default: builds/<machine>)'
     )
     show_config_parser.add_argument('--distro-type', choices=['release', 'development'],
                                     default='release', help='Build type')
@@ -2186,6 +3835,64 @@ def main():
     # machine-info command
     machine_info_parser = subparsers.add_parser('machine-info', help='Show details for a machine')
     machine_info_parser.add_argument('-m', '--machine', required=True, help='Target machine')
+
+    # audit-machine-mapping command
+    audit_parser = subparsers.add_parser(
+        'audit-machine-mapping',
+        help='Audit MACHINE/MACHINEBUILD, kernel, and image mapping without building'
+    )
+    audit_parser.add_argument('-m', '--machine', help='Limit audit to one machine')
+    audit_parser.add_argument('--machinebuild', help='Limit audit to one MACHINEBUILD')
+    audit_parser.add_argument('--brand', help='Limit global audit to one brand')
+    audit_parser.add_argument('-d', '--distro', default='tuxbox', help='Distribution (default: tuxbox)')
+    audit_parser.add_argument('--distro-type', choices=['release', 'development'],
+                              default='release', help='Build type')
+    audit_parser.add_argument(
+        '--bitbake',
+        choices=['none', 'selected', 'high-risk', 'suspicious', 'all'],
+        default='high-risk',
+        help='Run bitbake -e for selected rows (default: high-risk)'
+    )
+    audit_parser.add_argument('--bitbake-timeout', type=int, default=180,
+                              help='Timeout in seconds for each bitbake -e parse')
+    audit_parser.add_argument('--deploy', action='store_true',
+                              help='Inspect latest deploy zip for selected rows')
+    audit_parser.add_argument('--live', action='store_true',
+                              help='Read-only SSH check for known live boxes')
+    audit_parser.add_argument('--scratch-root',
+                              help='Scratch root for generated configs (default: /tmp/tuxbox-audit/run-*)')
+    audit_parser.add_argument('--keep-scratch', action='store_true',
+                              help='Keep generated scratch configs after the audit')
+    audit_parser.add_argument('--limit', type=int,
+                              help='Limit number of rows, useful while developing the audit')
+    audit_parser.add_argument('--json', action='store_true', help='Output JSON')
+
+    # migrate-configs command
+    migrate_parser = subparsers.add_parser(
+        'migrate-configs',
+        help='Migrate legacy shared configs into per-machine build dirs'
+    )
+    migrate_mode = migrate_parser.add_mutually_exclusive_group()
+    migrate_mode.add_argument('--apply', action='store_true', help='Apply safe migrations')
+    migrate_mode.add_argument('--check', action='store_true', help='Fail if migrations are needed')
+    migrate_mode.add_argument('--dry-run', action='store_true', help='Show planned migrations only')
+    migrate_parser.add_argument('--json', action='store_true', help='Output JSON')
+
+    # deploy-info command
+    deploy_info_parser = subparsers.add_parser(
+        'deploy-info',
+        help='Resolve and validate machine-aware build/deploy paths'
+    )
+    deploy_info_parser.add_argument('-m', '--machine', required=True, help='Target machine')
+    deploy_info_parser.add_argument('--machinebuild', help='OEM machine variant')
+    deploy_info_parser.add_argument('--builddir', help='Build directory to inspect')
+    deploy_info_parser.add_argument('--require-ipk', action='store_true',
+                                    help='Fail if deploy/ipk is missing')
+    deploy_info_parser.add_argument('--require-images', action='store_true',
+                                    help='Fail if deploy/images/<machine> is missing')
+    deploy_info_parser.add_argument('--require-manifest', action='store_true',
+                                    help='Fail if manifest.json is missing or inconsistent')
+    deploy_info_parser.add_argument('--json', action='store_true', help='Output JSON')
 
     # clean command
     clean_parser = subparsers.add_parser('clean', help='Clean build artifacts')
@@ -2231,7 +3938,7 @@ def main():
     elif args.command == 'build':
         builder.build(args)
     elif args.command == 'config':
-        target_builddir = Path(args.builddir) if args.builddir else (
+        target_builddir = builder._resolve_user_path(args.builddir) if args.builddir else (
             builder._default_builddir_for_machine(args.machine)
         )
         builder.generate_config(args.machine, args.distro, args.distro_type, args.machinebuild, target_builddir)
@@ -2242,6 +3949,12 @@ def main():
         builder.machines(args)
     elif args.command == 'machine-info':
         builder.machine_info(args)
+    elif args.command == 'audit-machine-mapping':
+        builder.audit_machine_mapping(args)
+    elif args.command == 'migrate-configs':
+        builder.migrate_configs(args)
+    elif args.command == 'deploy-info':
+        builder.deploy_info(args)
     elif args.command == 'clean':
         builder.clean(args)
     elif args.command == 'fetch-only':

@@ -192,6 +192,16 @@ make feed-server-url MACHINE=hd51
 make clean
 ```
 
+`make clean` deletes `builds/<machine>/tmp` only; the shared sstate-cache stays.
+That keeps incremental rebuilds fast, but `tmp/deploy` may be repopulated from
+sstate with the original build timestamps, which can look like an old package
+reappeared. To force a fresh build of one recipe, bypass sstate for it:
+
+```bash
+make bb TARGET=neutrino BB_TASK=cleansstate
+make image MACHINE=hd51 MACHINEBUILD=mutant51
+```
+
 Optional sync variant:
 
 ```bash

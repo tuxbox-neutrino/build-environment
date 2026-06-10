@@ -18,8 +18,9 @@ Wichtige Begriffe in dieser Seite erklärt das
 
 Unterstützte Host-Systeme:
 
-- Debian 11/12
+- Debian 11/12/13
 - Ubuntu 20.04/22.04 LTS
+- LMDE 7 (Linux Mint Debian Edition, auf Trixie basierend)
 
 Mindestens benötigte Tools:
 

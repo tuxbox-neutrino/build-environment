@@ -17,8 +17,9 @@ Key terms in this page are explained in the
 
 Supported host systems:
 
-- Debian 11/12
+- Debian 11/12/13
 - Ubuntu 20.04/22.04 LTS
+- LMDE 7 (Linux Mint Debian Edition, Trixie-based)
 
 Minimum tools:
 

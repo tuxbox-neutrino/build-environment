@@ -1,5 +1,6 @@
 # Build artifacts
 /builds/
+/builds-*/
 /build/
 /build-*/
 /sstate-cache/

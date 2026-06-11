@@ -131,10 +131,6 @@ so this is an additive key — no new mechanism, no ni-pick breakage.
   "
   ```
 
-  Note: the configure flag is `--with-online-update-key` until the
-  Neutrino `configure.ac` is updated (tracked separately).  The recipe
-  variable is already renamed to `SERVICE_KEY`.
-
   `SERVICE_KEY` indirection keeps parity with the existing key
   variables (`TMDB_DEV_KEY`, `OMDB_API_KEY`, ...) so Neutrino recipe
   changes stay local to `neutrino.inc`.
@@ -379,9 +375,6 @@ this document.
 
 - Exact Neutrino settings key names (to be finalized during
   implementation; UX review pass before freezing).
-- Configure-time autotools fragment for `--with-service-key`
-  (rename of `--with-online-update-key` in Neutrino `configure.ac`,
-  mirroring the existing `--with-tmdb-api-key` block).
 - Menu container class choice (re-use existing `CMenuForwarder` idiom
   from CFlashManager Phase 1).
 - Test vectors for portal validation (invalid key, missing header,

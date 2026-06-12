@@ -410,10 +410,16 @@ class TuxboxBuilder:
             image_server_cmd += f" MACHINEBUILD={effective_machinebuild}"
             image_server_url_cmd += f" MACHINEBUILD={effective_machinebuild}"
 
+        base_url = self._image_server_base_url()
         self.info(f"Image deploy path: {deploy_images}")
         self.info(f"Local Online-Flash server: {image_server_cmd}")
-        self.info(f"Online-Flash URL: {self._image_server_base_url()}/feed/{channel}/{online_imagedir}")
+        self.info(f"Online-Flash URL: {base_url}/feed/{channel}/{online_imagedir}")
         self.info(f"Show Neutrino settings: {image_server_url_cmd}")
+        online_update_repo = os.environ.get('PORTAL_ONLINE_UPDATE_REPO', '').strip()
+        if not online_update_repo:
+            online_update_repo = str((self.topdir / '..' / 'online-update').resolve())
+        if (Path(online_update_repo) / 'public' / 'admin').is_dir():
+            self.info(f"Admin WebIF (browser): {base_url}/admin/")
 
     def _online_imagedir_slug(self, value: str) -> str:
         """Return a URL/catalog safe image directory identifier."""

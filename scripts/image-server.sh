@@ -48,12 +48,23 @@ warn() {
 	echo "WARNING: $*" >&2
 }
 
+pid_is_image_server() {
+	local pid="$1"
+	[[ -n "${pid}" ]] || return 1
+	kill -0 "${pid}" 2>/dev/null || return 1
+	local cmdline=""
+	if [[ -r "/proc/${pid}/cmdline" ]]; then
+		cmdline="$(tr '\0' ' ' < "/proc/${pid}/cmdline" 2>/dev/null || true)"
+	fi
+	[[ "${cmdline}" == *php* && "${cmdline}" == *dev-server-router.php* ]]
+}
+
 is_running() {
 	[[ -f "${PID_FILE}" ]] || return 1
 	local pid
 	pid="$(tr -d '[:space:]' < "${PID_FILE}")"
 	[[ -n "${pid}" ]] || return 1
-	kill -0 "${pid}" 2>/dev/null
+	pid_is_image_server "${pid}"
 }
 
 primary_ipv4() {
@@ -306,9 +317,6 @@ do_url() {
 	key="$(service_key_hint)"
 
 	printf 'image_update_url=%s\n' "${update_url}"
-	if [[ -n "${admin_url}" ]]; then
-		printf 'image_update_admin_webif_url=%s\n' "${admin_url}"
-	fi
 	printf 'image_manifest_file=manifest.json\n'
 	if [[ -n "${key}" ]]; then
 		printf 'image_service_key=%s\n' "${key}"
@@ -321,6 +329,11 @@ do_url() {
 		printf "curl: curl '%s/manifest.json'\n" "${update_url}"
 	fi
 	printf 'logs: %s\n' "${LOG_DIR}"
+	# Operator info only: this URL is opened in a browser, Neutrino does
+	# not read it.
+	if [[ -n "${admin_url}" ]]; then
+		printf 'admin webif: %s\n' "${admin_url}"
+	fi
 }
 
 do_start() {
@@ -397,10 +410,24 @@ do_start() {
 		die "image server failed to start; see ${PHP_LOG}"
 	fi
 
+	local pair=""
+	local update_url=""
+	local resolved_admin_url=""
+	if pair="$(resolve_feed_parts "${machine}" "${machinebuild}" "${builddir}" "${catalog}" "${channel}" "${imagedir}" 2>/dev/null)"; then
+		channel="${pair%%$'\t'*}"
+		imagedir="${pair#*$'\t'}"
+		update_url="$(feed_url "${base_url}" "${channel}" "${imagedir}")"
+	fi
+	if [[ -n "${admin_url}" || -d "${online_update_repo}/public/admin" ]]; then
+		resolved_admin_url="$(admin_webif_url "${base_url}" "${admin_url}")"
+	fi
+
 	{
 		printf 'port=%s\n' "${port}"
 		printf 'bind=%s\n' "${bind_addr}"
 		printf 'base_url=%s\n' "${base_url}"
+		[[ -n "${update_url}" ]] && printf 'update_url=%s\n' "${update_url}"
+		[[ -n "${resolved_admin_url}" ]] && printf 'admin_webif_url=%s\n' "${resolved_admin_url}"
 		printf 'catalog=%s\n' "${catalog}"
 		printf 'feed_root=%s\n' "${feed_root}"
 		printf 'online_update_repo=%s\n' "${online_update_repo}"
@@ -413,13 +440,23 @@ do_start() {
 }
 
 do_stop() {
-	if ! is_running; then
-		rm -f "${PID_FILE}"
+	if [[ ! -f "${PID_FILE}" ]]; then
 		echo "image server stopped"
 		return
 	fi
 	local pid
-	pid="$(cat "${PID_FILE}")"
+	pid="$(tr -d '[:space:]' < "${PID_FILE}")"
+	if [[ -z "${pid}" ]] || ! kill -0 "${pid}" 2>/dev/null; then
+		rm -f "${PID_FILE}"
+		echo "image server stopped"
+		return
+	fi
+	if ! pid_is_image_server "${pid}"; then
+		# PID was reused by an unrelated process; never kill it.
+		rm -f "${PID_FILE}"
+		echo "stale pid file removed (pid ${pid} is not the image server)"
+		return
+	fi
 	kill "${pid}" 2>/dev/null || true
 	local i
 	for i in 1 2 3 4 5; do

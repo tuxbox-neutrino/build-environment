@@ -251,11 +251,11 @@ Default URL shape:
 http://<host-ip>:33334/feed/<channel>/<imagedir>
 ```
 
-Use the values printed by `make image-server-url` in Neutrino. For local and
-private LAN tests the service accepts `LOCAL_SERVICE_KEY`; do not use that key
-for public servers. The printed `image_update_admin_webif_url` points to the
-server administration UI and is not used for Flash downloads. Logs are written
-below `image-server/logs/`.
+Use the settings block printed by `make image-server-url` in Neutrino. For
+local and private LAN tests the service accepts `LOCAL_SERVICE_KEY`; do not
+use that key for public servers. The separate `admin webif` line is opened in
+a browser and is for operators only — Neutrino does not read it and it is not
+used for Flash downloads. Logs are written below `image-server/logs/`.
 
 ## Image Portal Feed Workflow
 

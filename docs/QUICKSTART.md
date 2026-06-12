@@ -274,15 +274,18 @@ The URL output looks like this:
 
 ```text
 image_update_url=http://<host-ip>:33334/feed/release/zgemmah7
-image_update_admin_webif_url=http://<host-ip>:33334/admin/
 image_manifest_file=manifest.json
 image_service_key=LOCAL_SERVICE_KEY
 ```
 
-Use those values in Neutrino's Online Flash settings. `LOCAL_SERVICE_KEY` is
-only for local/private networks. `image_update_admin_webif_url` is the server
-administration page; it is not used for manifest or ZIP downloads. Server logs
-are below `image-server/logs/`.
+Use those three values in Neutrino's Online Flash settings.
+`LOCAL_SERVICE_KEY` is only for local/private networks.
+
+Below the settings block the output also prints an
+`admin webif: http://<host-ip>:33334/admin/` line. That URL is opened in a
+browser and is meant for operators and diagnostics only — Neutrino does not
+read it and it is not used for manifest or ZIP downloads. Server logs are
+below `image-server/logs/`.
 
 Useful commands:
 

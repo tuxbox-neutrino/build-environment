@@ -64,19 +64,24 @@ Beispielausgabe:
 
 ```text
 image_update_url=http://192.168.1.36:33334/feed/release/zgemmah7
-image_update_admin_webif_url=http://192.168.1.36:33334/admin/
 image_manifest_file=manifest.json
 image_service_key=LOCAL_SERVICE_KEY
+
+manifest: http://192.168.1.36:33334/feed/release/zgemmah7/manifest.json
+curl: curl -H 'X-Tuxbox-Service-Key: LOCAL_SERVICE_KEY' '...'
+logs: .../image-server/logs
+admin webif: http://192.168.1.36:33334/admin/
 ```
 
-Diese Werte trägst du in den Online-Flash-Einstellungen von Neutrino ein.
-Ändere nichts von Hand, außer die Host-IP ist falsch.
+Der erste Block enthält die drei Werte für die Online-Flash-Einstellungen
+von Neutrino. Ändere nichts von Hand, außer die Host-IP ist falsch.
 
 `LOCAL_SERVICE_KEY` ist nur für lokale/private Netze gedacht. Auf öffentlichen
 Servern nutzt du richtige Service-Keys.
 
-`image_update_admin_webif_url` öffnet die Server-Verwaltung. Das ist für
-Betreiber nützlich, gehört aber nicht zum Flash-Download-Pfad.
+Die Zeile `admin webif` ist nur für Betreiber: Diese URL öffnest du im
+Browser, um die Server-Verwaltung zu erreichen. Neutrino liest diese URL
+nicht, und sie gehört nicht zum Flash-Download-Pfad.
 
 ## 5. Schneller Host-Test
 

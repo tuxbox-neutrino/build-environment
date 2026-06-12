@@ -84,6 +84,14 @@ LOCAL_FEED_BACKEND ?= auto
 LOCAL_FEED_BASE_URL ?=
 FEED_SERVER_SCRIPT := $(TOPDIR)/scripts/feed-server.sh
 LOCAL_FEED_ENV = LOCAL_FEED="$(LOCAL_FEED)" LOCAL_FEED_PORT="$(LOCAL_FEED_PORT)" LOCAL_FEED_HOST="$(LOCAL_FEED_HOST)" LOCAL_FEED_BIND="$(LOCAL_FEED_BIND)" LOCAL_FEED_BACKEND="$(LOCAL_FEED_BACKEND)" LOCAL_FEED_BASE_URL="$(LOCAL_FEED_BASE_URL)"
+IMAGE_SERVER_PORT ?= 33334
+IMAGE_SERVER_HOST ?= auto
+IMAGE_SERVER_BIND ?= 0.0.0.0
+IMAGE_SERVER_BASE_URL ?=
+IMAGE_SERVER_ADMIN_WEBIF_URL ?=
+IMAGE_SERVER_SERVICE_KEYS ?=
+IMAGE_SERVER_SCRIPT := $(TOPDIR)/scripts/image-server.sh
+IMAGE_SERVER_ENV = IMAGE_SERVER_PORT="$(IMAGE_SERVER_PORT)" IMAGE_SERVER_HOST="$(IMAGE_SERVER_HOST)" IMAGE_SERVER_BIND="$(IMAGE_SERVER_BIND)" IMAGE_SERVER_BASE_URL="$(IMAGE_SERVER_BASE_URL)" IMAGE_SERVER_ADMIN_WEBIF_URL="$(IMAGE_SERVER_ADMIN_WEBIF_URL)" IMAGE_SERVER_SERVICE_KEYS="$(IMAGE_SERVER_SERVICE_KEYS)"
 
 # Build directories
 DEFAULT_BUILDDIR := $(TOPDIR)/builds/$(MACHINE)
@@ -175,14 +183,25 @@ help:
 	@echo -e "  $(COLOR_GREEN)make migrate-configs$(COLOR_RESET)                 Migrate legacy configs to builds/conf + builds/<machine>"
 	@echo -e "  $(COLOR_GREEN)make check-configs$(COLOR_RESET)                   Check config migration/identity state"
 	@echo -e "  $(COLOR_GREEN)make audit-machine-mapping$(COLOR_RESET)           Audit MACHINE/MACHINEBUILD/kernel mapping"
-	@echo -e "  $(COLOR_GREEN)make feed-server-url MACHINE=hd60$(COLOR_RESET)    Show local IPK feed URL"
-	@echo -e "  $(COLOR_GREEN)make feed-server-urls$(COLOR_RESET)                Show all published local IPK feed URLs"
-	@echo -e "  $(COLOR_GREEN)make feed-server-start MACHINE=hd60$(COLOR_RESET)  Start local IPK feed server"
-	@echo -e "  $(COLOR_GREEN)make feed-server-start-all$(COLOR_RESET)           Publish all deploy/ipk feeds and start server"
-	@echo -e "  $(COLOR_GREEN)make feed-server-stop$(COLOR_RESET)                Stop local IPK feed server"
+	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
+	@echo ""
+	@echo -e "$(COLOR_BOLD)Local Package Feed (IPK):$(COLOR_RESET)"
+	@echo -e "  $(COLOR_GREEN)make feed-server-url MACHINE=hd60$(COLOR_RESET)     Show local IPK feed URL"
+	@echo -e "  $(COLOR_GREEN)make feed-server-urls$(COLOR_RESET)                 Show all published local IPK feed URLs"
+	@echo -e "  $(COLOR_GREEN)make feed-server-start MACHINE=hd60$(COLOR_RESET)   Start local IPK feed server on port $(LOCAL_FEED_PORT)"
+	@echo -e "  $(COLOR_GREEN)make feed-server-start-all$(COLOR_RESET)            Publish all deploy/ipk feeds and start server"
+	@echo -e "  $(COLOR_GREEN)make feed-server-stop$(COLOR_RESET)                 Stop local IPK feed server"
+	@echo ""
+	@echo -e "$(COLOR_BOLD)Local Image Server (Online Flash):$(COLOR_RESET)"
+	@echo -e "  $(COLOR_GREEN)make image-server-stage MACHINE=h7$(COLOR_RESET)    Stage local image feed + catalog"
+	@echo -e "  $(COLOR_GREEN)make image-server-start MACHINE=h7$(COLOR_RESET)    Stage and start PHP image server on port $(IMAGE_SERVER_PORT)"
+	@echo -e "  $(COLOR_GREEN)make image-server-url MACHINE=h7$(COLOR_RESET)      Show Neutrino URL and curl test"
+	@echo -e "  $(COLOR_GREEN)make image-server-status$(COLOR_RESET)              Show local image server status"
+	@echo -e "  $(COLOR_GREEN)make image-server-stop$(COLOR_RESET)                Stop local image server"
+	@echo ""
+	@echo -e "$(COLOR_BOLD)Image Portal / Production Sync:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make portal-catalog MACHINE=hd60 MACHINEBUILD=ax60$(COLOR_RESET)  Build portal feed stage + catalog"
 	@echo -e "  $(COLOR_GREEN)make portal-sync PORTAL_SYNC_DEST=user@host:/srv/tuxbox/feed$(COLOR_RESET)  Sync portal feed via rsync"
-	@echo -e "  $(COLOR_GREEN)SYNC_EXCLUDE=meta-coolstream meta-tuxbox-toolchain$(COLOR_RESET)  Skip submodules in make sync"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Information:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make info$(COLOR_RESET)                            Build system status overview"
@@ -247,6 +266,12 @@ help:
 	@echo -e "  LOCAL_FEED_BIND Local feed bind address (default: 0.0.0.0)"
 	@echo -e "  LOCAL_FEED_BACKEND Feed server backend: auto|lighttpd|python"
 	@echo -e "  LOCAL_FEED_BASE_URL Explicit full feed URL override"
+	@echo -e "  IMAGE_SERVER_PORT Local Online-Flash image server port (default: 33334)"
+	@echo -e "  IMAGE_SERVER_HOST Image server URL host or auto (default: auto)"
+	@echo -e "  IMAGE_SERVER_BIND Image server bind address (default: 0.0.0.0)"
+	@echo -e "  IMAGE_SERVER_BASE_URL Explicit image server base URL override"
+	@echo -e "  IMAGE_SERVER_ADMIN_WEBIF_URL Explicit admin WebIF URL override"
+	@echo -e "  IMAGE_SERVER_SERVICE_KEYS Optional comma-separated service keys for local tests"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"
@@ -354,6 +379,39 @@ feed-server-restart-all:
 .PHONY: feed-server-status
 feed-server-status:
 	@$(LOCAL_FEED_ENV) $(FEED_SERVER_SCRIPT) status --machine $(MACHINE)
+
+.PHONY: image-server-stage
+image-server-stage:
+	@base_url="$$($(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) base-url --machine $(MACHINE))"; \
+	echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) MACHINE=$(MACHINE) MACHINEBUILD=$(PORTAL_MACHINEBUILD) BUILD_DIR=$(CONF_BUILDDIR) DISTRO_TYPE=$(DISTRO_TYPE) SOURCE_DIR=$(PORTAL_SOURCE_DIR) FEED_ROOT=$(PORTAL_FEED_ROOT) CATALOG_OUT=$(PORTAL_CATALOG_OUT) ARTIFACT_BASE_URL=$${base_url}/feed ONLINE_UPDATE_REPO=$(PORTAL_ONLINE_UPDATE_REPO) ALLOWED_CHANNELS=$(PORTAL_ALLOWED_CHANNELS) ./scripts/portal-catalog.sh"; \
+	MACHINE="$(MACHINE)" \
+	MACHINEBUILD="$(PORTAL_MACHINEBUILD)" \
+	BUILD_DIR="$(CONF_BUILDDIR)" \
+	DISTRO_TYPE="$(DISTRO_TYPE)" \
+	SOURCE_DIR="$(PORTAL_SOURCE_DIR)" \
+	FEED_ROOT="$(PORTAL_FEED_ROOT)" \
+	CATALOG_OUT="$(PORTAL_CATALOG_OUT)" \
+	ARTIFACT_BASE_URL="$${base_url}/feed" \
+	ONLINE_UPDATE_REPO="$(PORTAL_ONLINE_UPDATE_REPO)" \
+	ALLOWED_CHANNELS="$(PORTAL_ALLOWED_CHANNELS)" \
+	./scripts/portal-catalog.sh
+
+.PHONY: image-server-start
+image-server-start:
+	@$(MAKE) --no-print-directory image-server-stage
+	@$(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) start --machine $(MACHINE) --machinebuild "$(PORTAL_MACHINEBUILD)" --builddir "$(CONF_BUILDDIR)" --feed-root "$(PORTAL_FEED_ROOT)" --catalog "$(PORTAL_CATALOG_OUT)" --online-update-repo "$(PORTAL_ONLINE_UPDATE_REPO)"
+
+.PHONY: image-server-url
+image-server-url:
+	@$(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) url --machine $(MACHINE) --machinebuild "$(PORTAL_MACHINEBUILD)" --builddir "$(CONF_BUILDDIR)" --catalog "$(PORTAL_CATALOG_OUT)"
+
+.PHONY: image-server-stop
+image-server-stop:
+	@$(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) stop
+
+.PHONY: image-server-status
+image-server-status:
+	@$(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) status --machine $(MACHINE) --machinebuild "$(PORTAL_MACHINEBUILD)" --builddir "$(CONF_BUILDDIR)" --feed-root "$(PORTAL_FEED_ROOT)" --catalog "$(PORTAL_CATALOG_OUT)" --online-update-repo "$(PORTAL_ONLINE_UPDATE_REPO)"
 
 .PHONY: qemu-smoke
 qemu-smoke:

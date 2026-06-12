@@ -8,6 +8,8 @@
 /feed-server/logs/
 /feed-server/run/
 /feed-server/www/
+/image-server/
+/portal-feed/
 
 # Generated configuration
 /.tuxbox/state.json

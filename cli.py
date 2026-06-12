@@ -362,6 +362,59 @@ class TuxboxBuilder:
         port = os.environ.get("LOCAL_FEED_PORT", "33333").strip() or "33333"
         return f"http://{host}:{port}/{machine}/ipk"
 
+    def _image_server_base_url(self) -> str:
+        explicit = os.environ.get("IMAGE_SERVER_BASE_URL", "").strip()
+        if explicit:
+            return explicit.rstrip("/")
+
+        host = os.environ.get("IMAGE_SERVER_HOST", "auto").strip() or "auto"
+        if host == "auto":
+            host = self._detect_primary_ipv4()
+            if host == "127.0.0.1":
+                self.warning(
+                    "Could not detect a LAN IPv4 for IMAGE_SERVER_HOST=auto; "
+                    "using 127.0.0.1. Set IMAGE_SERVER_HOST to a reachable host IP."
+                )
+        port = os.environ.get("IMAGE_SERVER_PORT", "33334").strip() or "33334"
+        return f"http://{host}:{port}"
+
+    def _target_produces_image(self, target: str) -> bool:
+        return target in {"tuxbox-image", "tuxbox-qemu-image"} or target.endswith("-image")
+
+    def _post_build_image_server_hint(self, machine: str, machinebuild: Optional[str],
+                                      target: str, builddir: Path, distro_type: str):
+        if not self._target_produces_image(target):
+            return
+
+        effective_machinebuild = machinebuild
+        deploy_images = builddir / 'tmp' / 'deploy' / 'images' / machine
+        online_imagedir = machine
+        channel = distro_type if distro_type in ('release', 'beta', 'nightly') else 'release'
+        try:
+            data = self._deploy_info_data(machine, machinebuild, builddir)
+            deploy_images = Path(str(data.get('deploy_images', deploy_images)))
+            online_imagedir = str(data.get('online_imagedir', online_imagedir))
+            effective_machinebuild = str(data.get('machinebuild') or effective_machinebuild or "")
+            manifest_path = Path(str(data.get('manifest', '')))
+            if manifest_path.is_file():
+                manifest = json.loads(manifest_path.read_text(errors='ignore'))
+                manifest_channel = str(manifest.get('channel', '')).strip()
+                if manifest_channel:
+                    channel = manifest_channel
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
+
+        image_server_cmd = f"make image-server-start MACHINE={machine}"
+        image_server_url_cmd = f"make image-server-url MACHINE={machine}"
+        if effective_machinebuild:
+            image_server_cmd += f" MACHINEBUILD={effective_machinebuild}"
+            image_server_url_cmd += f" MACHINEBUILD={effective_machinebuild}"
+
+        self.info(f"Image deploy path: {deploy_images}")
+        self.info(f"Local Online-Flash server: {image_server_cmd}")
+        self.info(f"Online-Flash URL: {self._image_server_base_url()}/feed/{channel}/{online_imagedir}")
+        self.info(f"Show Neutrino settings: {image_server_url_cmd}")
+
     def _online_imagedir_slug(self, value: str) -> str:
         """Return a URL/catalog safe image directory identifier."""
         raw = (value or "").strip().lower()
@@ -3401,6 +3454,7 @@ class TuxboxBuilder:
 
         if not args.devshell:
             self._post_build_local_feed(machine, target, target_builddir)
+            self._post_build_image_server_hint(machine, machinebuild, target, target_builddir, distro_type)
 
     def invoke_bitbake(self, target: str, offline: bool = False):
         """Invoke BitBake to build target."""

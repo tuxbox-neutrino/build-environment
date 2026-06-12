@@ -55,6 +55,9 @@ make image MACHINE=hd51 MACHINEBUILD=mutant51
 # Show the feed URL that is embedded in new images
 make feed-server-url MACHINE=hd51
 
+# Optional: serve the latest image for local Online Flash tests
+make image-server-start MACHINE=hd51 MACHINEBUILD=mutant51
+
 # Optional: clean build artifacts but keep shared caches
 make clean
 ```
@@ -230,7 +233,36 @@ To disable the automatic local feed default for a build:
 make image MACHINE=hd60 LOCAL_FEED=0
 ```
 
+## Local Image Server For Online Flash
+
+The IPK feed above is for package installation with `opkg`. For Online Flash
+tests you need the image artifacts and the `online-update` PHP service. The
+builder wraps that in `image-server-*` commands:
+
+```bash
+make image-server-stage MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-start MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-url MACHINE=h7 MACHINEBUILD=zgemmah7
+```
+
+Default URL shape:
+
+```text
+http://<host-ip>:33334/feed/<channel>/<imagedir>
+```
+
+Use the values printed by `make image-server-url` in Neutrino. For local and
+private LAN tests the service accepts `LOCAL_SERVICE_KEY`; do not use that key
+for public servers. The printed `image_update_admin_webif_url` points to the
+server administration UI and is not used for Flash downloads. Logs are written
+below `image-server/logs/`.
+
 ## Image Portal Feed Workflow
+
+The `portal-*` commands are the technical production path for building a
+catalog and syncing it to a real server. For local tests prefer
+`image-server-*`; it stages with a local artifact URL and starts the PHP
+service for you.
 
 Build portal feed stage and `catalog.json` from the latest machine deploy:
 

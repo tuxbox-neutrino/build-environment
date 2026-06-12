@@ -254,7 +254,45 @@ Disable the automatic local feed default when needed:
 make image MACHINE=hd60 LOCAL_FEED=0
 ```
 
-## 10. Optional: Toaster Web Frontend
+## 10. Local Image Server For Online Flash
+
+The IPK feed on port `33333` is for packages. Online Flash uses image files,
+`manifest.json`, and the `online-update` PHP service. For a local test, run:
+
+```bash
+make image MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-start MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-url MACHINE=h7 MACHINEBUILD=zgemmah7
+```
+
+`make image-server-start` first stages the latest image into `portal-feed/`,
+then starts the PHP service on port `33334`. It uses the real `/feed/...`
+handler, so manifest lookup, service-key handling, and Range downloads are
+tested like they are in Neutrino.
+
+The URL output looks like this:
+
+```text
+image_update_url=http://<host-ip>:33334/feed/release/zgemmah7
+image_update_admin_webif_url=http://<host-ip>:33334/admin/
+image_manifest_file=manifest.json
+image_service_key=LOCAL_SERVICE_KEY
+```
+
+Use those values in Neutrino's Online Flash settings. `LOCAL_SERVICE_KEY` is
+only for local/private networks. `image_update_admin_webif_url` is the server
+administration page; it is not used for manifest or ZIP downloads. Server logs
+are below `image-server/logs/`.
+
+Useful commands:
+
+```bash
+make image-server-stage MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-status
+make image-server-stop
+```
+
+## 11. Optional: Toaster Web Frontend
 
 This integration is currently experimental.
 
@@ -272,7 +310,7 @@ Defaults:
 - `TOASTER_IMPORT_NAME=$(DISTRO)-build`
 - `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
 
-## 11. Updating: Users Vs Developers
+## 12. Updating: Users Vs Developers
 
 ### For users: stay on `make update`
 
@@ -327,7 +365,7 @@ If you find a bug or want to propose a change:
   for code changes. Please test your changes before submitting.
 - Do not push untested submodule pins to `master`.
 
-## 12. Troubleshooting (Quick)
+## 13. Troubleshooting (Quick)
 
 ### "No space left on device"
 
@@ -362,7 +400,7 @@ bitbake hdf-toolbox-image -c cleanall
 make image MACHINE=hdfastboot8gb MACHINEBUILD=hdfastboot8gb
 ```
 
-## 13. Where To Go Next
+## 14. Where To Go Next
 
 - [Layers and Submodules](SUBMODULES.md)
 - [Architecture](ARCHITECTURE.md)

@@ -55,6 +55,9 @@ make image MACHINE=hd51 MACHINEBUILD=mutant51
 # Feed-URL anzeigen, die in neue Images geschrieben wird
 make feed-server-url MACHINE=hd51
 
+# Optional: das letzte Image für lokale Online-Flash-Tests anbieten
+make image-server-start MACHINE=hd51 MACHINEBUILD=mutant51
+
 # Optional: Build-Artefakte löschen, Caches behalten
 make clean
 ```
@@ -216,7 +219,35 @@ Der automatische lokale Feed-Default lässt sich pro Build deaktivieren:
 make image MACHINE=hd60 LOCAL_FEED=0
 ```
 
+## Lokaler Image-Server Für Online Flash
+
+Der IPK-Feed oben ist für Paketinstallation mit `opkg`. Für Online-Flash-Tests
+brauchst du die Image-Artefakte und den PHP-Service aus `online-update`. Der
+Builder kapselt das in den `image-server-*` Befehlen:
+
+```bash
+make image-server-stage MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-start MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-url MACHINE=h7 MACHINEBUILD=zgemmah7
+```
+
+Die Standard-URL sieht so aus:
+
+```text
+http://<host-ip>:33334/feed/<channel>/<imagedir>
+```
+
+Nutze die Werte aus `make image-server-url` in Neutrino. Für lokale und private
+LAN-Tests akzeptiert der Service `LOCAL_SERVICE_KEY`; für öffentliche Server
+ist dieser Key nicht gedacht. `image_update_admin_webif_url` zeigt auf die
+Server-Verwaltung und wird nicht für Flash-Downloads genutzt. Logs liegen unter
+`image-server/logs/`.
+
 ## Image-Portal Feed-Workflow
+
+Die `portal-*` Befehle sind der technische Produktionspfad für Catalog-Erzeugung
+und Sync auf einen echten Server. Für lokale Tests ist `image-server-*`
+einfacher: Es staged mit lokaler Artefakt-URL und startet den PHP-Service.
 
 Portal-Feed-Staging und `catalog.json` aus dem letzten Machine-Deploy erzeugen:
 

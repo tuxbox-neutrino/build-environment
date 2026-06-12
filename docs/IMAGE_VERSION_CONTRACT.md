@@ -29,6 +29,11 @@ The file is generated as:
 - `machine`: machine identifier.
 - `imagedir`: machine image directory identifier.
 - `image_update_url`: update feed base URL.
+- `image_update_admin_webif_url`: optional administration UI URL for the
+  update server. This is for operators and diagnostics, not for manifest or
+  archive downloads. The image build does not generate this key yet; it is
+  set manually or by local tooling such as `make image-server-url`.
+  Build-side generation is planned with the WORK-135 admin-WebIF review.
 - `image_update_info_file`: update info filename (default `imageversion`).
 - `image_manifest_file`: online manifest filename (default `manifest.json`).
 - `image_discovery_api_url`: optional API endpoint for discovery.
@@ -62,6 +67,7 @@ The file is generated as:
 - `image_file_name`
 - `flash_backend`
 - `image_update_url`
+- `image_update_admin_webif_url` (optional, not build-generated yet)
 - `image_update_info_file`
 - `image_manifest_file`
 - `image_discovery_api_url`

@@ -1,85 +1,129 @@
 # Image Portal Beginner Guide
 
+Deutsch: [de/IMAGE_PORTAL_BEGINNER_GUIDE.md](de/IMAGE_PORTAL_BEGINNER_GUIDE.md)
+
 This guide is for users without Yocto/OE background.
 
-Goal:
+There are three different things:
 
-1. Take your built image artifacts from `build/build/...`.
-2. Create a clean portal feed + `catalog.json`.
-3. Start a local web/API service.
-4. Open the landing page and API in your browser.
+- **IPK feed**: package feed for `opkg`, served locally on port `33333`.
+- **Local image server**: image files for Neutrino Online Flash, served through
+  the real `online-update` PHP service on port `33334`.
+- **Portal sync**: production workflow that copies the staged image feed to a
+  real web server.
+
+For local Online Flash tests, use the local image server. Do not start a
+separate static file server by hand.
 
 ## 1. Prerequisites
 
-- Repository path: `/home/tg/sources/tuxbox-os-builder`
-- Online update service repo path: `/home/tg/sources/online-update`
-- A completed image build for your machine (example: `hd60`)
+- Builder repo: `/home/tg/sources/tuxbox-os-builder`
+- Online update service repo: `/home/tg/sources/online-update`
+- A completed image build for your machine
 
-## 2. Build portal feed from deploy artifacts
+Example machines:
+
+- `MACHINE=h7 MACHINEBUILD=zgemmah7`
+- `MACHINE=hd51 MACHINEBUILD=mutant51`
+- `MACHINE=hd60 MACHINEBUILD=mutant60`
+
+## 2. Build An Image
 
 Run this in the builder repo:
 
 ```bash
 cd /home/tg/sources/tuxbox-os-builder
-
-make portal-catalog \
-  MACHINE=hd60 \
-  MACHINEBUILD=ax60 \
-  PORTAL_FEED_ROOT=/tmp/tuxbox-feed \
-  PORTAL_CATALOG_OUT=/tmp/tuxbox-feed/catalog.json \
-  PORTAL_ARTIFACT_BASE_URL=http://127.0.0.1:18091 \
-  PORTAL_ONLINE_UPDATE_REPO=/home/tg/sources/online-update
+make image MACHINE=h7 MACHINEBUILD=zgemmah7
 ```
 
-What this creates:
+At the end of the build the builder prints the image deploy path and a hint
+for `make image-server-start`.
 
-- `/tmp/tuxbox-feed/nightly/hd60/<build_date>/...`
-- `/tmp/tuxbox-feed/catalog.json`
-
-## 3. Start static feed server
-
-This serves the real artifact files:
+## 3. Start The Local Image Server
 
 ```bash
-cd /tmp/tuxbox-feed
-python3 -m http.server 18091
+make image-server-start MACHINE=h7 MACHINEBUILD=zgemmah7
 ```
 
-Keep this terminal open.
+This command does two things:
 
-## 4. Start API + landing page server
+1. It stages the latest image into `portal-feed/` and builds `catalog.json`.
+2. It starts the PHP service from `online-update` on port `33334`.
 
-Open a second terminal:
+The service uses the real `/feed/<channel>/<imagedir>/...` path. That means
+manifest lookup, service-key handling, and Range downloads are tested through
+the same code path that Neutrino uses.
+
+## 4. Copy The Neutrino Values
 
 ```bash
-cd /home/tg/sources/online-update
-
-ONLINE_UPDATE_CATALOG=/tmp/tuxbox-feed/catalog.json \
-ONLINE_UPDATE_ARTIFACT_BASE_URL=http://127.0.0.1:18091 \
-ONLINE_UPDATE_PORTAL_BASE_URL=http://127.0.0.1:18090 \
-php -S 127.0.0.1:18090 -t public
+make image-server-url MACHINE=h7 MACHINEBUILD=zgemmah7
 ```
 
-## 5. Open in browser
+Example output:
 
-- Landing page: `http://127.0.0.1:18090/`
-- Catalog API: `http://127.0.0.1:18090/api/v1/catalog.php`
-- Latest API: `http://127.0.0.1:18090/api/v1/latest.php?channel=nightly&imagedir=hd60`
-- Legacy check: `http://127.0.0.1:18090/legacy/update.php?boxname=hd60&image_type=nightly`
+```text
+image_update_url=http://192.168.1.36:33334/feed/release/zgemmah7
+image_update_admin_webif_url=http://192.168.1.36:33334/admin/
+image_manifest_file=manifest.json
+image_service_key=LOCAL_SERVICE_KEY
+```
 
-## 6. Point Neutrino to this service
+Use these values in Neutrino's Online Flash settings. Replace nothing by hand
+unless the host IP is wrong.
 
-On your test box, set:
+`LOCAL_SERVICE_KEY` is only for local/private networks. Use proper service keys
+on public servers.
 
-- `image_update_url=http://<host-ip>:18091/nightly/hd60`
-- `image_manifest_file=manifest.json`
-- optional `image_discovery_api_url=http://<host-ip>:18090/api/v1`
+`image_update_admin_webif_url` opens the server administration UI. It is useful
+for operators, but it is not part of the Flash download path.
 
-Use your real host LAN IP instead of `127.0.0.1`.
+## 5. Quick Host Test
+
+Use the `curl` line printed by `make image-server-url`, for example:
+
+```bash
+curl -H 'X-Tuxbox-Service-Key: LOCAL_SERVICE_KEY' \
+  'http://192.168.1.36:33334/feed/release/zgemmah7/manifest.json'
+```
+
+The response should be a JSON manifest. Server logs are in:
+
+```text
+image-server/logs/
+```
+
+## 6. Stop The Local Server
+
+```bash
+make image-server-stop
+```
+
+This stops only the local image server on port `33334`. It does not stop the
+IPK feed server on port `33333`.
+
+## Production Portal Sync
+
+For a real web server, keep using the technical `portal-*` workflow:
+
+```bash
+make portal-catalog MACHINE=h7 MACHINEBUILD=zgemmah7 \
+  PORTAL_ARTIFACT_BASE_URL=https://images.example.org/feed
+
+make portal-sync \
+  PORTAL_SYNC_DEST=user@host:/srv/tuxbox/feed \
+  PORTAL_SYNC_DRYRUN=0
+```
+
+Use `make portal-sync` only when you really want to copy the staged feed to a
+server. Local Online Flash tests should use `image-server-start`.
 
 ## Troubleshooting
 
-- If browser shows nothing on `:18090`, check if PHP server is still running.
-- If API returns `catalog unavailable`, verify `ONLINE_UPDATE_CATALOG` path.
-- If download redirects fail, verify static server on `:18091`.
-- If Neutrino box cannot reach host, use host LAN IP and open firewall.
+- If Neutrino cannot reach the server, use the host LAN IP, not `127.0.0.1`,
+  and open TCP port `33334` in the firewall.
+- If `make image-server-start` says `missing manifest`, rebuild the image with
+  the current builder state.
+- If the service returns `401`, `403`, or `429`, check the service key. For
+  local tests, use `LOCAL_SERVICE_KEY`.
+- If downloads fail but the manifest works, check `image-server/logs/php-server.log`.

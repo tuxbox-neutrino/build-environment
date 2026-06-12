@@ -268,7 +268,47 @@ Bei Bedarf deaktivierst du den automatischen lokalen Feed-Default so:
 make image MACHINE=hd60 LOCAL_FEED=0
 ```
 
-## 10. Optional: Toaster-Webfrontend (experimentell)
+## 10. Lokaler Image-Server Für Online Flash
+
+Der IPK-Feed auf Port `33333` ist für Pakete. Online Flash nutzt Image-Dateien,
+`manifest.json` und den PHP-Service aus `online-update`. Für einen lokalen Test
+reichen diese Befehle:
+
+```bash
+make image MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-start MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-url MACHINE=h7 MACHINEBUILD=zgemmah7
+```
+
+`make image-server-start` staged zuerst das letzte Image nach `portal-feed/`
+und startet danach den PHP-Service auf Port `33334`. Dabei läuft der echte
+`/feed/...` Handler. Dadurch werden Manifest-Auflösung, Service-Key-Logik und
+Range-Downloads so getestet, wie Neutrino sie später nutzt.
+
+Die Ausgabe sieht etwa so aus:
+
+```text
+image_update_url=http://<host-ip>:33334/feed/release/zgemmah7
+image_update_admin_webif_url=http://<host-ip>:33334/admin/
+image_manifest_file=manifest.json
+image_service_key=LOCAL_SERVICE_KEY
+```
+
+Diese Werte nutzt du in den Online-Flash-Einstellungen von Neutrino.
+`LOCAL_SERVICE_KEY` ist nur für lokale/private Netze gedacht.
+`image_update_admin_webif_url` ist die Server-Verwaltung; dieser Link wird
+nicht für Manifest- oder ZIP-Downloads genutzt. Server-Logs liegen unter
+`image-server/logs/`.
+
+Nützliche Befehle:
+
+```bash
+make image-server-stage MACHINE=h7 MACHINEBUILD=zgemmah7
+make image-server-status
+make image-server-stop
+```
+
+## 11. Optional: Toaster-Webfrontend (experimentell)
 
 Diese Integration ist aktuell experimentell.
 
@@ -287,7 +327,7 @@ Defaults:
 - `TOASTER_IMPORT_NAME=$(DISTRO)-build`
 - `TOASTER_IMPORT_PATH=$(TOASTER_BUILD_DIR)`
 
-## 11. Aktualisieren: Nutzer Vs Entwickler
+## 12. Aktualisieren: Nutzer Vs Entwickler
 
 ### Für Nutzer: bei `make update` bleiben
 
@@ -345,7 +385,7 @@ Wenn du einen Bug findest oder eine Änderung vorschlagen möchtest:
   für Code-Änderungen ein. Bitte teste deine Änderungen vorher.
 - Schiebe keine ungetesteten Submodul-Pins auf `master`.
 
-## 12. Fehlersuche (kurz)
+## 13. Fehlersuche (kurz)
 
 ### "No space left on device"
 
@@ -380,7 +420,7 @@ bitbake hdf-toolbox-image -c cleanall
 make image MACHINE=hdfastboot8gb MACHINEBUILD=hdfastboot8gb
 ```
 
-## 13. Nächste sinnvolle Dokus
+## 14. Nächste sinnvolle Dokus
 
 - [Layer und Submodule](SUBMODULES.md)
 - [Architektur](ARCHITECTURE.md)

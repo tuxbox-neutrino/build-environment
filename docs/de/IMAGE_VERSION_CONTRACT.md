@@ -29,6 +29,12 @@ Die Datei wird erzeugt als:
 - `machine`: Maschinenkennung.
 - `imagedir`: Maschinen-Image-Verzeichniskennung.
 - `image_update_url`: Basis-URL für Update-Feed.
+- `image_update_admin_webif_url`: optionale Verwaltungs-URL des
+  Update-Servers. Sie ist für Betreiber und Diagnose gedacht, nicht für
+  Manifest- oder Archiv-Downloads. Der Image-Build erzeugt diesen Schlüssel
+  noch nicht; er wird manuell oder von lokalen Werkzeugen wie
+  `make image-server-url` gesetzt. Die Build-Erzeugung ist mit dem
+  WORK-135-Admin-WebIF-Review geplant.
 - `image_update_info_file`: Dateiname für Update-Info (Standard `imageversion`).
 - `image_manifest_file`: Dateiname des Online-Manifests (Standard `manifest.json`).
 - `image_discovery_api_url`: optionaler API-Endpunkt für Discovery.
@@ -54,6 +60,7 @@ Die Datei wird erzeugt als:
 - `image_file_name`
 - `flash_backend`
 - `image_update_url`
+- `image_update_admin_webif_url` (optional, noch nicht build-generiert)
 - `image_update_info_file`
 - `image_manifest_file`
 - `image_discovery_api_url`

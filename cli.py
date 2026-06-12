@@ -14,6 +14,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -35,6 +36,23 @@ class Colors:
     YELLOW = '\033[33m'
     BLUE = '\033[34m'
     CYAN = '\033[36m'
+
+
+# Disk-space thresholds for image builds (GB of free space on the build fs).
+RECOMMENDED_DISK_GB = 100  # below this: warn, build continues
+MIN_DISK_GB = 15           # below this: hard-abort before bitbake starts
+
+
+def _resolve_min_disk_gb() -> float:
+    """Hard disk-space floor, overridable via TUXBOX_MIN_DISK_GB env var."""
+    raw = os.environ.get('TUXBOX_MIN_DISK_GB')
+    if raw is None:
+        return MIN_DISK_GB
+    try:
+        value = float(raw)
+        return value if value >= 0 else MIN_DISK_GB
+    except (TypeError, ValueError):
+        return MIN_DISK_GB
 
 
 class TuxboxBuilder:
@@ -77,6 +95,102 @@ class TuxboxBuilder:
     def info(self, message: str):
         """Info logging."""
         self.log(message, Colors.CYAN)
+
+    def _free_gb(self, path: Path) -> float:
+        """Free space (GB) on the filesystem holding ``path``.
+
+        Walks up to the nearest existing parent so it also works for a build
+        directory that has not been created yet.
+        """
+        probe = Path(path)
+        while not probe.exists() and probe != probe.parent:
+            probe = probe.parent
+        stat = os.statvfs(probe)
+        return (stat.f_bavail * stat.f_frsize) / (1024**3)
+
+    def _disk_full_hint(self):
+        """Print actionable cleanup hints for an out-of-space build fs."""
+        self.info("Bitte Speicher freigeben und erneut starten, z. B.:")
+        self.info("  - make clean")
+        self.info("  - alte Build-Artefakte: rm -rf builds/<machine>/tmp*")
+        self.info("  - Cache/Downloads aufraeumen: sstate-cache/ , downloads/")
+
+    @staticmethod
+    def _read_int(path: str) -> Optional[int]:
+        try:
+            with open(path) as f:
+                return int(f.read().strip())
+        except (OSError, ValueError):
+            return None
+
+    def _inotify_limits(self) -> Tuple[Optional[int], Optional[int]]:
+        """Return (max_user_instances, max_user_watches) or (None, None)."""
+        return (
+            self._read_int('/proc/sys/fs/inotify/max_user_instances'),
+            self._read_int('/proc/sys/fs/inotify/max_user_watches'),
+        )
+
+    def _explain_enospc(self):
+        """Explain a bitbake ENOSPC abort, distinguishing disk vs inotify.
+
+        ``add_watch ... ENOSPC`` from pyinotify can mean either a full build
+        filesystem OR an exhausted inotify limit. We disambiguate by checking
+        the actual free space, so the user gets the right remedy.
+        """
+        free_gb = self._free_gb(self.builddir)
+        if free_gb < _resolve_min_disk_gb():
+            self.error(
+                f"Build abgebrochen: Speicher voll "
+                f"(nur noch {free_gb:.1f}GB frei auf dem Build-Dateisystem)."
+            )
+            self.info(f"Build-Verzeichnis: {self.builddir}")
+            self._disk_full_hint()
+            return
+
+        instances, watches = self._inotify_limits()
+        self.error(
+            "Build abgebrochen: inotify-Limit erreicht "
+            "(kein Speicherproblem - die Platte hat genug Platz)."
+        )
+        self.info(
+            "bitbake/pyinotify konnte keine weitere Datei ueberwachen "
+            "(add_watch ... ENOSPC)."
+        )
+        if instances is not None:
+            self.info(f"Aktuelles fs.inotify.max_user_instances: {instances}")
+        if watches is not None:
+            self.info(f"Aktuelles fs.inotify.max_user_watches:   {watches}")
+        self.info("Limit temporaer erhoehen und Build neu starten:")
+        self.info("  sudo sysctl fs.inotify.max_user_instances=1024")
+        self.info("  sudo sysctl fs.inotify.max_user_watches=524288")
+        self.info("Dauerhaft (z. B. /etc/sysctl.d/90-inotify.conf):")
+        self.info("  fs.inotify.max_user_instances=1024")
+        self.info("  fs.inotify.max_user_watches=524288")
+        self.info("Tipp: andere inotify-Nutzer schliessen (IDE, weitere Builds).")
+
+    # Signatures of a resource-exhaustion (ENOSPC) abort in bitbake output.
+    _ENOSPC_SIGNATURES = (
+        'No space left on device',
+        'WatchManagerError',
+        'add_watch',
+        'ENOSPC',
+    )
+
+    def _build_log_has_enospc(self, log_path: str) -> bool:
+        """True if the captured build log shows an ENOSPC/inotify abort."""
+        try:
+            with open(log_path, errors='replace') as f:
+                text = f.read()
+        except OSError:
+            return False
+        return any(sig in text for sig in self._ENOSPC_SIGNATURES)
+
+    @staticmethod
+    def _cleanup_file(path: str):
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
 
     def _default_non_coolstream_builddir(self) -> Path:
         """Return the legacy shared build dir fallback."""
@@ -430,11 +544,13 @@ class TuxboxBuilder:
             return False
 
         # Check disk space
-        stat = os.statvfs(self.topdir)
-        free_gb = (stat.f_bavail * stat.f_frsize) / (1024**3)
+        free_gb = self._free_gb(self.topdir)
 
-        if free_gb < 100:
-            self.warning(f"Only {free_gb:.1f}GB free space. Recommended: 100GB+")
+        if free_gb < RECOMMENDED_DISK_GB:
+            self.warning(
+                f"Only {free_gb:.1f}GB free space. "
+                f"Recommended: {RECOMMENDED_DISK_GB}GB+"
+            )
         else:
             self.success(f"Disk space OK: {free_gb:.1f}GB free")
 
@@ -3295,19 +3411,49 @@ class TuxboxBuilder:
             self.error("Please ensure Poky submodule is properly initialized")
             sys.exit(1)
 
-        # Build BitBake command
-        # We need to source oe-init-build-env then run bitbake
-        build_cmd = f"""
-cd {self.topdir}
-source {oe_init_script} {self.builddir}
-"""
+        # Pre-flight: abort early on insufficient disk space so users get a
+        # clear message instead of a raw pyinotify ENOSPC traceback from bitbake.
+        min_disk = _resolve_min_disk_gb()
+        free_gb = self._free_gb(self.builddir)
+        if free_gb < min_disk:
+            self.error(
+                f"Zu wenig Speicherplatz: nur {free_gb:.1f}GB frei auf dem "
+                f"Build-Dateisystem."
+            )
+            self.info(f"Build-Verzeichnis: {self.builddir}")
+            self.info(
+                f"Mindestens benoetigt: {min_disk:.0f}GB, "
+                f"empfohlen: {RECOMMENDED_DISK_GB}GB+"
+            )
+            self._disk_full_hint()
+            self.info("Es wurde kein bitbake gestartet.")
+            sys.exit(1)
+        elif free_gb < RECOMMENDED_DISK_GB:
+            self.warning(
+                f"Nur {free_gb:.1f}GB frei auf dem Build-Dateisystem "
+                f"(empfohlen: {RECOMMENDED_DISK_GB}GB+). Build koennte scheitern."
+            )
+
+        # Build BitBake command. Only stderr is tee'd to a temp log so we can
+        # scan it afterwards for resource-exhaustion errors (ENOSPC from
+        # bitbake's pyinotify add_watch) while leaving stdout on the terminal,
+        # which keeps bitbake's live progress UI intact. pipefail preserves
+        # bitbake's exit code through the pipe.
+        log_fd, log_path = tempfile.mkstemp(prefix='tuxbox-build-', suffix='.log')
+        os.close(log_fd)
+        quoted_log = shlex.quote(log_path)
 
         if offline:
             bb_cmd = f"BB_NO_NETWORK='1' bitbake {target}"
-            build_cmd += f"{bb_cmd}\n"
         else:
             bb_cmd = f"bitbake {target}"
-            build_cmd += f"{bb_cmd}\n"
+
+        build_cmd = f"""
+set -o pipefail
+cd {self.topdir}
+source {oe_init_script} {self.builddir}
+{{ {bb_cmd} 2>&1 1>&3 | tee {quoted_log} >&2; }} 3>&1
+"""
 
         self._print_table("BitBake command (oe-init-build-env)", ["Step", "Command"], [
             ("1", f"source {oe_init_script} {self.builddir}"),
@@ -3321,9 +3467,16 @@ source {oe_init_script} {self.builddir}
         result = self.run_cmd(['bash', '-c', build_cmd], check=False)
 
         if result.returncode != 0:
-            self.error(f"Build failed with exit code {result.returncode}")
+            if self._build_log_has_enospc(log_path):
+                # Disk-full or inotify-limit: give a clear cause + remedy
+                # instead of the raw pyinotify traceback.
+                self._explain_enospc()
+            else:
+                self.error(f"Build failed with exit code {result.returncode}")
+            self._cleanup_file(log_path)
             sys.exit(1)
 
+        self._cleanup_file(log_path)
         self.success(f"Build completed: {target}")
         self.info(f"Images: {self.builddir / 'tmp' / 'deploy' / 'images'}")
 
@@ -3604,8 +3757,7 @@ bitbake -c devshell {target}
 
         # Prerequisites (quick)
         prereq: Dict = {}
-        stat = os.statvfs(self.topdir)
-        free_gb = (stat.f_bavail * stat.f_frsize) / (1024**3)
+        free_gb = self._free_gb(self.topdir)
         prereq["disk_free_gb"] = round(free_gb, 1)
 
         required_cmds = [
@@ -3616,7 +3768,7 @@ bitbake -c devshell {target}
         if missing:
             prereq["status"] = "missing_tools"
             prereq["missing"] = missing
-        elif free_gb < 100:
+        elif free_gb < RECOMMENDED_DISK_GB:
             prereq["status"] = "low_disk"
         else:
             prereq["status"] = "ok"

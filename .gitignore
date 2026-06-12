@@ -15,6 +15,7 @@
 /.tuxbox/config-backups/
 /.tuxbox/toaster/
 /.tuxbox/toaster-venv/
+/autom4te.cache/
 /conf/
 /bitbake.lock
 

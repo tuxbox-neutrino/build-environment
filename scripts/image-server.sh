@@ -396,6 +396,15 @@ do_start() {
 		export IMAGE_PORTAL_ENABLE_LOCAL_SERVICE_KEY="${enable_local_key}"
 		export IMAGE_PORTAL_AUTH_LOG_FILE="${AUTH_LOG}"
 		export IMAGE_PORTAL_AUTH_RATE_LIMIT_DIR="${RUN_DIR}/auth-ratelimit"
+		# Keep the admin WebIF state in the writable per-run dir. Without this
+		# the paths default to /etc/image-portal/*.json, which the unprivileged
+		# dev server cannot create, so the admin/admin bootstrap user is never
+		# seeded and first login fails with "Username or password is incorrect".
+		export IMAGE_PORTAL_ADMIN_USERS_FILE="${IMAGE_PORTAL_ADMIN_USERS_FILE:-${RUN_DIR}/admin/users.json}"
+		export IMAGE_PORTAL_ADMIN_KEYS_FILE="${IMAGE_PORTAL_ADMIN_KEYS_FILE:-${RUN_DIR}/admin/keys.json}"
+		export IMAGE_PORTAL_ADMIN_FEED_ROOTS_FILE="${IMAGE_PORTAL_ADMIN_FEED_ROOTS_FILE:-${RUN_DIR}/admin/feed-roots.json}"
+		export IMAGE_PORTAL_ADMIN_LOGIN_RATE_LIMIT_DIR="${IMAGE_PORTAL_ADMIN_LOGIN_RATE_LIMIT_DIR:-${RUN_DIR}/admin-login-ratelimit}"
+		export IMAGE_PORTAL_ADMIN_REBUILD_STATUS_DIR="${IMAGE_PORTAL_ADMIN_REBUILD_STATUS_DIR:-${RUN_DIR}/admin-rebuild-status}"
 		if command -v setsid >/dev/null 2>&1; then
 			exec setsid php -S "${bind_addr}:${port}" -t public tools/dev-server-router.php
 		fi

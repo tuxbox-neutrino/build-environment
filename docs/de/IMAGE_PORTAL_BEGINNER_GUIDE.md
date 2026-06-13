@@ -83,6 +83,11 @@ Die Zeile `admin webif` ist nur für Betreiber: Diese URL öffnest du im
 Browser, um die Server-Verwaltung zu erreichen. Neutrino liest diese URL
 nicht, und sie gehört nicht zum Flash-Download-Pfad.
 
+Beim ersten Login nutzt du die Standard-Zugangsdaten `admin` / `admin`;
+danach musst du ein neues Passwort vergeben. Die Admin-Zugangsdaten liegen
+unter `image-server/run/admin/`. Lösche `image-server/run/admin/users.json`,
+um wieder auf den Standard `admin` / `admin` zurückzusetzen.
+
 ## 5. Schneller Host-Test
 
 Nutze die `curl`-Zeile aus `make image-server-url`, zum Beispiel:

@@ -284,8 +284,11 @@ Use those three values in Neutrino's Online Flash settings.
 Below the settings block the output also prints an
 `admin webif: http://<host-ip>:33334/admin/` line. That URL is opened in a
 browser and is meant for operators and diagnostics only — Neutrino does not
-read it and it is not used for manifest or ZIP downloads. Server logs are
-below `image-server/logs/`.
+read it and it is not used for manifest or ZIP downloads. The first login uses
+the default credentials `admin` / `admin` (you must then set a new password);
+the admin credentials live under `image-server/run/admin/`, delete
+`image-server/run/admin/users.json` to reset them. Server logs are below
+`image-server/logs/`.
 
 Useful commands:
 

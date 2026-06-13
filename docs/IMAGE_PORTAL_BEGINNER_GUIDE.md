@@ -83,6 +83,11 @@ The `admin webif` line is for operators only: open it in a browser to reach
 the server administration UI. Neutrino does not read this URL and it is not
 part of the Flash download path.
 
+On first login use the default credentials `admin` / `admin`; you are then
+forced to set a new password. The admin credentials are stored under
+`image-server/run/admin/`. Delete `image-server/run/admin/users.json` to reset
+back to the `admin` / `admin` default.
+
 ## 5. Quick Host Test
 
 Use the `curl` line printed by `make image-server-url`, for example:

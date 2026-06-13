@@ -299,8 +299,11 @@ Diese drei Werte nutzt du in den Online-Flash-Einstellungen von Neutrino.
 Unterhalb des Einstellungsblocks gibt die Ausgabe zusätzlich eine Zeile
 `admin webif: http://<host-ip>:33334/admin/` aus. Diese URL öffnest du im
 Browser; sie ist nur für Betreiber und Diagnose gedacht — Neutrino liest sie
-nicht und sie wird nicht für Manifest- oder ZIP-Downloads genutzt.
-Server-Logs liegen unter `image-server/logs/`.
+nicht und sie wird nicht für Manifest- oder ZIP-Downloads genutzt. Der erste
+Login nutzt die Standard-Zugangsdaten `admin` / `admin` (danach musst du ein
+neues Passwort vergeben); die Admin-Zugangsdaten liegen unter
+`image-server/run/admin/`, lösche `image-server/run/admin/users.json` zum
+Zurücksetzen. Server-Logs liegen unter `image-server/logs/`.
 
 Nützliche Befehle:
 

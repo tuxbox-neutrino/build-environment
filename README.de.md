@@ -237,12 +237,26 @@ Die Standard-URL sieht so aus:
 http://<host-ip>:33334/feed/<channel>/<imagedir>
 ```
 
-Nutze den Einstellungsblock aus `make image-server-url` in Neutrino. Für
-lokale und private LAN-Tests akzeptiert der Service `LOCAL_SERVICE_KEY`; für
-öffentliche Server ist dieser Key nicht gedacht. Die separate Zeile
-`admin webif` öffnest du im Browser; sie ist nur für Betreiber — Neutrino
-liest sie nicht und sie wird nicht für Flash-Downloads genutzt. Logs liegen
-unter `image-server/logs/`.
+Bei neuen lokalen Builds schreibt `make config`/`make image` die lokale
+Image-Basis-URL nach `builds/<machine>/conf/local-image-server.inc`, damit
+`/etc/image-version` standardmäßig `http://<host-ip>:33334/feed/...` enthält.
+Den Einstellungsblock aus `make image-server-url` nutzt du zur Kontrolle der
+effektiven URL oder als manuellen Fallback für ältere Images. Für lokale und
+private LAN-Tests akzeptiert der Service `LOCAL_SERVICE_KEY`; für öffentliche
+Server ist dieser Key nicht gedacht. Die separate Zeile `admin webif` öffnest
+du im Browser; sie ist nur für Betreiber. Neutrino liest sie nicht und sie wird
+nicht für Flash-Downloads genutzt. Logs liegen unter `image-server/logs/`.
+
+Für öffentliche Image-Server überschreibst du den lokalen Default in
+`builds/conf/local.conf`:
+
+```conf
+TUXBOX_IMAGE_UPDATE_BASE_URL = "https://images.example.org/feed"
+TUXBOX_SERVICE_KEY = "public-update-service-key"
+```
+
+Mit `LOCAL_IMAGE_SERVER=0` lässt du die Image-Update-URL bei der
+Config-Erzeugung den Distro-/Site-Defaults.
 
 ## Image-Portal Feed-Workflow
 

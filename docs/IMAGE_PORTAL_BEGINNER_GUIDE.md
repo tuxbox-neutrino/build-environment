@@ -54,7 +54,7 @@ The service uses the real `/feed/<channel>/<imagedir>/...` path. That means
 manifest lookup, service-key handling, and Range downloads are tested through
 the same code path that Neutrino uses.
 
-## 4. Copy The Neutrino Values
+## 4. Check The Neutrino Values
 
 ```bash
 make image-server-url MACHINE=h7 MACHINEBUILD=zgemmah7
@@ -73,11 +73,16 @@ logs: .../image-server/logs
 admin webif: http://192.168.1.36:33334/admin/
 ```
 
-The first block contains the three values for Neutrino's Online Flash
-settings. Replace nothing by hand unless the host IP is wrong.
+For new local builds, `make config`/`make image` writes the same local image
+base URL into `builds/<machine>/conf/local-image-server.inc`, so the generated
+`/etc/image-version` already points to the local image server on port `33334`.
+Use the first block to verify that URL, or copy it as manual fallback when you
+test an older image.
 
-`LOCAL_SERVICE_KEY` is only for local/private networks. Use proper service keys
-on public servers.
+`LOCAL_SERVICE_KEY` is only for local/private networks. New local builds keep
+the placeholder service key in the image; Neutrino ignores that placeholder and
+uses the local fallback for local/private URLs. Use proper service keys on
+public servers.
 
 The `admin webif` line is for operators only: open it in a browser to reach
 the server administration UI. Neutrino does not read this URL and it is not

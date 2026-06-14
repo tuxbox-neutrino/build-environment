@@ -121,6 +121,13 @@ so this is an additive key — no new mechanism, no ni-pick breakage.
   non-placeholder value.  For LAN-only deployments, set it to the
   empty string to disable key authentication entirely.
 
+  Builder-generated local image server defaults are deliberately URL-only:
+  `make config`/`make image` writes `TUXBOX_IMAGE_UPDATE_BASE_URL` to
+  `builds/<machine>/conf/local-image-server.inc`, but it does not write a
+  real `TUXBOX_SERVICE_KEY` unless that variable is explicitly passed to the
+  config generation environment.  This keeps the local default useful without
+  baking a shared LAN token into images by accident.
+
 - **Neutrino consumer**: `meta-neutrino/recipes-neutrino/neutrino/neutrino.inc`
 
   ```bitbake
@@ -145,7 +152,10 @@ first boot to initialize the Neutrino setting if no user value is
 present yet, and as a recovery reference when inspecting an image
 manually.  It is **not** a live fallback for runtime callers — at
 runtime, Neutrino alone resolves the effective key and hands it to
-the helper.
+the helper.  For local/private update URLs, Neutrino treats the all-`X`
+placeholder default as unset and may send the local fallback
+`LOCAL_SERVICE_KEY` instead.  That fallback belongs to local testing only and
+must not be used on public portals.
 
 `/etc/image-version` is chosen because it is already the canonical
 runtime metadata file and has a defined contract

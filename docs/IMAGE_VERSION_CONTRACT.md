@@ -28,7 +28,10 @@ The file is generated as:
 - `imagename`: legacy image name key.
 - `machine`: machine identifier.
 - `imagedir`: machine image directory identifier.
-- `image_update_url`: update feed base URL.
+- `image_update_url`: update feed base URL. In builder-generated local
+  configs this is derived from `conf/local-image-server.inc`, which defaults
+  to `http://<host-ip>:33334/feed/<channel>/<imagedir>` when
+  `LOCAL_IMAGE_SERVER=1`.
 - `image_update_admin_webif_url`: optional administration UI URL for the
   update server. This is for operators and diagnostics, not for manifest or
   archive downloads. The image build does not generate this key yet; it is
@@ -43,7 +46,9 @@ The file is generated as:
   image manually. It is **not** a live runtime fallback — runtime
   callers never read this key from `/etc/image-version`. Neutrino
   alone resolves the effective key and passes it to the helper via
-  `--key`. See
+  `--key`. Builder-generated local configs do not write a real key by
+  default; the distro placeholder remains in the image and Neutrino treats
+  that placeholder as unset for local/private URL fallback. See
   [SERVICE-KEY.md](SERVICE-KEY.md).
 - `image_file_name`: update image archive filename.
 - `channel`: release channel (`release|beta|nightly`).
@@ -97,7 +102,9 @@ The class supports these optional overrides:
 - `TUXBOX_IMAGE_DIR` (builder default: URL-safe image directory alias; raw
   OE-Alliance `${IMAGEDIR}` remains available to flash/image classes)
 - `TUXBOX_IMAGE_CHANNEL` (default mapped from `DISTRO_TYPE`)
-- `TUXBOX_IMAGE_UPDATE_BASE_URL` (default `${IMAGE_LOCATION_URL}` or `${DISTRO_FEED_URI}`)
+- `TUXBOX_IMAGE_UPDATE_BASE_URL` (default `${IMAGE_LOCATION_URL}` or `${DISTRO_FEED_URI}`;
+  builder local default from `conf/local-image-server.inc` is
+  `http://<host-ip>:33334/feed`)
 - `TUXBOX_IMAGE_UPDATE_URL` (default empty; auto-derived from base/channel/imagedir if unset)
 - `TUXBOX_IMAGE_UPDATE_INFO_FILE` (default `imageversion`)
 - `TUXBOX_IMAGE_FILE_SUFFIX` (default `multi` for `fastboot` machines, else `usb`)
@@ -107,7 +114,8 @@ The class supports these optional overrides:
 - `TUXBOX_SERVICE_KEY` (distro default; overridable via
   `local.conf`; propagated to `image_service_key=` in
   `/etc/image-version` and to Neutrino compile-time default via
-  `--with-service-key`)
+  `--with-service-key`; builder-generated local image server configs only set
+  this when `TUXBOX_SERVICE_KEY` is explicitly passed to `make config`)
 - `TUXBOX_VERSION_STAMP` (default `${TUXBOX_IMAGEBUILD}`)
 - `TUXBOX_VERSION_LINK_OS_RELEASE` (default `0`)
 - `TUXBOX_VERSION_LEGACY_LINK_TARGET` (default `/etc/image-version`)

@@ -285,7 +285,13 @@ und startet danach den PHP-Service auf Port `33334`. Dabei läuft der echte
 `/feed/...` Handler. Dadurch werden Manifest-Auflösung, Service-Key-Logik und
 Range-Downloads so getestet, wie Neutrino sie später nutzt.
 
-Die Ausgabe sieht etwa so aus:
+Bei neuen lokalen Builds schreibt `make config`/`make image` die lokale
+Image-Basis-URL nach `builds/<machine>/conf/local-image-server.inc`. Das
+erzeugte `/etc/image-version` enthält dadurch standardmäßig die passende
+Update-URL `http://<host-ip>:33334/feed/...`.
+
+`make image-server-url` zeigt die effektiven Neutrino-Werte und ist nützlich
+zur Kontrolle älterer Images oder für manuelle Fallback-Einstellungen:
 
 ```text
 image_update_url=http://<host-ip>:33334/feed/release/zgemmah7
@@ -293,8 +299,9 @@ image_manifest_file=manifest.json
 image_service_key=LOCAL_SERVICE_KEY
 ```
 
-Diese drei Werte nutzt du in den Online-Flash-Einstellungen von Neutrino.
-`LOCAL_SERVICE_KEY` ist nur für lokale/private Netze gedacht.
+`LOCAL_SERVICE_KEY` ist nur für lokale/private Netze gedacht. Neue lokale
+Builds behalten den Platzhalter-Service-Key im Image; Neutrino ignoriert
+diesen Platzhalter und nutzt für lokale/private URLs den lokalen Fallback.
 
 Unterhalb des Einstellungsblocks gibt die Ausgabe zusätzlich eine Zeile
 `admin webif: http://<host-ip>:33334/admin/` aus. Diese URL öffnest du im

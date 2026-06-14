@@ -270,7 +270,13 @@ then starts the PHP service on port `33334`. It uses the real `/feed/...`
 handler, so manifest lookup, service-key handling, and Range downloads are
 tested like they are in Neutrino.
 
-The URL output looks like this:
+For new local builds, `make config`/`make image` write the local image base URL
+to `builds/<machine>/conf/local-image-server.inc`. The generated
+`/etc/image-version` therefore contains the matching
+`http://<host-ip>:33334/feed/...` update URL by default.
+
+`make image-server-url` shows the effective Neutrino values and is useful for
+checking older images or manual fallback settings:
 
 ```text
 image_update_url=http://<host-ip>:33334/feed/release/zgemmah7
@@ -278,8 +284,9 @@ image_manifest_file=manifest.json
 image_service_key=LOCAL_SERVICE_KEY
 ```
 
-Use those three values in Neutrino's Online Flash settings.
-`LOCAL_SERVICE_KEY` is only for local/private networks.
+`LOCAL_SERVICE_KEY` is only for local/private networks. New local builds keep
+the placeholder service key in the image; Neutrino ignores that placeholder and
+uses the local fallback for local/private URLs.
 
 Below the settings block the output also prints an
 `admin webif: http://<host-ip>:33334/admin/` line. That URL is opened in a

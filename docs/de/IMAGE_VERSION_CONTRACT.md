@@ -28,7 +28,10 @@ Die Datei wird erzeugt als:
 - `imagename`: Legacy-Image-Namensschlüssel.
 - `machine`: Maschinenkennung.
 - `imagedir`: Maschinen-Image-Verzeichniskennung.
-- `image_update_url`: Basis-URL für Update-Feed.
+- `image_update_url`: Basis-URL für Update-Feed. In builder-generierten
+  lokalen Konfigurationen kommt diese URL aus `conf/local-image-server.inc`;
+  Standard bei `LOCAL_IMAGE_SERVER=1` ist
+  `http://<host-ip>:33334/feed/<channel>/<imagedir>`.
 - `image_update_admin_webif_url`: optionale Verwaltungs-URL des
   Update-Servers. Sie ist für Betreiber und Diagnose gedacht, nicht für
   Manifest- oder Archiv-Downloads. Der Image-Build erzeugt diesen Schlüssel
@@ -38,6 +41,13 @@ Die Datei wird erzeugt als:
 - `image_update_info_file`: Dateiname für Update-Info (Standard `imageversion`).
 - `image_manifest_file`: Dateiname des Online-Manifests (Standard `manifest.json`).
 - `image_discovery_api_url`: optionaler API-Endpunkt für Discovery.
+- `image_service_key`: Build-Zeit-Seed für den Portal-Service-Key. Er kann
+  für die Erstbefüllung der Neutrino-Einstellung und zur manuellen Prüfung
+  eines Images genutzt werden. Er ist kein Runtime-Fallback; Neutrino löst den
+  effektiven Key auf und übergibt ihn per `--key` an den Helper.
+  Builder-generierte lokale Konfigurationen schreiben standardmäßig keinen
+  echten Key. Der Distro-Platzhalter bleibt im Image, und Neutrino behandelt
+  diesen Platzhalter für lokale/private URL-Fallbacks als ungesetzt.
 - `image_file_name`: Dateiname des Update-Image-Archivs.
 - `channel`: Release-Kanal (`release|beta|nightly`).
 - `flash_backend`: Flash-Backend-Fähigkeit (`script` oder `ofgwrite`).
@@ -64,6 +74,7 @@ Die Datei wird erzeugt als:
 - `image_update_info_file`
 - `image_manifest_file`
 - `image_discovery_api_url`
+- `image_service_key`
 - `build_date`
 - `creator`
 - `channel`
@@ -87,13 +98,20 @@ Die Klasse unterstützt folgende optionale Overrides:
 - `TUXBOX_IMAGE_DIR` (Builder-Standard: URL-sicherer Image-Verzeichnis-Alias;
   raw OE-Alliance `${IMAGEDIR}` bleibt für Flash-/Image-Klassen erhalten)
 - `TUXBOX_IMAGE_CHANNEL` (Standard aus `DISTRO_TYPE` abgeleitet)
-- `TUXBOX_IMAGE_UPDATE_BASE_URL` (Standard `${IMAGE_LOCATION_URL}` oder `${DISTRO_FEED_URI}`)
+- `TUXBOX_IMAGE_UPDATE_BASE_URL` (Standard `${IMAGE_LOCATION_URL}` oder
+  `${DISTRO_FEED_URI}`; lokaler Builder-Standard aus
+  `conf/local-image-server.inc` ist `http://<host-ip>:33334/feed`)
 - `TUXBOX_IMAGE_UPDATE_URL` (Standard leer; wird bei Bedarf aus Basis/Kanal/Imagedir abgeleitet)
 - `TUXBOX_IMAGE_UPDATE_INFO_FILE` (Standard `imageversion`)
 - `TUXBOX_IMAGE_FILE_SUFFIX` (Standard `multi` bei `fastboot`-Maschinen, sonst `usb`)
 - `TUXBOX_IMAGE_FILE_NAME` (Standard `${IMAGE_NAME}_${TUXBOX_IMAGE_FILE_SUFFIX}.zip`)
 - `TUXBOX_IMAGE_MANIFEST_FILE` (Standard `manifest.json`)
 - `TUXBOX_IMAGE_DISCOVERY_API_URL` (Standard leer)
+- `TUXBOX_SERVICE_KEY` (Distro-Standard; per `local.conf` überschreibbar;
+  wird als `image_service_key=` nach `/etc/image-version` und als
+  Neutrino-Compile-Time-Default via `--with-service-key` weitergegeben;
+  builder-generierte lokale Image-Server-Konfigurationen setzen ihn nur, wenn
+  `TUXBOX_SERVICE_KEY` explizit an `make config` übergeben wird)
 - `TUXBOX_VERSION_STAMP` (Standard `${TUXBOX_IMAGEBUILD}`)
 - `TUXBOX_VERSION_LINK_OS_RELEASE` (Standard `0`)
 - `TUXBOX_VERSION_LEGACY_LINK_TARGET` (Standard `/etc/image-version`)

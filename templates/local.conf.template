@@ -84,6 +84,21 @@ CONF_VERSION = "2"
 # PARALLEL_MAKE = "-j 8"
 
 #
+# Optional feed and Online-Flash URL overrides
+#
+# make config writes local package feed defaults per machine to
+# builds/<machine>/conf/local-feed.inc. Disable them with LOCAL_FEED=0.
+# make config writes local image update defaults per machine to
+# builds/<machine>/conf/local-image-server.inc. Disable them with
+# LOCAL_IMAGE_SERVER=0.
+#
+# For public or server-side builds, override the generated local defaults here:
+# IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
+# TUXBOX_IMAGE_UPDATE_BASE_URL = "https://images.example.org/feed"
+# TUXBOX_IMAGE_MANIFEST_FILE = "manifest.json"
+# TUXBOX_SERVICE_KEY = "public-update-service-key"
+
+#
 # Optional image naming overrides
 #
 # A) Timestamped names

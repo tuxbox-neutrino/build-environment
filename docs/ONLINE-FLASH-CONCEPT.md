@@ -44,6 +44,18 @@ Implementation update (2026-03-10, bootstrap):
 - Verification on a fresh image build and real hardware runtime is still
   pending.
 
+Implementation update (2026-06-14, local builder defaults):
+
+- `make config`/`make image` now generate
+  `builds/<machine>/conf/local-image-server.inc` when
+  `LOCAL_IMAGE_SERVER=1` (default).
+- The generated config sets `TUXBOX_IMAGE_UPDATE_BASE_URL` to the local image
+  server feed base, normally `http://<host-ip>:33334/feed`, so new local
+  images derive a non-empty `/etc/image-version` `image_update_url`.
+- The IPK feed remains separate on port `33333` via `local-feed.inc`.
+- Older images can still carry an empty or public URL until they are rebuilt
+  or manually adjusted in Neutrino settings.
+
 Architecture clarification (2026-05-02):
 
 - Earlier dispatcher work validated that the flash tools can write Active and

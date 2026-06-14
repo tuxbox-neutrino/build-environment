@@ -84,6 +84,7 @@ LOCAL_FEED_BACKEND ?= auto
 LOCAL_FEED_BASE_URL ?=
 FEED_SERVER_SCRIPT := $(TOPDIR)/scripts/feed-server.sh
 LOCAL_FEED_ENV = LOCAL_FEED="$(LOCAL_FEED)" LOCAL_FEED_PORT="$(LOCAL_FEED_PORT)" LOCAL_FEED_HOST="$(LOCAL_FEED_HOST)" LOCAL_FEED_BIND="$(LOCAL_FEED_BIND)" LOCAL_FEED_BACKEND="$(LOCAL_FEED_BACKEND)" LOCAL_FEED_BASE_URL="$(LOCAL_FEED_BASE_URL)"
+LOCAL_IMAGE_SERVER ?= 1
 IMAGE_SERVER_PORT ?= 33334
 IMAGE_SERVER_HOST ?= auto
 IMAGE_SERVER_BIND ?= 0.0.0.0
@@ -91,6 +92,7 @@ IMAGE_SERVER_BASE_URL ?=
 IMAGE_SERVER_ADMIN_WEBIF_URL ?=
 IMAGE_SERVER_SERVICE_KEYS ?=
 IMAGE_SERVER_SCRIPT := $(TOPDIR)/scripts/image-server.sh
+IMAGE_SERVER_BUILD_ENV = IMAGE_SERVER_PORT="$(IMAGE_SERVER_PORT)" IMAGE_SERVER_HOST="$(IMAGE_SERVER_HOST)" IMAGE_SERVER_BASE_URL="$(IMAGE_SERVER_BASE_URL)" LOCAL_IMAGE_SERVER="$(LOCAL_IMAGE_SERVER)"
 IMAGE_SERVER_ENV = IMAGE_SERVER_PORT="$(IMAGE_SERVER_PORT)" IMAGE_SERVER_HOST="$(IMAGE_SERVER_HOST)" IMAGE_SERVER_BIND="$(IMAGE_SERVER_BIND)" IMAGE_SERVER_BASE_URL="$(IMAGE_SERVER_BASE_URL)" IMAGE_SERVER_ADMIN_WEBIF_URL="$(IMAGE_SERVER_ADMIN_WEBIF_URL)" IMAGE_SERVER_SERVICE_KEYS="$(IMAGE_SERVER_SERVICE_KEYS)"
 
 # Build directories
@@ -266,6 +268,7 @@ help:
 	@echo -e "  LOCAL_FEED_BIND Local feed bind address (default: 0.0.0.0)"
 	@echo -e "  LOCAL_FEED_BACKEND Feed server backend: auto|lighttpd|python"
 	@echo -e "  LOCAL_FEED_BASE_URL Explicit full feed URL override"
+	@echo -e "  LOCAL_IMAGE_SERVER Enable local Online-Flash image URL defaults (default: 1)"
 	@echo -e "  IMAGE_SERVER_PORT Local Online-Flash image server port (default: 33334)"
 	@echo -e "  IMAGE_SERVER_HOST Image server URL host or auto (default: auto)"
 	@echo -e "  IMAGE_SERVER_BIND Image server bind address (default: 0.0.0.0)"
@@ -320,7 +323,7 @@ endif
 image: init
 ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)"
-	@$(LOCAL_FEED_ENV) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
+	@$(LOCAL_FEED_ENV) $(IMAGE_SERVER_BUILD_ENV) $(CLI) build $(MACHINE_ARG) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) $(FORCE_CONFIG_ARG)
 else
 ifeq ($(MACHINE_EXPLICIT),)
 	@echo -e "$(COLOR_BOLD)Building image using existing config...$(COLOR_RESET)"
@@ -744,7 +747,7 @@ toaster-open-build: init-toaster
 config: init
 ifeq ($(USE_CLI),1)
 	@echo -e "$(COLOR_BOLD)Command:$(COLOR_RESET) $(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)"
-	@$(LOCAL_FEED_ENV) $(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
+	@$(LOCAL_FEED_ENV) $(IMAGE_SERVER_BUILD_ENV) $(CLI) config --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE)
 else
 	@echo -e "$(COLOR_BOLD)Generating config for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 	@echo -e "$(COLOR_RED)Error: cli.py not found. Please run 'make init' first.$(COLOR_RESET)"
@@ -828,7 +831,7 @@ edit-conf:
 feeds: init
 	@echo -e "$(COLOR_BOLD)Building package feeds for $(COLOR_YELLOW)$(MACHINE)$(COLOR_RESET)..."
 ifeq ($(USE_CLI),1)
-	@$(LOCAL_FEED_ENV) $(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) --target package-index $(FORCE_CONFIG_ARG)
+	@$(LOCAL_FEED_ENV) $(IMAGE_SERVER_BUILD_ENV) $(CLI) build --machine $(MACHINE) $(MACHINEBUILD_ARG) --distro $(DISTRO) --distro-type $(DISTRO_TYPE) --target package-index $(FORCE_CONFIG_ARG)
 else
 	@echo -e "$(COLOR_RED)Error: cli.py not found.$(COLOR_RESET)"
 	@exit 1

@@ -99,22 +99,13 @@ CONF_VERSION = "2"
 # TUXBOX_SERVICE_KEY = "public-update-service-key"
 
 #
-# Optional image naming overrides
+# Optional image version overrides
 #
-# A) Timestamped names
-# IMAGE_NAME = "${IMAGE_BASENAME}-${MACHINE}-${DATETIME}"
-# IMAGE_NAME[vardepsexclude] = "DATETIME"
-# IMAGE_VERSION ?= "${DISTRO_VERSION}"
-# IMAGE_NAME_SUFFIX = ".tuxbox"
-# IMAGE_VER_STRING = "${DISTRO_NAME}-${IMAGE_VERSION}-${MACHINEBUILD}-${DATE}"
-# IMAGE_VER_STRING[vardepsexclude] += "DATE"
+# Do NOT set IMAGE_NAME directly. The tuxbox.conf default already encodes the
+# version and a timestamp:
+#   ${IMAGE_BASENAME}-${MACHINE}-${IMAGE_VERSION}-${DATETIME}
+# To change the visible version, override TUXBOX_IMAGE_VERSION (or its parts):
 #
-# B) Deterministic names
-# IMAGE_NAME = "${IMAGE_BASENAME}-${MACHINE}"
-# IMAGE_VERSION ?= "${DISTRO_VERSION}"
-# IMAGE_NAME_SUFFIX = ".tuxbox"
-# IMAGE_VER_STRING = "${DISTRO_NAME}-${IMAGE_VERSION}-${MACHINEBUILD}"
-#
-# C) Include MACHINEBUILD in filename
-# IMAGE_NAME = "${IMAGE_BASENAME}-${MACHINE}-${MACHINEBUILD}-${DATETIME}"
-# IMAGE_NAME[vardepsexclude] = "DATETIME"
+# TUXBOX_IMAGE_BASE_VERSION = "${DISTRO_VERSION}"
+# TUXBOX_IMAGE_PATCH_VERSION = "${META_VERSION}"
+# TUXBOX_IMAGE_VERSION = "${TUXBOX_IMAGE_BASE_VERSION}.${TUXBOX_IMAGE_PATCH_VERSION}"

@@ -19,11 +19,16 @@ Die Datei wird erzeugt als:
   `stb-move`) lesen Image-Identität/-Version aus dieser Datei.
 - Neutrino-Integrationspfade werden darauf ausgerichtet, diese Datei als
   primäre Quelle für Flash-/Update-Metadaten zu nutzen.
+- Die sichtbare Image-Version ist image-spezifisch: `DISTRO_VERSION` bleibt
+  die Yocto/OE-Basisversion, während `image_version` und der Legacy-Schlüssel
+  `imageversion` in `/etc/image-version` `${TUXBOX_IMAGE_VERSION}` nutzen
+  (`<Basis>.<meta-tuxbox-Commit-Anzahl>`), zum Beispiel `4.0.35.486`.
 
 ## Pflichtschlüssel
 
 - `version`: Build-/Versionsstempel für Kompatibilitätspfade.
-- `imageversion`: Image-Version für Legacy-Plugin-Logik.
+- `imageversion`: volle Image-Version für Legacy-Plugin-Logik; entspricht
+  `image_version`.
 - `imagedescription`: menschenlesbare Image-Beschreibung.
 - `imagename`: Legacy-Image-Namensschlüssel.
 - `machine`: Maschinenkennung.
@@ -67,6 +72,12 @@ Die Datei wird erzeugt als:
 - `imagedescription`
 - `image_name`
 - `image_version`
+- `image_base_version`
+- `image_patch_version`
+- `image_patch_source`
+- `meta_tuxbox_git_hash` (optional)
+- `meta_tuxbox_describe` (optional)
+- `meta_tuxbox_dirty`
 - `image_file_name`
 - `flash_backend`
 - `image_update_url`
@@ -87,13 +98,27 @@ Diese Felder werden absichtlich für Legacy-Skripte/Plugins dupliziert:
 
 - `builddate` (aus `build_date`)
 - `imagename` (aus `IMAGE_BASENAME`/`IMAGE_NAME`)
-- `imageversion` (aus `DISTRO_VERSION`)
+- `imageversion` (aus `image_version`)
 
 ## Klassen-Override-Variablen
 
 Die Klasse unterstützt folgende optionale Overrides:
 
 - `TUXBOX_IMAGEBUILD` (Standard `${DATETIME}`)
+- `TUXBOX_IMAGE_BASE_VERSION` (Standard `${DISTRO_VERSION}`)
+- `TUXBOX_IMAGE_PATCH_VERSION` (Standard `${META_VERSION}`, der Wert aus
+  `git rev-list --count HEAD` von `meta-tuxbox`)
+- `TUXBOX_IMAGE_PATCH_SOURCE` (Standard `${METAVERSION_LAYER_BASENAME}`,
+  normalerweise `meta-tuxbox`)
+- `TUXBOX_IMAGE_VERSION` (Standard
+  `${TUXBOX_IMAGE_BASE_VERSION}.${TUXBOX_IMAGE_PATCH_VERSION}`)
+
+  > Hinweis: Ein direktes Setzen von `IMAGE_VERSION` (z. B. in `local.conf`) hat
+  > für Tuxbox-Images keine Wirkung — `tuxbox-version.bbclass` leitet
+  > `IMAGE_VERSION` aus `TUXBOX_IMAGE_VERSION` ab. Stattdessen
+  > `TUXBOX_IMAGE_VERSION` oder
+  > `TUXBOX_IMAGE_BASE_VERSION` / `TUXBOX_IMAGE_PATCH_VERSION` überschreiben.
+
 - `TUXBOX_IMAGE_DESCRIPTION` (Standard `${IMAGE_NAME}`)
 - `TUXBOX_IMAGE_DIR` (Builder-Standard: URL-sicherer Image-Verzeichnis-Alias;
   raw OE-Alliance `${IMAGEDIR}` bleibt für Flash-/Image-Klassen erhalten)
@@ -117,6 +142,10 @@ Die Klasse unterstützt folgende optionale Overrides:
 - `TUXBOX_VERSION_LEGACY_LINK_TARGET` (Standard `/etc/image-version`)
 - `TUXBOX_VERSION_GIT_PATH` (optional explizites Git-Repo)
 - `TUXBOX_VERSION_GIT_REF` (Standard `HEAD`)
+- `METAVERSION_GIT_PATH` (optional explizites Git-Repo für die
+  Image-Patchstand-Quelle)
+- `METAVERSION_LAYER_BASENAME` (Standard `meta-tuxbox` in
+  `tuxbox-version.bbclass`)
 - `TUXBOX_FEED_WRITE_METADATA` (Standard `1`)
 - `TUXBOX_FEED_WRITE_SIDECARS` (Standard `1`)
 
@@ -129,6 +158,18 @@ Image-Post-Processing-Phase Metadaten in `${DEPLOY_DIR_IMAGE}`:
 - `${TUXBOX_IMAGE_MANIFEST_FILE}` (Standard `manifest.json`)
 - `*.sha256`- und `*.md5`-Sidecar-Dateien für gewählte Archive
 - `manifest.json.sha256`-Sidecar für Manifest-Integrität
+
+Wichtige Unterscheidung:
+
+- Der `/etc/image-version`-Schlüssel `imageversion` ist die volle sichtbare
+  Image-Version, zum Beispiel `4.0.35.486`.
+- Die Deploy-Archivnamen und die Deploy-Root-Markerdatei
+  `${TUXBOX_IMAGE_UPDATE_INFO_FILE}` leiten sich aus `${IMAGE_NAME}` ab, das nun
+  die Version **und** einen Timestamp enthält, zum Beispiel
+  `tuxbox-image-hd60-4.0.35.486-20260614123456`. Der Timestamp hält den Marker
+  pro Build eindeutig; Ofgwrite nutzt den MD5-Wert für Slot-Vergleiche, daher
+  muss der Marker `${IMAGE_NAME}` (build-eindeutig) bleiben und darf nicht auf
+  die bloße semantische Version reduziert werden.
 
 Auswahlverhalten:
 
@@ -143,6 +184,14 @@ Manifest-Hinweise:
 - jede `files[]`-Struktur enthält `name`, `size`, `sha256` und `md5`.
 - `describe` enthält Git-Describe-Metadaten (falls verfügbar).
 - `image_description` enthält die menschenlesbare Image-Bezeichnung.
+- `image_version` enthält die volle Image-Version, zum Beispiel
+  `4.0.35.486`.
+- `image_base_version` enthält die Yocto/OE-Basisversion, zum Beispiel
+  `4.0.35`.
+- `image_patch_version` enthält die Commit-Anzahl von `meta-tuxbox`.
+- `meta_tuxbox_dirty` ist `1`, wenn der gewählte `meta-tuxbox`-Worktree
+  uncommittete Änderungen enthält. Dirty Builds werden gewarnt und markiert,
+  aber `image_version` bleibt numerisch.
 
 ## Flash-Backend-Modell
 

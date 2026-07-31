@@ -403,8 +403,18 @@ do_start() {
 		export IMAGE_PORTAL_ADMIN_USERS_FILE="${IMAGE_PORTAL_ADMIN_USERS_FILE:-${RUN_DIR}/admin/users.json}"
 		export IMAGE_PORTAL_ADMIN_KEYS_FILE="${IMAGE_PORTAL_ADMIN_KEYS_FILE:-${RUN_DIR}/admin/keys.json}"
 		export IMAGE_PORTAL_ADMIN_FEED_ROOTS_FILE="${IMAGE_PORTAL_ADMIN_FEED_ROOTS_FILE:-${RUN_DIR}/admin/feed-roots.json}"
+		export IMAGE_PORTAL_ADMIN_SETTINGS_FILE="${IMAGE_PORTAL_ADMIN_SETTINGS_FILE:-${RUN_DIR}/admin/settings.json}"
+		export IMAGE_PORTAL_ADMIN_SOURCES_FILE="${IMAGE_PORTAL_ADMIN_SOURCES_FILE:-${RUN_DIR}/admin/sources.json}"
+		export IMAGE_PORTAL_ADMIN_CHANNELS_FILE="${IMAGE_PORTAL_ADMIN_CHANNELS_FILE:-${RUN_DIR}/admin/channels.json}"
+		export IMAGE_PORTAL_ADMIN_IPK_FEEDS_FILE="${IMAGE_PORTAL_ADMIN_IPK_FEEDS_FILE:-${RUN_DIR}/admin/ipk-feeds.json}"
 		export IMAGE_PORTAL_ADMIN_LOGIN_RATE_LIMIT_DIR="${IMAGE_PORTAL_ADMIN_LOGIN_RATE_LIMIT_DIR:-${RUN_DIR}/admin-login-ratelimit}"
 		export IMAGE_PORTAL_ADMIN_REBUILD_STATUS_DIR="${IMAGE_PORTAL_ADMIN_REBUILD_STATUS_DIR:-${RUN_DIR}/admin-rebuild-status}"
+		# Mirror cache for the sync engine: the default is
+		# /var/lib/image-portal/mirror, which the unprivileged dev server
+		# cannot write — health then reports mirror_writable=false (503).
+		# Local serving itself uses ONLINE_UPDATE_ARTIFACT_BASE_PATH above.
+		export IMAGE_PORTAL_MIRROR_BASE_PATH="${IMAGE_PORTAL_MIRROR_BASE_PATH:-${RUN_DIR}/mirror}"
+		mkdir -p "${IMAGE_PORTAL_MIRROR_BASE_PATH}" || warn "cannot create mirror dir: ${IMAGE_PORTAL_MIRROR_BASE_PATH}"
 		if command -v setsid >/dev/null 2>&1; then
 			exec setsid php -S "${bind_addr}:${port}" -t public tools/dev-server-router.php
 		fi

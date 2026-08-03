@@ -91,8 +91,12 @@ IMAGE_SERVER_BIND ?= 0.0.0.0
 IMAGE_SERVER_BASE_URL ?=
 IMAGE_SERVER_ADMIN_WEBIF_URL ?=
 IMAGE_SERVER_SERVICE_KEYS ?=
+# Optional value for `make image-server-key KEY=…` (empty shows the key).
+KEY ?=
 IMAGE_SERVER_SCRIPT := $(TOPDIR)/scripts/image-server.sh
-IMAGE_SERVER_BUILD_ENV = IMAGE_SERVER_PORT="$(IMAGE_SERVER_PORT)" IMAGE_SERVER_HOST="$(IMAGE_SERVER_HOST)" IMAGE_SERVER_BASE_URL="$(IMAGE_SERVER_BASE_URL)" LOCAL_IMAGE_SERVER="$(LOCAL_IMAGE_SERVER)"
+# The build env carries the same key variables as the runtime env so make
+# config and a later server start resolve the service key identically.
+IMAGE_SERVER_BUILD_ENV = IMAGE_SERVER_PORT="$(IMAGE_SERVER_PORT)" IMAGE_SERVER_HOST="$(IMAGE_SERVER_HOST)" IMAGE_SERVER_BASE_URL="$(IMAGE_SERVER_BASE_URL)" LOCAL_IMAGE_SERVER="$(LOCAL_IMAGE_SERVER)" IMAGE_SERVER_SERVICE_KEYS="$(IMAGE_SERVER_SERVICE_KEYS)"
 IMAGE_SERVER_ENV = IMAGE_SERVER_PORT="$(IMAGE_SERVER_PORT)" IMAGE_SERVER_HOST="$(IMAGE_SERVER_HOST)" IMAGE_SERVER_BIND="$(IMAGE_SERVER_BIND)" IMAGE_SERVER_BASE_URL="$(IMAGE_SERVER_BASE_URL)" IMAGE_SERVER_ADMIN_WEBIF_URL="$(IMAGE_SERVER_ADMIN_WEBIF_URL)" IMAGE_SERVER_SERVICE_KEYS="$(IMAGE_SERVER_SERVICE_KEYS)"
 
 # Build directories
@@ -200,6 +204,8 @@ help:
 	@echo -e "  $(COLOR_GREEN)make image-server-url MACHINE=h7$(COLOR_RESET)      Show Neutrino URL and curl test"
 	@echo -e "  $(COLOR_GREEN)make image-server-status$(COLOR_RESET)              Show local image server status"
 	@echo -e "  $(COLOR_GREEN)make image-server-stop$(COLOR_RESET)                Stop local image server"
+	@echo -e "  $(COLOR_GREEN)make image-server-restart$(COLOR_RESET)             Restart local image server (applies a rotated key)"
+	@echo -e "  $(COLOR_GREEN)make image-server-key [KEY=…]$(COLOR_RESET)         Show or set the persistent local service key"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Image Portal / Production Sync:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_GREEN)make portal-catalog MACHINE=hd60 MACHINEBUILD=ax60$(COLOR_RESET)  Build portal feed stage + catalog"
@@ -274,7 +280,7 @@ help:
 	@echo -e "  IMAGE_SERVER_BIND Image server bind address (default: 0.0.0.0)"
 	@echo -e "  IMAGE_SERVER_BASE_URL Explicit image server base URL override"
 	@echo -e "  IMAGE_SERVER_ADMIN_WEBIF_URL Explicit admin WebIF URL override"
-	@echo -e "  IMAGE_SERVER_SERVICE_KEYS Optional comma-separated service keys for local tests"
+	@echo -e "  IMAGE_SERVER_SERVICE_KEYS Optional comma-separated service keys (override; a persistent key is generated in image-server/service-key)"
 	@echo ""
 	@echo -e "$(COLOR_BOLD)Examples:$(COLOR_RESET)"
 	@echo -e "  $(COLOR_YELLOW)make image MACHINE=hd60$(COLOR_RESET)"
@@ -415,6 +421,22 @@ image-server-stop:
 .PHONY: image-server-status
 image-server-status:
 	@$(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) status --machine $(MACHINE) --machinebuild "$(PORTAL_MACHINEBUILD)" --builddir "$(CONF_BUILDDIR)" --feed-root "$(PORTAL_FEED_ROOT)" --catalog "$(PORTAL_CATALOG_OUT)" --online-update-repo "$(PORTAL_ONLINE_UPDATE_REPO)"
+
+.PHONY: image-server-restart
+image-server-restart:
+	@$(MAKE) --no-print-directory image-server-stop
+	@$(MAKE) --no-print-directory image-server-start
+
+# Print the persistent local service key (creates one if missing); with
+# KEY=<value> it sets the key instead — the value every image built after the
+# next `make config` carries as image_service_key.
+.PHONY: image-server-key
+image-server-key:
+ifneq ($(strip $(KEY)),)
+	@$(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) key set "$(KEY)"
+else
+	@$(IMAGE_SERVER_ENV) $(IMAGE_SERVER_SCRIPT) key
+endif
 
 .PHONY: qemu-smoke
 qemu-smoke:

@@ -509,6 +509,125 @@ class TuxboxBuilder:
         self._write_if_changed(local_feed_conf, content)
         self._ensure_local_feed_include_line(local_conf)
 
+    # Shared with scripts/image-server.sh: shell-safe charset, and the two
+    # values that never authenticate (the portal hard-rejects the documented
+    # example value; Neutrino discards X-only values as placeholders).
+    _SERVICE_KEY_VALUE_RE = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+    _SERVICE_KEY_ASSIGN_RE = re.compile(r"^\s*TUXBOX_SERVICE_KEY\s*([+.:?]*=[+.]?)\s*(.*?)\s*$")
+
+    def _service_key_unusable(self, value: str) -> bool:
+        return value == "LOCAL_SERVICE_KEY" or re.fullmatch(r"[Xx]{8,}", value) is not None
+
+    def _service_key_resolve(self) -> Optional[str]:
+        """Effective local key via the ONE resolver in image-server.sh."""
+        try:
+            proc = subprocess.run(
+                [str(self.topdir / "scripts" / "image-server.sh"), "key"],
+                capture_output=True, text=True, check=False,
+            )
+        except OSError:
+            return None
+        value = proc.stdout.strip()
+        if proc.returncode != 0 or not value:
+            return None
+        return value
+
+    def _service_key_set(self, value: str) -> bool:
+        """Canonicalize a key into image-server/service-key via the resolver seam."""
+        try:
+            proc = subprocess.run(
+                [str(self.topdir / "scripts" / "image-server.sh"), "key", "set", value],
+                capture_output=True, text=True, check=False,
+            )
+        except OSError:
+            return False
+        for line in proc.stderr.strip().splitlines():
+            if line:
+                self.warning(line)
+        return proc.returncode == 0
+
+    def _detect_service_key_assignment(self, conf_dir: Path, machine: str):
+        """Last TUXBOX_SERVICE_KEY assignment in the persistent conf sources.
+
+        Scans the include chain in parse order (last match wins, like a plain
+        BitBake assignment); the regenerated machine entries and our own
+        local-image-server.inc are excluded. The bblayers user includes are
+        scanned too: BitBake parses bblayers.conf before local.conf, and a
+        hard assignment there beats our ?= just the same — that is exactly
+        where a real-world key assignment was found. Returns (path, lineno,
+        value) with value=None for anything that is not a simple quoted
+        literal — the caller must treat that as fail-closed, because BitBake
+        will bake it regardless of what this generator writes.
+        """
+        skip = {conf_dir / "local.conf", conf_dir / "bblayers.conf",
+                conf_dir / "local-image-server.inc"}
+        found = None
+        sources = self._machine_layer_sources(conf_dir) + self._machine_conf_sources(conf_dir, machine)
+        for source in sources:
+            if source in skip or not source.is_file():
+                continue
+            try:
+                lines = source.read_text().splitlines()
+            except OSError:
+                continue
+            for lineno, line in enumerate(lines, 1):
+                match = self._SERVICE_KEY_ASSIGN_RE.match(line)
+                if not match:
+                    continue
+                op, raw = match.group(1), match.group(2)
+                value = None
+                literal = re.fullmatch(r'"([^"\\$]*)"', raw)
+                if op in ("=", ":=", "?=", "??=") and literal:
+                    value = literal.group(1)
+                found = (source, lineno, value)
+        return found
+
+    def _service_key_for_bake(self, conf_dir: Path, machine: str) -> Optional[str]:
+        """Key to bake into local-image-server.inc, or None for no key line.
+
+        Authority order: a hard assignment in the user's conf wins (BitBake
+        lets it win over our ?= anyway, so the portal follows it), then an
+        explicit TUXBOX_SERVICE_KEY environment value, then the persisted
+        generated key. Broken explicit input aborts make config instead of
+        leaving image and portal with different keys again.
+        """
+        env_key = os.environ.get("TUXBOX_SERVICE_KEY", "").strip()
+        assignment = self._detect_service_key_assignment(conf_dir, machine)
+        migration = ("Remove the line and use 'make image-server-key KEY=<value>' instead "
+                     "(allowed: A-Za-z0-9._- with 8-64 chars; the example value "
+                     "LOCAL_SERVICE_KEY and X-only placeholders never authenticate).")
+        if assignment is not None:
+            path, lineno, assigned = assignment
+            if (assigned is None
+                    or not self._SERVICE_KEY_VALUE_RE.fullmatch(assigned)
+                    or self._service_key_unusable(assigned)):
+                self.error(f"Unusable TUXBOX_SERVICE_KEY assignment at {path}:{lineno} — "
+                           "BitBake would bake it and boxes would be rejected with 403.")
+                self.info(migration)
+                sys.exit(1)
+            if env_key and env_key != assigned:
+                self.error(f"TUXBOX_SERVICE_KEY conflict: environment says '{env_key}' but "
+                           f"{path}:{lineno} assigns '{assigned}' — BitBake would bake the file value.")
+                self.info("Make them equal or remove one, then re-run make config.")
+                sys.exit(1)
+            if self._service_key_set(assigned):
+                self.info(f"Service key: following TUXBOX_SERVICE_KEY from {path} "
+                          "(synced to image-server/service-key)")
+            else:
+                self.warning("Service key: could not sync the TUXBOX_SERVICE_KEY value to "
+                             "image-server/service-key — the local portal may reject this image")
+            return assigned
+        if env_key:
+            if not self._SERVICE_KEY_VALUE_RE.fullmatch(env_key) or self._service_key_unusable(env_key):
+                self.error("Unusable TUXBOX_SERVICE_KEY in the environment.")
+                self.info(migration)
+                sys.exit(1)
+            if not self._service_key_set(env_key):
+                self.warning("Service key: could not sync the TUXBOX_SERVICE_KEY value to "
+                             "image-server/service-key — the local portal may reject this image")
+            return env_key
+        return self._service_key_resolve()
+
     def ensure_local_image_server_config(self, conf_dir: Path, machine: str):
         """Generate local-image-server.inc for image-version Online-Flash URLs."""
         local_conf = conf_dir / "local.conf"
@@ -523,11 +642,26 @@ class TuxboxBuilder:
                 "# This base URL is combined with channel and TUXBOX_IMAGE_DIR for /etc/image-version.\n"
                 f"TUXBOX_IMAGE_UPDATE_BASE_URL ?= \"{self._bitbake_quote(image_update_base_url)}\"\n"
                 "TUXBOX_IMAGE_MANIFEST_FILE ?= \"manifest.json\"\n"
-                "# Local/private URLs use Neutrino's LOCAL_SERVICE_KEY fallback; no real image key is generated here.\n"
             )
-            service_key = os.environ.get("TUXBOX_SERVICE_KEY", "").strip()
+            service_key = self._service_key_for_bake(conf_dir, machine)
+            if service_key is None and local_image_conf.is_file():
+                # Resolver unavailable (or no usable key): never silently drop
+                # a previously baked key line — image and portal agreed on it.
+                previous = re.search(r'^TUXBOX_SERVICE_KEY \?= "(.*)"$',
+                                     local_image_conf.read_text(), re.M)
+                if previous:
+                    service_key = previous.group(1)
+                    self.warning("Service key: resolver unavailable — keeping the "
+                                 "previously baked TUXBOX_SERVICE_KEY line")
             if service_key:
-                content += f"TUXBOX_SERVICE_KEY ?= \"{self._bitbake_quote(service_key)}\"\n"
+                content += (
+                    "# image_service_key baked from image-server/service-key — the same key\n"
+                    "# authenticates against the local portal (opt-in local service key).\n"
+                    f"TUXBOX_SERVICE_KEY ?= \"{self._bitbake_quote(service_key)}\"\n"
+                )
+            else:
+                self.warning("Service key: no usable key — the image carries no "
+                             "image_service_key; boxes get 401/403 on key-gated channels")
         else:
             content = (
                 "# Local Online-Flash image server generated by tuxbox-os-builder.\n"

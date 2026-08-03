@@ -121,12 +121,22 @@ so this is an additive key — no new mechanism, no ni-pick breakage.
   non-placeholder value.  For LAN-only deployments, set it to the
   empty string to disable key authentication entirely.
 
-  Builder-generated local image server defaults are deliberately URL-only:
-  `make config`/`make image` writes `TUXBOX_IMAGE_UPDATE_BASE_URL` to
-  `builds/<machine>/conf/local-image-server.inc`, but it does not write a
-  real `TUXBOX_SERVICE_KEY` unless that variable is explicitly passed to the
-  config generation environment.  This keeps the local default useful without
-  baking a shared LAN token into images by accident.
+  Builder-generated local image server defaults pair both sides
+  automatically: `make config`/`make image` writes
+  `TUXBOX_IMAGE_UPDATE_BASE_URL` **and** `TUXBOX_SERVICE_KEY` to
+  `builds/<machine>/conf/local-image-server.inc`.  The key comes from one
+  resolver (`scripts/image-server.sh key`): a hard `TUXBOX_SERVICE_KEY`
+  assignment found in the persistent conf sources wins (BitBake would let
+  it win anyway) and is synced into the persistent key file
+  `image-server/service-key`; otherwise a key is generated once and stored
+  there (0600, shell-safe charset `A-Za-z0-9._-`, 8-64 chars).  The local
+  image server seeds the same file value as its opt-in local service key,
+  so images and server can never drift apart.  `make image-server-key`
+  shows the key, `make image-server-key KEY=…` sets it, and
+  `make image-server-restart` applies a rotated key to a running server.
+  An unparsable or unusable hard assignment (the example value, X-only
+  placeholders, foreign characters) aborts `make config` instead of baking
+  a key that would be rejected.
 
 - **Neutrino consumer**: `meta-neutrino/recipes-neutrino/neutrino/neutrino.inc`
 
@@ -153,9 +163,13 @@ present yet, and as a recovery reference when inspecting an image
 manually.  It is **not** a live fallback for runtime callers — at
 runtime, Neutrino alone resolves the effective key and hands it to
 the helper.  For local/private update URLs, Neutrino treats the all-`X`
-placeholder default as unset and may send the local fallback
-`LOCAL_SERVICE_KEY` instead.  That fallback belongs to local testing only and
-must not be used on public portals.
+placeholder default as unset and may send the test value
+`LOCAL_SERVICE_KEY` instead.  **The portal never accepts that value**:
+since the auth hardening the local-key mechanism is opt-in
+(`IMAGE_PORTAL_ENABLE_LOCAL_SERVICE_KEY=1` plus an own
+`IMAGE_PORTAL_LOCAL_SERVICE_KEY`), and the documented example value is
+hard-rejected even when set explicitly.  A box that still sends it gets
+`403` — see the migration section below.
 
 `/etc/image-version` is chosen because it is already the canonical
 runtime metadata file and has a defined contract
@@ -306,20 +320,37 @@ portal configuration.
 
 ## Portal Validation Contract
 
-The image portal service enforces the key on every catalog/download
-endpoint **when** `IMAGE_PORTAL_SERVICE_KEYS` is configured:
+The image portal service accepts three key sources in parallel — the
+env allowlist `IMAGE_PORTAL_SERVICE_KEYS` (comma-separated, rotation),
+managed keys created or imported in the admin WebIF (`keys.json`), and
+the opt-in local service key (`IMAGE_PORTAL_ENABLE_LOCAL_SERVICE_KEY=1`
+plus an own `IMAGE_PORTAL_LOCAL_SERVICE_KEY`; accepted from private and
+loopback source addresses only).  All comparisons are constant-time.
 
-- **Key required but missing header**: HTTP `401 Unauthorized` with body
-  `{ "error": "missing_service_key" }`.
-- **Invalid key**: HTTP `403 Forbidden` with body
-  `{ "error": "invalid_service_key" }`.
+- **Key required but missing header**: HTTP `401` with error code
+  `missing_key`.
+- **Invalid key**: HTTP `403` with error code `invalid_key`.
+- **Auth configured but no usable key exists** (e.g. only the rejected
+  example value): HTTP `503` with error code `keys_unavailable` —
+  fail-closed instead of falling open.
 - **Valid key**: normal response.
-- **Keyless mode** (`IMAGE_PORTAL_SERVICE_KEYS` unset/empty): validation
-  is skipped, all requests are served unconditionally.
+- **Zero-config mode** (no keys file, no channels file, no env keys, no
+  local-key switch): the portal keeps the historic open behavior for
+  purely local use.
 
-The key is compared against a server-side allowlist (configured via
-environment variable `IMAGE_PORTAL_SERVICE_KEYS`, comma-separated to
-allow rotation), using a constant-time comparison.
+The example value `LOCAL_SERVICE_KEY` never authenticates, on no path.
+
+### Migration: box says 403 after the hardening
+
+Boxes flashed from images built before the generated-key flow carry the
+X-only placeholder, so Neutrino sends the literal `LOCAL_SERVICE_KEY`
+for private URLs — rejected by design.  Two fixes:
+
+1. On the box, set `image_service_key=<key from make image-server-key>`
+   in `/etc/image-version`; Neutrino re-reads the file whenever
+   "Online update" starts, no reboot needed.
+2. Rebuild after `make config` — the generated key is baked into the
+   image automatically.
 
 ### Rate limiting and logging
 

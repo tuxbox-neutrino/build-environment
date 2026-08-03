@@ -238,12 +238,17 @@ http://<host-ip>:33334/feed/<channel>/<imagedir>
 ```
 
 Bei neuen lokalen Builds schreibt `make config`/`make image` die lokale
-Image-Basis-URL nach `builds/<machine>/conf/local-image-server.inc`, damit
-`/etc/image-version` standardmäßig `http://<host-ip>:33334/feed/...` enthält.
-Den Einstellungsblock aus `make image-server-url` nutzt du zur Kontrolle der
-effektiven URL oder als manuellen Fallback für ältere Images. Für lokale und
-private LAN-Tests akzeptiert der Service `LOCAL_SERVICE_KEY`; für öffentliche
-Server ist dieser Key nicht gedacht. Die separate Zeile `admin webif` öffnest
+Image-Basis-URL und den Service-Key nach
+`builds/<machine>/conf/local-image-server.inc`, damit `/etc/image-version`
+standardmäßig `http://<host-ip>:33334/feed/...` und einen funktionierenden
+`image_service_key` enthält. Der Key wird einmal erzeugt, liegt in
+`image-server/service-key` (`make image-server-key` zeigt ihn, `KEY=…` setzt
+ihn) und wird vom lokalen Server als Opt-in-Local-Service-Key akzeptiert —
+derselbe Wert auf beiden Seiten, ohne manuelles Paaren. Der dokumentierte
+Beispielwert `LOCAL_SERVICE_KEY` und X-only-Platzhalter authentifizieren
+nie. Den Einstellungsblock aus `make image-server-url` nutzt du zur
+Kontrolle der effektiven Werte oder als manuellen Fallback für ältere
+Images. Die separate Zeile `admin webif` öffnest
 du im Browser; sie ist nur für Betreiber. Neutrino liest sie nicht und sie wird
 nicht für Flash-Downloads genutzt. Logs liegen unter `image-server/logs/`.
 

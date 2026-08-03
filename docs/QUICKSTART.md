@@ -281,20 +281,29 @@ checking older images or manual fallback settings:
 ```text
 image_update_url=http://<host-ip>:33334/feed/release/zgemmah7
 image_manifest_file=manifest.json
-image_service_key=LOCAL_SERVICE_KEY
+image_service_key=<generated key>
 ```
 
-`LOCAL_SERVICE_KEY` is only for local/private networks. New local builds keep
-the placeholder service key in the image; Neutrino ignores that placeholder and
-uses the local fallback for local/private URLs.
+The service key is generated once and stored in `image-server/service-key`
+(`make image-server-key` shows it, `make image-server-key KEY=…` sets your
+own). `make config` bakes the same value into new images and the local server
+accepts it as its opt-in local service key — both sides stay paired
+automatically. A `TUXBOX_SERVICE_KEY` you assign in your conf files wins; the
+builder follows it. The old example value `LOCAL_SERVICE_KEY` and X-only
+placeholders never authenticate: boxes flashed from older images send exactly
+those and get 403 — either set `image_service_key=<generated key>` in
+`/etc/image-version` on the box (Neutrino re-reads it whenever "Online
+update" starts) or rebuild after `make config`.
 
 Below the settings block the output also prints an
 `admin webif: http://<host-ip>:33334/admin/` line. That URL is opened in a
 browser and is meant for operators and diagnostics only — Neutrino does not
 read it and it is not used for manifest or ZIP downloads. The first login uses
-the default credentials `admin` / `admin` (you must then set a new password);
-the admin credentials live under `image-server/run/admin/`, delete
-`image-server/run/admin/users.json` to reset them. Server logs are below
+the user `admin` with the generated initial password from the server log (also
+stored in `initial-admin-password` next to `users.json` until the forced first
+change); `IMAGE_PORTAL_ADMIN_BOOTSTRAP_PASSWORD` pins it for local setups. The
+admin state lives under `image-server/run/admin/`; delete
+`image-server/run/admin/users.json` to reset it. Server logs are below
 `image-server/logs/`.
 
 Useful commands:

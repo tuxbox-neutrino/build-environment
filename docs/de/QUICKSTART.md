@@ -296,21 +296,32 @@ zur Kontrolle älterer Images oder für manuelle Fallback-Einstellungen:
 ```text
 image_update_url=http://<host-ip>:33334/feed/release/zgemmah7
 image_manifest_file=manifest.json
-image_service_key=LOCAL_SERVICE_KEY
+image_service_key=<generierter Key>
 ```
 
-`LOCAL_SERVICE_KEY` ist nur für lokale/private Netze gedacht. Neue lokale
-Builds behalten den Platzhalter-Service-Key im Image; Neutrino ignoriert
-diesen Platzhalter und nutzt für lokale/private URLs den lokalen Fallback.
+Der Service-Key wird einmal erzeugt und in `image-server/service-key`
+abgelegt (`make image-server-key` zeigt ihn, `make image-server-key KEY=…`
+setzt einen eigenen). `make config` bakt denselben Wert in neue Images und
+der lokale Server akzeptiert ihn als Opt-in-Local-Service-Key — beide Seiten
+bleiben automatisch gepaart. Eine `TUXBOX_SERVICE_KEY`-Zuweisung in deinen
+Conf-Dateien gewinnt; der Builder folgt ihr. Der alte Beispielwert
+`LOCAL_SERVICE_KEY` und X-only-Platzhalter authentifizieren nie: Boxen mit
+älteren Images senden genau diese Werte und bekommen 403 — entweder auf der
+Box `image_service_key=<generierter Key>` in `/etc/image-version` setzen
+(Neutrino liest die Datei bei jedem Start von „Online-Update" neu) oder nach
+`make config` neu bauen.
 
 Unterhalb des Einstellungsblocks gibt die Ausgabe zusätzlich eine Zeile
 `admin webif: http://<host-ip>:33334/admin/` aus. Diese URL öffnest du im
 Browser; sie ist nur für Betreiber und Diagnose gedacht — Neutrino liest sie
 nicht und sie wird nicht für Manifest- oder ZIP-Downloads genutzt. Der erste
-Login nutzt die Standard-Zugangsdaten `admin` / `admin` (danach musst du ein
-neues Passwort vergeben); die Admin-Zugangsdaten liegen unter
-`image-server/run/admin/`, lösche `image-server/run/admin/users.json` zum
-Zurücksetzen. Server-Logs liegen unter `image-server/logs/`.
+Login nutzt den Benutzer `admin` mit dem generierten Initialpasswort aus dem
+Server-Log (bis zum erzwungenen ersten Wechsel auch in
+`initial-admin-password` neben `users.json`);
+`IMAGE_PORTAL_ADMIN_BOOTSTRAP_PASSWORD` pinnt es für lokale Setups. Der
+Admin-Zustand liegt unter `image-server/run/admin/`; lösche
+`image-server/run/admin/users.json`, um den Bootstrap neu zu starten.
+Server-Logs liegen unter `image-server/logs/`.
 
 Nützliche Befehle:
 

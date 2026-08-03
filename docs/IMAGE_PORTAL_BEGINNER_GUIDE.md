@@ -65,40 +65,48 @@ Example output:
 ```text
 image_update_url=http://192.168.1.36:33334/feed/release/zgemmah7
 image_manifest_file=manifest.json
-image_service_key=LOCAL_SERVICE_KEY
+image_service_key=<generated key>
 
 manifest: http://192.168.1.36:33334/feed/release/zgemmah7/manifest.json
-curl: curl -H 'X-Tuxbox-Service-Key: LOCAL_SERVICE_KEY' '...'
+curl: curl -H 'X-Tuxbox-Service-Key: <generated key>' '...'
 logs: .../image-server/logs
 admin webif: http://192.168.1.36:33334/admin/
 ```
 
 For new local builds, `make config`/`make image` writes the same local image
-base URL into `builds/<machine>/conf/local-image-server.inc`, so the generated
-`/etc/image-version` already points to the local image server on port `33334`.
-Use the first block to verify that URL, or copy it as manual fallback when you
-test an older image.
+base URL **and the service key** into
+`builds/<machine>/conf/local-image-server.inc`, so the generated
+`/etc/image-version` already points to the local image server on port `33334`
+and carries a key the server accepts. Use the first block to verify those
+values, or copy them as manual fallback when you test an older image.
 
-`LOCAL_SERVICE_KEY` is only for local/private networks. New local builds keep
-the placeholder service key in the image; Neutrino ignores that placeholder and
-uses the local fallback for local/private URLs. Use proper service keys on
-public servers.
+The key is generated once and stored in `image-server/service-key`;
+`make image-server-key` prints it and `make image-server-key KEY=…` sets your
+own (a `TUXBOX_SERVICE_KEY` assignment in your conf files wins — the builder
+follows it). **Why was my key rejected?** The old example value
+`LOCAL_SERVICE_KEY` and X-only placeholders never authenticate; a box flashed
+from an older image sends exactly those. Either set
+`image_service_key=<generated key>` in `/etc/image-version` on the box
+(Neutrino re-reads the file whenever "Online update" starts) or rebuild after
+`make config`. Use proper service keys on public servers.
 
 The `admin webif` line is for operators only: open it in a browser to reach
 the server administration UI. Neutrino does not read this URL and it is not
 part of the Flash download path.
 
-On first login use the default credentials `admin` / `admin`; you are then
-forced to set a new password. The admin credentials are stored under
-`image-server/run/admin/`. Delete `image-server/run/admin/users.json` to reset
-back to the `admin` / `admin` default.
+On first login use the user `admin` with the generated initial password from
+the server log (also stored in `initial-admin-password` next to `users.json`
+until the forced first change); `IMAGE_PORTAL_ADMIN_BOOTSTRAP_PASSWORD` pins
+it for local setups. The admin state is stored under
+`image-server/run/admin/`. Delete `image-server/run/admin/users.json` to
+start the bootstrap again.
 
 ## 5. Quick Host Test
 
 Use the `curl` line printed by `make image-server-url`, for example:
 
 ```bash
-curl -H 'X-Tuxbox-Service-Key: LOCAL_SERVICE_KEY' \
+curl -H "X-Tuxbox-Service-Key: $(make -s image-server-key)" \
   'http://192.168.1.36:33334/feed/release/zgemmah7/manifest.json'
 ```
 
@@ -139,6 +147,7 @@ server. Local Online Flash tests should use `image-server-start`.
   and open TCP port `33334` in the firewall.
 - If `make image-server-start` says `missing manifest`, rebuild the image with
   the current builder state.
-- If the service returns `401`, `403`, or `429`, check the service key. For
-  local tests, use `LOCAL_SERVICE_KEY`.
+- If the service returns `401`, `403`, or `429`, check the service key:
+  `make image-server-key` prints the accepted value. `LOCAL_SERVICE_KEY` and
+  X-only placeholders are always rejected.
 - If downloads fail but the manifest works, check `image-server/logs/php-server.log`.

@@ -6,6 +6,35 @@ Build Tuxbox-Neutrino images with a Yocto/OpenEmbedded based workflow.
 This repository is the orchestrator around pinned layer submodules.
 Default commands are safe and reproducible.
 
+## I want to …
+
+| … | → |
+|---|---|
+| build an image for the first time | [Start here](#start-here-first-build) (4 commands) |
+| build and update day to day | [Daily workflow](#daily-workflow-safe-default) |
+| know which box I can build | [Choose a machine](#choose-a-machine) |
+| find the image I just built | [Where build outputs appear](#where-build-outputs-appear) |
+| supply my box with packages | [Local IPK feed](#local-ipk-feed) |
+| test Online Flash locally | [Local image server](#local-image-server-for-online-flash) |
+| go deeper | [Documentation map](#documentation-map) |
+
+<details>
+<summary><b>All sections</b></summary>
+
+- [Start Here (First Build)](#start-here-first-build)
+- [Daily Workflow (Safe Default)](#daily-workflow-safe-default)
+- [Choose A Machine](#choose-a-machine)
+- [Where Build Outputs Appear](#where-build-outputs-appear)
+- [Updating: Users Vs Developers](#updating-users-vs-developers) — [for users](#for-users-make-update-safe-default) · [for developers](#for-developers-make-update-upstream)
+- [Experimental: Toaster Frontend](#experimental-toaster-frontend)
+- [Local IPK Feed](#local-ipk-feed)
+- [Local Image Server For Online Flash](#local-image-server-for-online-flash)
+- [Image Portal Feed Workflow](#image-portal-feed-workflow)
+- [Documentation Map](#documentation-map)
+- [Need The German Version?](#need-the-german-version)
+
+</details>
+
 ## Start Here (First Build)
 
 If you want the fastest path, copy/paste this block:

@@ -6,6 +6,35 @@ Du baust hier Tuxbox-Neutrino-Images mit einem Yocto/OpenEmbedded-Workflow.
 Dieses Repository ist der Orchestrator um gepinnte Layer-Submodule.
 Die Standard-Kommandos sind sicher und reproduzierbar.
 
+## Ich will …
+
+| … | → |
+|---|---|
+| zum ersten Mal ein Image bauen | [Starte hier](#starte-hier-erster-build) (4 Befehle) |
+| täglich bauen und aktualisieren | [Täglicher Workflow](#täglicher-workflow-sicherer-standard) |
+| wissen, welche Box ich bauen kann | [Maschine auswählen](#maschine-auswählen) |
+| mein fertiges Image finden | [Wo die Build-Ausgaben liegen](#wo-die-build-ausgaben-liegen) |
+| meine Box mit Paketen versorgen | [Lokaler IPK-Feed](#lokaler-ipk-feed) |
+| Online Flash lokal testen | [Lokaler Image-Server](#lokaler-image-server-für-online-flash) |
+| tiefer einsteigen | [Doku-Wegweiser](#doku-wegweiser) |
+
+<details>
+<summary><b>Alle Abschnitte</b></summary>
+
+- [Starte Hier (Erster Build)](#starte-hier-erster-build)
+- [Täglicher Workflow (Sicherer Standard)](#täglicher-workflow-sicherer-standard)
+- [Maschine Auswählen](#maschine-auswählen)
+- [Wo Die Build-Ausgaben Liegen](#wo-die-build-ausgaben-liegen)
+- [Aktualisieren: Nutzer Vs Entwickler](#aktualisieren-nutzer-vs-entwickler) — [für Nutzer](#für-nutzer-make-update-sicherer-standard) · [für Entwickler](#für-entwickler-make-update-upstream)
+- [Experimentell: Toaster-Frontend](#experimentell-toaster-frontend)
+- [Lokaler IPK-Feed](#lokaler-ipk-feed)
+- [Lokaler Image-Server Für Online Flash](#lokaler-image-server-für-online-flash)
+- [Image-Portal Feed-Workflow](#image-portal-feed-workflow)
+- [Doku-Wegweiser](#doku-wegweiser)
+- [Englisch?](#englisch)
+
+</details>
+
 ## Starte Hier (Erster Build)
 
 Wenn du schnell zum ersten Ergebnis willst, kopiere diesen Block:

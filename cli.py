@@ -247,6 +247,16 @@ class TuxboxBuilder:
             conf_dir / 'bblayers.conf.user.inc',
         ]
 
+    def _effective_conf_sources(self, conf_dir: Path, machine: str) -> List[Path]:
+        """Every persistent conf file BitBake reads, in parse order.
+
+        The bblayers chain comes first because BitBake parses it before
+        local.conf, so an assignment there beats a generated weak default just
+        the same. That is not theory: TUXBOX_SERVICE_KEY is assigned there in
+        real setups, which is why _detect_service_key_assignment scans it too.
+        """
+        return self._machine_layer_sources(conf_dir) + self._machine_conf_sources(conf_dir, machine)
+
     def _discover_builddirs(self) -> List[Path]:
         """Return candidate build dirs ordered by preference."""
         builddirs: List[Path] = []
@@ -1363,10 +1373,82 @@ class TuxboxBuilder:
     def _format_conf_source(self, source: Optional[Path], conf_dir: Path) -> str:
         if not source:
             return "unknown"
-        try:
-            return str(source.relative_to(conf_dir))
-        except ValueError:
-            return str(source)
+        for base in (conf_dir, self.topdir):
+            try:
+                return str(source.relative_to(base))
+            except ValueError:
+                continue
+        return str(source)
+
+    # BitBake assignment strength. ??= is the weakest default, ?= overrides a
+    # ??= regardless of order, and = / := override both regardless of order.
+    _ASSIGN_STRENGTH = {"??=": 0, "?=": 1, ":=": 2, "=": 2}
+
+    def _effective_conf_assignment(self, conf_paths: List[Path],
+                                   key: str) -> Optional[Tuple[str, Path, str]]:
+        """Resolve KEY across an include chain the way BitBake would.
+
+        conf_paths must be in parse order. A hard assignment (= / :=) wins over
+        every weak one (?= / ??=) wherever it stands; among hard assignments the
+        last one wins, among weak ones the first. Returns (value, source,
+        operator), or None when KEY is never assigned in a form we can read.
+
+        Honest scope: this reads the persistent conf files only. Recipes,
+        classes and distro config assign the same variables (see
+        tuxbox-version.bbclass), and += / .= / :append are deliberately not
+        matched because we would have to guess. The result is what the conf
+        chain asks for, never proof of BitBake's final value.
+        """
+        pattern = re.compile(
+            rf"^\s*{re.escape(key)}\s*(\?\?=|\?=|:=|=)\s*(['\"])(.*?)\2\s*$"
+        )
+        best: Optional[Tuple[int, str, Path, str]] = None
+        for conf_path in conf_paths:
+            try:
+                text = conf_path.read_text(errors='ignore')
+            except OSError:
+                continue
+            for line in text.splitlines():
+                match = pattern.match(line)
+                if not match:
+                    continue
+                operator, _quote, value = match.groups()
+                strength = self._ASSIGN_STRENGTH[operator]
+                stronger = best is None or strength > best[0]
+                same_hard = best is not None and strength == best[0] == 2
+                if stronger or same_hard:
+                    best = (strength, value.strip(), conf_path, operator)
+        if best is None:
+            return None
+        return best[1], best[2], best[3]
+
+    def _summary_conf_value(self, key: str, conf_dir: Path, machine: str, *,
+                            enabled: bool, enable_var: str, url_env_var: str,
+                            generated_inc: Path) -> str:
+        """Render '<value> (<origin>)' for the build summary.
+
+        The origin names what has to be changed to change the value: the conf
+        file whose assignment won, or the environment variable steering our
+        generated default. Editing the generated include itself would be
+        pointless, the next config run overwrites it.
+        """
+        found = self._effective_conf_assignment(
+            self._effective_conf_sources(conf_dir, machine), key
+        )
+        if found is None:
+            if not enabled:
+                return f"not set in conf ({enable_var}=0)"
+            if not generated_inc.is_file():
+                return "not set in conf (config not generated)"
+            return "not set in conf"
+
+        value, source, _operator = found
+        if source == generated_inc and os.environ.get(url_env_var, "").strip():
+            return f"{value} ({url_env_var})"
+        origin = self._format_conf_source(source, conf_dir)
+        if not value:
+            return f'"" ({origin})'
+        return f"{value} ({origin})"
 
     def _resolve_topdir_in_path(self, value: Optional[str], build_dir: Optional[str]) -> Optional[str]:
         """Resolve TOPDIR placeholders to a concrete build directory path."""
@@ -3652,19 +3734,26 @@ class TuxboxBuilder:
         self.ensure_local_image_server_config(conf_dir, machine)
         self._validate_machinebuild(machine, machinebuild)
 
-        local_feed_value = (
-            self._local_feed_base_url(machine)
-            if self._local_feed_enabled()
-            else "disabled"
+        # Report what the conf chain resolves to, not the default this run
+        # offers: both generated includes assign weakly, so a hard assignment
+        # in builds/conf/local.conf (the override the docs recommend) wins and
+        # the offered default never reaches the build.
+        feed_summary = self._summary_conf_value(
+            'IPK_FEED_SERVER', conf_dir, machine,
+            enabled=self._local_feed_enabled(),
+            enable_var='LOCAL_FEED',
+            url_env_var='LOCAL_FEED_BASE_URL',
+            generated_inc=conf_dir / 'local-feed.inc',
         )
-        local_image_server_value = (
-            self._local_image_update_base_url()
-            if self._local_image_server_enabled()
-            else "disabled"
+        image_update_summary = self._summary_conf_value(
+            'TUXBOX_IMAGE_UPDATE_BASE_URL', conf_dir, machine,
+            enabled=self._local_image_server_enabled(),
+            enable_var='LOCAL_IMAGE_SERVER',
+            url_env_var='IMAGE_SERVER_BASE_URL',
+            generated_inc=conf_dir / 'local-image-server.inc',
         )
 
-        self.info("")
-        self._print_kv_table("Build summary", [
+        summary_rows = [
             ("Target", target),
             ("Machine", machine),
             ("MachineBuild", machinebuild or "-"),
@@ -3672,9 +3761,25 @@ class TuxboxBuilder:
             ("Distro type", distro_type),
             ("Build dir", str(self.builddir)),
             ("Config", config_status),
-            ("Local feed", local_feed_value),
-            ("Local image server", local_image_server_value),
-        ])
+            ("IPK feed server", feed_summary),
+            ("Image update base URL", image_update_summary),
+        ]
+
+        # A non-empty TUXBOX_IMAGE_UPDATE_URL makes the base URL irrelevant:
+        # tuxbox-version.bbclass composes the update URL only when the full URL
+        # is empty. Show it exactly then, stay quiet otherwise.
+        explicit_update_url = self._effective_conf_assignment(
+            self._effective_conf_sources(conf_dir, machine), 'TUXBOX_IMAGE_UPDATE_URL'
+        )
+        if explicit_update_url and explicit_update_url[0]:
+            url_value, url_source, _url_operator = explicit_update_url
+            summary_rows.append((
+                "Image update URL",
+                f"{url_value} ({self._format_conf_source(url_source, conf_dir)})",
+            ))
+
+        self.info("")
+        self._print_kv_table("Build summary", summary_rows)
 
         # Setup environment and invoke BitBake
         if args.devshell:

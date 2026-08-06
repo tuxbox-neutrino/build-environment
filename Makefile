@@ -1062,7 +1062,10 @@ sync:
 
 # Check out configured branch in each submodule so layer metadata shows
 # the real branch name instead of "HEAD" (detached).  The pinned commit
-# stays unchanged – we only move the local branch pointer to match.
+# stays unchanged – we only move the local branch pointer to match, and
+# only when that move is a fast-forward.  A branch that carries commits
+# the pin does not have is unpushed layer work: it keeps its position and
+# the submodule stays detached, so no commit is lost silently.
 .PHONY: checkout-branches
 checkout-branches:
 	@git submodule foreach --quiet ' \
@@ -1071,7 +1074,15 @@ checkout-branches:
 			pinned=$$(git rev-parse HEAD); \
 			current=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null); \
 			if [ "$$current" = "HEAD" ]; then \
-				git checkout -B "$$branch" "$$pinned" --quiet 2>/dev/null || true; \
+				if ! git rev-parse --verify --quiet "refs/heads/$$branch" >/dev/null; then \
+					git checkout -b "$$branch" "$$pinned" --quiet 2>/dev/null || true; \
+				elif git merge-base --is-ancestor "$$branch" "$$pinned" 2>/dev/null; then \
+					git checkout -B "$$branch" "$$pinned" --quiet 2>/dev/null || true; \
+				else \
+					ahead=$$(git rev-list --count "$$pinned..$$branch" 2>/dev/null); \
+					printf "$(COLOR_YELLOW)Keeping %s detached at the pin: branch %s is %s commit(s) ahead of it.$(COLOR_RESET)\n" "$$name" "$$branch" "$$ahead"; \
+					printf "$(COLOR_YELLOW)  Unpushed layer work is kept. Push %s and bump the pin, or: git -C %s checkout %s$(COLOR_RESET)\n" "$$branch" "$$name" "$$branch"; \
+				fi; \
 			fi; \
 		fi'
 

@@ -152,11 +152,13 @@ Submodul-Zustand, zum Beispiel eigenen Commits oder uncommitted Änderungen in
 einem Submodul. Bereinige oder übernimm diesen lokalen Zustand zuerst und
 starte dann `make update` erneut.
 
-Ein Submodul-Branch, der Commits enthält die der Pin nicht hat, wird nie
-verschoben. Das Submodul bleibt am gepinnten Commit detached, der Branch behält
-deine ungepushte Arbeit, und du bekommst einen entsprechenden Hinweis. Pushe die
-Layer-Änderung und bumpe den Pin, oder checke den Branch wieder aus mit
-`git -C <submodul> checkout <branch>`.
+Ein Submodul-Branch mit Commits, die es weder am Pin noch auf seinem Remote
+gibt, wird nie verschoben. Das Submodul bleibt am gepinnten Commit detached, der
+Branch behält deine ungepushte Arbeit, und du bekommst einen entsprechenden
+Hinweis. Pushe die Layer-Änderung und bumpe den Pin, oder checke den Branch
+wieder aus mit `git -C <submodul> checkout <branch>`. Ein Branch, der nur durch
+`make update-upstream` vorausgelaufen ist, ist bereits veröffentlicht und wird
+wie gewohnt zurückgesetzt.
 
 ### Für Entwickler: `make update-upstream`
 

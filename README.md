@@ -158,10 +158,12 @@ If `make update` still stops, the usual remaining reason is local state inside
 a submodule, for example local commits or uncommitted changes. Resolve that
 local divergence first, then run `make update` again.
 
-A submodule branch that carries commits the pin does not have is never moved.
-The submodule is left detached at the pinned commit and the branch keeps your
-unpushed work, with a note telling you so. Push the layer and bump the pin, or
-check the branch out again with `git -C <submodule> checkout <branch>`.
+A submodule branch holding commits that exist neither at the pin nor on its
+remote is never moved. The submodule is left detached at the pinned commit and
+the branch keeps your unpushed work, with a note telling you so. Push the layer
+and bump the pin, or check the branch out again with
+`git -C <submodule> checkout <branch>`. A branch that merely ran ahead through
+`make update-upstream` is already published and is moved back as usual.
 
 ### For developers: `make update-upstream`
 

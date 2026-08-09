@@ -112,6 +112,12 @@ Notes:
 In QEMU images, Webmin listens on port `10001` to avoid conflicts with a host
 Webmin instance.
 
+Webmin ships disabled, so enable it inside the guest first:
+
+```bash
+systemctl enable --now webmin
+```
+
 - In `bridge` mode: open `http://<guest-ip>:10001` directly.
 - In `slirp` mode: use SSH tunneling:
 

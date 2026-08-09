@@ -422,6 +422,36 @@ bitbake hdf-toolbox-image -c cleanall
 make image MACHINE=hdfastboot8gb MACHINEBUILD=hdfastboot8gb
 ```
 
+### Webmin on the box is not reachable (port 10000)
+
+Webmin is part of the image, but it ships **disabled on purpose**: the recipe
+sets `SYSTEMD_AUTO_ENABLE = "disable"`, which generates
+`/lib/systemd/system-preset/98-webmin.preset` with `disable webmin.service`.
+Installing the package therefore neither starts the service nor enables it for
+the next boot, and port 10000 refuses connections.
+
+Enable it on the box:
+
+```bash
+systemctl enable --now webmin
+netstat -tlnp | grep 10000
+```
+
+Then open `http://<box-ip>:10000` (QEMU images use port `10001`, see
+[QEMU](QEMU.md#webmin)).
+
+The image ships the default login `admin` / `password`, and Webmin serves plain
+HTTP (`ssl=0`). Change the password right after enabling the service:
+
+```bash
+/usr/libexec/webmin/changepass.pl /etc/webmin admin '<new-password>'
+systemctl restart webmin
+```
+
+`systemctl enable` stores its symlink on the rootfs: an online update via opkg
+keeps it, a full image flash replaces the rootfs and you have to enable Webmin
+again.
+
 ## 14. Where To Go Next
 
 - [Layers and Submodules](SUBMODULES.md)

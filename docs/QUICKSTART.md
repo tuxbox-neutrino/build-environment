@@ -1,5 +1,7 @@
 # Tuxbox-OS Quickstart (Detailed)
 
+Optional WebDAV support is available as a separate package: [davfs2 setup](DAVFS2.md).
+
 Deutsch: [de/QUICKSTART.md](de/QUICKSTART.md)
 
 This guide is for your first successful build with safe defaults.

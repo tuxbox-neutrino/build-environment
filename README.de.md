@@ -1,5 +1,7 @@
 # Tuxbox-OS Builder
 
+Optionale WebDAV-Mounts: [davfs2 einrichten und migrieren](docs/de/DAVFS2.md).
+
 English: [README.md](README.md)
 
 Du baust hier Tuxbox-Neutrino-Images mit einem Yocto/OpenEmbedded-Workflow.

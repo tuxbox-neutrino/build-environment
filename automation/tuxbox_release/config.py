@@ -52,8 +52,13 @@ def _parse_machines(raw: str) -> tuple[Machine, ...]:
     return tuple(machines)
 
 
-def load_config(path: Path) -> Config:
-    """Read the environment file and refuse anything unsafe."""
+def load_config(path: Path, require_secrets: bool = True) -> Config:
+    """Read the environment file and refuse anything unsafe.
+
+    require_secrets=False is for a dry run, which walks every phase without
+    building or uploading and therefore needs no token - useful before the
+    bot account exists.
+    """
     mode = stat.S_IMODE(path.stat().st_mode)
     if mode & (stat.S_IROTH | stat.S_IWOTH):
         raise PermissionError(
@@ -72,9 +77,10 @@ def load_config(path: Path) -> Config:
     for key in ("TUXBOX_WORK_ROOT", "TUXBOX_MACHINES", "TUXBOX_REPO", "GH_TOKEN"):
         if not values.get(key):
             raise ValueError(f"{key} is missing from {path}")
-    for key in ("GH_TOKEN", "TUXBOX_MAIL_TO"):
-        if values.get(key, "").startswith("CHANGEME"):
-            raise ValueError(f"{key} still holds its placeholder value")
+    if require_secrets:
+        for key in ("GH_TOKEN", "TUXBOX_MAIL_TO"):
+            if values.get(key, "").startswith("CHANGEME"):
+                raise ValueError(f"{key} still holds its placeholder value")
 
     return Config(
         work_root=Path(values["TUXBOX_WORK_ROOT"]),

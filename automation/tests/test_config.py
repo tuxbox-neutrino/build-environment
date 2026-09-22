@@ -49,6 +49,13 @@ def test_rejects_placeholder_token(tmp_path):
         load_config(write_env(tmp_path, GH_TOKEN="CHANGEME"))
 
 
+def test_dry_run_may_start_without_a_real_token(tmp_path):
+    # A dry run builds nothing and uploads nothing, so it must not be
+    # blocked before the bot account exists.
+    cfg = load_config(write_env(tmp_path, GH_TOKEN="CHANGEME"), require_secrets=False)
+    assert cfg.token == "CHANGEME"
+
+
 def test_checkout_is_derived_from_work_root(tmp_path):
     cfg = load_config(write_env(tmp_path))
     assert cfg.checkout == Path("/mnt/C/tuxbox-build/build-environment")

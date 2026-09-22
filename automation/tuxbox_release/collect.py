@@ -21,6 +21,8 @@ class MachineArtifacts:
     image_version: str
     assets: list[Path] = field(default_factory=list)
     manifest: dict = field(default_factory=dict)
+    #: Yocto image manifest ("<image>.tuxbox.manifest") - the package list.
+    package_manifest: Path | None = None
 
 
 def _to_host_path(cfg: Config, machine: Machine, container_path: str) -> Path:
@@ -117,11 +119,20 @@ def collect_machine(cfg: Config, machine: Machine, dest: Path) -> MachineArtifac
         copied.append(target)
     shutil.copy2(Path(info["manifest"]), dest / f"manifest-{machine.machine}.json")
 
+    # The Yocto image manifest carries the package list the release notes
+    # diff against. It is written by every build, unlike buildhistory.
+    package_manifest = None
+    source = deploy_images / f"{manifest['image_name']}.tuxbox.manifest"
+    if source.exists():
+        package_manifest = dest / source.name
+        shutil.copy2(source, package_manifest)
+
     return MachineArtifacts(
         machine=machine.machine,
         image_version=manifest["image_version"],
         assets=copied,
         manifest=manifest,
+        package_manifest=package_manifest,
     )
 
 

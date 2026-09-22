@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Entry point for the monthly Tuxbox-OS image build."""
+import argparse
+import sys
+from datetime import date
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from tuxbox_release.config import load_config
+from tuxbox_release.notify import deadman_message, send_mail
+from tuxbox_release.runner import run
+from tuxbox_release.state import last_state
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=("run", "status", "deadman"))
+    parser.add_argument("--env", default="/etc/tuxbox-release.env")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="walk every phase without building or uploading")
+    args = parser.parse_args()
+
+    # Only a real run needs the token and the mail address. status and
+    # deadman must stay usable before the bot account exists.
+    needs_secrets = args.command == "run" and not args.dry_run
+    cfg = load_config(Path(args.env), require_secrets=needs_secrets)
+
+    if args.command == "run":
+        return run(cfg, date.today(), dry_run=args.dry_run)
+
+    if args.command == "status":
+        state = last_state(cfg.state_dir)
+        if state is None:
+            print("noch kein Lauf")
+            return 1
+        print(f"Lauf {state['build_id']}")
+        for phase in state.get("phases", []):
+            print(f"  {phase['phase']:<10} {phase['status']}")
+        for machine, info in sorted(state.get("machines", {}).items()):
+            print(f"  {machine:<10} {info['status']}")
+        return 0
+
+    message = deadman_message(last_state(cfg.state_dir), date.today())
+    if message:
+        send_mail(cfg, "buildhost: Monatsbuild fehlt", message)
+        print(message)
+        return 1
+    print("Monatsbuild ist aktuell")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

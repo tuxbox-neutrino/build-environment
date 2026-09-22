@@ -19,6 +19,9 @@ def main() -> int:
     parser.add_argument("--env", default="/etc/tuxbox-release.env")
     parser.add_argument("--dry-run", action="store_true",
                         help="walk every phase without building or uploading")
+    parser.add_argument("--keep-draft", action="store_true",
+                        help="build and upload for real, but stop at the "
+                             "draft instead of publishing")
     args = parser.parse_args()
 
     # Only a real run needs the token and the mail address. status and
@@ -27,7 +30,8 @@ def main() -> int:
     cfg = load_config(Path(args.env), require_secrets=needs_secrets)
 
     if args.command == "run":
-        return run(cfg, date.today(), dry_run=args.dry_run)
+        return run(cfg, date.today(), dry_run=args.dry_run,
+                   keep_draft=args.keep_draft)
 
     if args.command == "status":
         state = last_state(cfg.state_dir)

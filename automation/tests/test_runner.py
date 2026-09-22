@@ -1,5 +1,5 @@
 from pathlib import Path
-from tuxbox_release.runner import preflight, PHASES, MIN_FREE_GB
+from tuxbox_release.runner import should_power_off, preflight, PHASES, MIN_FREE_GB
 from tuxbox_release.config import Config, Machine
 
 
@@ -55,3 +55,17 @@ def test_preflight_refuses_to_start_without_space(tmp_path, monkeypatch):
 
 def test_free_space_threshold_is_stated_not_implied():
     assert MIN_FREE_GB >= 60
+
+
+def test_a_real_run_powers_the_host_off():
+    assert should_power_off(dry_run=False, keep_draft=False) is True
+
+
+def test_a_dry_run_does_not_power_the_host_off():
+    assert should_power_off(dry_run=True, keep_draft=False) is False
+
+
+def test_a_rehearsal_does_not_power_the_host_off():
+    # A rehearsal is run by hand, usually while someone is still working on
+    # the host. Powering it off underneath them would be a rude surprise.
+    assert should_power_off(dry_run=False, keep_draft=True) is False

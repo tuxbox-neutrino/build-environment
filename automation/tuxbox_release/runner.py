@@ -30,6 +30,15 @@ MIN_FREE_GB = 60
 SHUTDOWN_MARKER = Path("/tmp/.shutdown")
 
 
+def should_power_off(dry_run: bool, keep_draft: bool) -> bool:
+    """Only a real, publishing run has earned the shutdown.
+
+    A rehearsal is started by hand, usually while someone is still working
+    on the host.
+    """
+    return not dry_run and not keep_draft
+
+
 def preflight(cfg: Config) -> list[str]:
     """Everything that must hold before a run may start."""
     problems = []
@@ -61,7 +70,8 @@ def _update(cfg: Config, run_dir: Path) -> str:
                           check=False).stdout.strip()
 
 
-def run(cfg: Config, today: date, dry_run: bool = False) -> int:
+def run(cfg: Config, today: date, dry_run: bool = False,
+        keep_draft: bool = False) -> int:
     """One complete monthly run. Returns a process exit code."""
     build_id = new_build_id()
     with acquire_lock(cfg.state_dir):
@@ -160,7 +170,8 @@ def run(cfg: Config, today: date, dry_run: bool = False) -> int:
         tag = release_tag(version, today) if results else f"dry-{today:%Y.%m}"
         notes = render_notes(results, tag, diffs,
                              failed=[m.machine for m in failed])
-        url = publish(cfg, tag, notes, assets, commit, dry_run=dry_run)
+        url = publish(cfg, tag, notes, assets, commit, dry_run=dry_run,
+                      keep_draft=keep_draft)
         if results and not dry_run:
             archive_release(cfg, build_id, artefact_dir)
         state.finish("publish", "ok", tag=tag, url=url)
@@ -170,7 +181,7 @@ def run(cfg: Config, today: date, dry_run: bool = False) -> int:
                    f"Gebaut: {[m.machine for m in built]}\n"
                    f"Fehlgeschlagen: {[m.machine for m in failed]}\n")
         send_mail(cfg, f"buildhost: Monatsbuild {tag}", summary)
-        if not dry_run:
+        if should_power_off(dry_run, keep_draft):
             SHUTDOWN_MARKER.touch()
         state.finish("finish", "ok")
         return 0 if not failed else 2

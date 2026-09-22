@@ -67,8 +67,15 @@ def verify_uploads(cfg: Config, tag: str, assets: list[Path]) -> None:
 
 
 def publish(cfg: Config, tag: str, notes: str, assets: list[Path],
-            commit: str, dry_run: bool = False) -> str:
-    """Draft, upload, verify, then publish. In that order, deliberately."""
+            commit: str, dry_run: bool = False,
+            keep_draft: bool = False) -> str:
+    """Draft, upload, verify, then publish. In that order, deliberately.
+
+    keep_draft stops after the verified upload. A draft is invisible to
+    anyone without write access, so a rehearsal can use the production
+    repository without anyone seeing a release that is not meant to exist.
+    Unlike dry_run it exercises the upload, which is the part that breaks.
+    """
     notes_file = cfg.state_dir / f"notes-{tag}.md"
     notes_file.parent.mkdir(parents=True, exist_ok=True)
     notes_file.write_text(notes, encoding="utf-8")
@@ -79,6 +86,8 @@ def publish(cfg: Config, tag: str, notes: str, assets: list[Path],
     _run(gh_create_draft_command(cfg.repo, tag, str(notes_file), commit), cfg)
     _run(gh_upload_command(cfg.repo, tag, [str(a) for a in assets]), cfg)
     verify_uploads(cfg, tag, assets)
+    if keep_draft:
+        return f"(draft) {tag} with {len(assets)} verified assets, not published"
     _run(["gh", "release", "edit", tag, "--repo", cfg.repo, "--draft=false"], cfg)
     return _run(["gh", "release", "view", tag, "--repo", cfg.repo,
                  "--json", "url", "--jq", ".url"], cfg)

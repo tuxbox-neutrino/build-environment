@@ -68,6 +68,7 @@ def test_keep_draft_stops_before_publishing(tmp_path, monkeypatch):
     asset.write_bytes(b"payload")
     calls: list = []
     monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
 
     publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
             [asset], "277d6b8", keep_draft=True)
@@ -83,6 +84,7 @@ def test_keep_draft_still_uploads_and_verifies(tmp_path, monkeypatch):
     asset.write_bytes(b"payload")
     calls: list = []
     monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
 
     publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
             [asset], "277d6b8", keep_draft=True)
@@ -98,9 +100,62 @@ def test_a_normal_run_still_publishes(tmp_path, monkeypatch):
     asset.write_bytes(b"payload")
     calls: list = []
     monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
 
     publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
             [asset], "277d6b8")
 
     assert any("--draft=false" in cmd for cmd in calls), \
         f"the release was never published: {calls}"
+
+
+
+def test_a_rerun_does_not_trip_over_its_own_release(tmp_path, monkeypatch):
+    # After a partial failure (hd60 and h7 died on 2026-09-23, hd51 went
+    # through and was published) the obvious next step is to build the rest
+    # and upload into the same release. gh release create refuses a tag that
+    # already exists, so the rerun would fail in publish for no good reason.
+    asset = tmp_path / "image.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: True)
+
+    publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8", keep_draft=True)
+
+    assert not any(cmd[:3] == ["gh", "release", "create"] for cmd in calls), \
+        f"the existing release was created a second time: {calls}"
+    assert any(cmd[:3] == ["gh", "release", "upload"] for cmd in calls), \
+        f"the rerun uploaded nothing: {calls}"
+
+
+def test_a_rerun_refreshes_the_notes(tmp_path, monkeypatch):
+    # The rerun's notes list more machines than the first attempt's did.
+    # Leaving the old ones would describe a release that no longer matches
+    # its own assets.
+    asset = tmp_path / "image.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: True)
+
+    publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8", keep_draft=True)
+
+    assert any(cmd[:3] == ["gh", "release", "edit"] and "--notes-file" in cmd
+               for cmd in calls), f"the notes were never refreshed: {calls}"
+
+
+def test_a_first_run_still_creates_the_release(tmp_path, monkeypatch):
+    asset = tmp_path / "image.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
+
+    publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8", keep_draft=True)
+
+    assert any(cmd[:3] == ["gh", "release", "create"] for cmd in calls), \
+        f"no release was created: {calls}"

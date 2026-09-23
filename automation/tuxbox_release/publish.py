@@ -37,6 +37,21 @@ def gh_upload_command(repo: str, tag: str, assets: list[str]) -> list[str]:
     return ["gh", "release", "upload", tag, *assets, "--repo", repo, "--clobber"]
 
 
+def release_exists(cfg: Config, tag: str) -> bool:
+    """True when the repository already carries a release for this tag.
+
+    A month can need a second run - hd60 and h7 failed on 2026-09-23 while
+    hd51 was published - and gh release create refuses a tag it already
+    knows. Asking first turns the rerun into an ordinary upload.
+    """
+    env = dict(os.environ, GH_TOKEN=cfg.token)
+    result = subprocess.run(["gh", "release", "view", tag, "--repo", cfg.repo,
+                             "--json", "id"],
+                            capture_output=True, text=True, env=env,
+                            check=False)
+    return result.returncode == 0
+
+
 def _run(cmd: list[str], cfg: Config) -> str:
     env = dict(os.environ, GH_TOKEN=cfg.token)
     result = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
@@ -83,7 +98,13 @@ def publish(cfg: Config, tag: str, notes: str, assets: list[Path],
     if dry_run:
         return f"(dry-run) would publish {tag} with {len(assets)} assets"
 
-    _run(gh_create_draft_command(cfg.repo, tag, str(notes_file), commit), cfg)
+    if release_exists(cfg, tag):
+        # Rerun: keep the release, but refresh the notes - they now describe
+        # more machines than the first attempt's did.
+        _run(["gh", "release", "edit", tag, "--repo", cfg.repo,
+              "--notes-file", str(notes_file)], cfg)
+    else:
+        _run(gh_create_draft_command(cfg.repo, tag, str(notes_file), commit), cfg)
     _run(gh_upload_command(cfg.repo, tag, [str(a) for a in assets]), cfg)
     verify_uploads(cfg, tag, assets)
     if keep_draft:

@@ -2,7 +2,8 @@ import subprocess
 from pathlib import Path
 
 from tuxbox_release.build import (container_command, cleanup_tmpdir,
-                                  build_machine)
+                                  build_machine, mirror_is_usable,
+                                  mounted_types)
 from tuxbox_release.config import Config, Machine
 
 
@@ -53,14 +54,19 @@ def test_no_token_is_passed_into_the_container():
 def test_mirrors_are_mounted_at_the_same_path_as_outside(monkeypatch):
     # local.conf.user.inc names them by absolute path; a different path
     # inside the container would turn every mirror hit into a silent miss.
-    monkeypatch.setattr("tuxbox_release.build.Path.is_dir", lambda self: True)
+    monkeypatch.setattr("tuxbox_release.build.mirror_is_usable",
+                        lambda path: True)
     joined = " ".join(container_command(make_config(), Machine("hd51", "mutant51")))
     assert "/mnt/sstate-mirror:/mnt/sstate-mirror:ro" in joined
     assert "/mnt/downloads-mirror:/mnt/downloads-mirror:ro" in joined
 
 
 def test_absent_mirrors_are_simply_left_out(monkeypatch):
-    monkeypatch.setattr("tuxbox_release.build.Path.is_dir", lambda self: False)
+    # h7 died on 2026-09-23 with "error mounting /mnt/downloads-mirror ... no
+    # such device", because red was off and the automount trigger was all
+    # that was left. A missing mirror must cost cache hits, not the build.
+    monkeypatch.setattr("tuxbox_release.build.mirror_is_usable",
+                        lambda path: False)
     joined = " ".join(container_command(make_config(), Machine("hd51", "mutant51")))
     assert "sstate-mirror" not in joined
 
@@ -111,3 +117,38 @@ def test_the_mount_parent_exists_before_the_container_starts(tmp_path, monkeypat
 
     assert seen["exists"], \
         "builds/hd60 did not exist, so docker would create it as root"
+
+
+
+def test_a_directory_that_is_not_mounted_is_not_usable(tmp_path):
+    # The mirrors arrive over NFS with x-systemd.automount, so the directory
+    # exists even while nothing is mounted on it. Path.is_dir() cannot tell
+    # the difference; os.path.ismount can.
+    plain = tmp_path / "looks-like-a-mirror"
+    plain.mkdir()
+    assert mirror_is_usable(plain) is False
+
+
+def test_a_missing_directory_is_not_usable(tmp_path):
+    assert mirror_is_usable(tmp_path / "gone") is False
+
+
+PROC_MOUNTS = """\
+/dev/sda1 /mnt/C ext4 rw,noatime 0 0
+systemd-1 /mnt/downloads-mirror autofs rw,relatime,fd=54 0 0
+mirror-host:/srv/export/sstate-cache /mnt/sstate-mirror nfs4 ro,relatime 0 0
+"""
+
+
+def test_an_idle_automount_trigger_does_not_count_as_mounted():
+    # While the server is down, /proc/mounts still lists the trigger - with
+    # fstype autofs. Docker cannot bind-mount that: "no such device".
+    assert mounted_types(PROC_MOUNTS).get("/mnt/downloads-mirror") == "autofs"
+
+
+def test_a_real_nfs_mount_is_reported_with_its_type():
+    assert mounted_types(PROC_MOUNTS).get("/mnt/sstate-mirror") == "nfs4"
+
+
+def test_an_unlisted_path_is_absent():
+    assert mounted_types(PROC_MOUNTS).get("/mnt/nowhere") is None

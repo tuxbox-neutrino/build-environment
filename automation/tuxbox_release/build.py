@@ -13,6 +13,38 @@ from .config import Config, Machine
 MIRRORS = ("/mnt/sstate-mirror", "/mnt/downloads-mirror")
 
 
+def mounted_types(proc_mounts: str) -> dict[str, str]:
+    """Mount point -> filesystem type, as /proc/mounts spells it."""
+    types = {}
+    for line in proc_mounts.splitlines():
+        fields = line.split(" ")
+        if len(fields) >= 3:
+            types[fields[1]] = fields[2]
+    return types
+
+
+def mirror_is_usable(path: Path) -> bool:
+    """True only when the mirror is really mounted right now.
+
+    Two traps sit here, and h7 walked into both on 2026-09-23 while red was
+    switched off. The mirrors arrive over NFS with x-systemd.automount, so
+    the directory exists whether or not anything is mounted - Path.is_dir()
+    says yes either way, docker then refuses the bind mount with "no such
+    device" and takes the whole build with it. And an idle trigger whose
+    server is gone still appears in /proc/mounts, just with fstype autofs.
+
+    Reading /proc/mounts answers both without ever touching the directory.
+    That last part matters: any stat on a dead trigger blocks for as long
+    as the mount attempt runs, which was minutes, not the configured ten
+    seconds.
+    """
+    try:
+        proc_mounts = Path("/proc/mounts").read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return mounted_types(proc_mounts).get(str(path)) not in (None, "autofs")
+
+
 def container_command(cfg: Config, machine: Machine) -> list[str]:
     """Assemble the docker invocation for one machine.
 
@@ -46,7 +78,7 @@ def container_command(cfg: Config, machine: Machine) -> list[str]:
     # mirror is a cache miss, but a bind mount of a missing path would make
     # docker refuse to start at all.
     for mirror in MIRRORS:
-        if Path(mirror).is_dir():
+        if mirror_is_usable(Path(mirror)):
             mounts.append(f"{mirror}:{mirror}:ro")
 
     command = ["docker", "run", "--rm"]

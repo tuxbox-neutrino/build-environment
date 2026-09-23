@@ -47,3 +47,24 @@ def test_lock_is_released_after_exception(tmp_path):
             1 / 0
     with acquire_lock(tmp_path):
         pass
+
+
+def test_fail_running_marks_the_phase_that_was_still_open(tmp_path):
+    # The rehearsal on 2026-09-22 left "publish: running" behind forever
+    # because nothing ever closed the phase after the exception.
+    state = BuildState(tmp_path, "20260922T060000Z")
+    state.start("publish")
+    state.fail_running("gh release create failed: No commit found for SHA")
+    entry = state.read()["phases"][-1]
+    assert entry["phase"] == "publish"
+    assert entry["status"] == "failed"
+    assert entry["ended"] is not None
+    assert "No commit found" in entry["error"]
+
+
+def test_fail_running_leaves_a_finished_phase_alone(tmp_path):
+    state = BuildState(tmp_path, "20260922T060000Z")
+    state.start("publish")
+    state.finish("publish", "ok")
+    state.fail_running("boom")
+    assert [p["status"] for p in state.read()["phases"]] == ["ok"]

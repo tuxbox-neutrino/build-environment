@@ -65,6 +65,20 @@ class BuildState:
                                    "started": _now(), "ended": _now(), **extra})
         self._write(data)
 
+    def fail_running(self, error: str) -> None:
+        """Close whatever phase was still open, as failed.
+
+        A run that dies inside a phase otherwise leaves a state file
+        claiming it is still running - which is what the dead man's
+        switch and every later reader see.
+        """
+        data = self._read_raw()
+        for entry in reversed(data["phases"]):
+            if entry["status"] == "running":
+                entry.update(status="failed", ended=_now(), error=error)
+                self._write(data)
+                return
+
     def machine_result(self, machine: str, status: str, **extra) -> None:
         data = self._read_raw()
         data["machines"][machine] = {"status": status, "recorded": _now(), **extra}

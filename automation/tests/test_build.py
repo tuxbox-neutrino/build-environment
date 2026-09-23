@@ -1,5 +1,8 @@
+import subprocess
 from pathlib import Path
-from tuxbox_release.build import container_command, cleanup_tmpdir
+
+from tuxbox_release.build import (container_command, cleanup_tmpdir,
+                                  build_machine)
 from tuxbox_release.config import Config, Machine
 
 
@@ -76,3 +79,35 @@ def test_cleanup_is_harmless_when_nothing_is_there(tmp_path):
     cfg = make_config()
     object.__setattr__(cfg, "tmp_root", tmp_path)
     cleanup_tmpdir(cfg, Machine("hd51", "mutant51"))
+
+
+
+def _local_config(tmp_path: Path) -> Config:
+    """Same shape as make_config, but rooted in tmp_path so it may be written."""
+    return Config(
+        work_root=tmp_path / "work", tmp_root=tmp_path / "ssd",
+        archive_root=tmp_path / "archive", image="tuxbox-build:ci",
+        machines=(Machine("hd51", "mutant51"),),
+        repo="tuxbox-neutrino/build-environment", channel="release",
+        mail_to="ops@example.org", token="secret",
+    )
+
+
+def test_the_mount_parent_exists_before_the_container_starts(tmp_path, monkeypatch):
+    # Docker creates a missing bind-mount target itself, and the daemon runs
+    # as root - so builds/<machine> ends up root-owned and cli.py cannot
+    # create builds/<machine>/conf inside it. That is how hd60 and h7 died on
+    # 2026-09-23 with EACCES, while hd51 went through: its directory already
+    # existed from an earlier build.
+    cfg = _local_config(tmp_path)
+    seen = {}
+
+    def fake_run(cmd, **kwargs):
+        seen["exists"] = (cfg.checkout / "builds" / "hd60").is_dir()
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr("tuxbox_release.build.subprocess.run", fake_run)
+    build_machine(cfg, Machine("hd60", "ax60"), tmp_path / "runs" / "hd60.log")
+
+    assert seen["exists"], \
+        "builds/hd60 did not exist, so docker would create it as root"

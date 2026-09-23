@@ -59,6 +59,10 @@ def container_command(cfg: Config, machine: Machine) -> list[str]:
 def build_machine(cfg: Config, machine: Machine, log_path: Path) -> int:
     """Build one machine, streaming everything into log_path."""
     (cfg.tmp_root / f"tmp-{machine.machine}").mkdir(parents=True, exist_ok=True)
+    # Create the bind-mount target ourselves. Docker would create a missing
+    # one too, but the daemon runs as root - and cli.py, running as the build
+    # user, then cannot create builds/<machine>/conf next to the mount.
+    (cfg.checkout / "builds" / machine.machine).mkdir(parents=True, exist_ok=True)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("wb") as log:
         process = subprocess.run(

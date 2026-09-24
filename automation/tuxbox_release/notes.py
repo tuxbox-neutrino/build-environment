@@ -1,6 +1,10 @@
 """Release notes built from the image manifest."""
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+
 from pathlib import Path
 
 from .collect import MachineArtifacts
@@ -63,9 +67,53 @@ def package_diff(previous: dict[str, str], current: dict[str, str]) -> dict:
     return {"changed": changed, "added": added, "removed": removed}
 
 
+def fetch_appimage(repo: str, token: str) -> dict | None:
+    """Ask another repository for its newest AppImage release.
+
+    Everything here is best effort. The reference is a courtesy to the
+    reader, not part of the release, so no failure of this lookup may
+    reach the caller.
+    """
+    if not repo:
+        return None
+    try:
+        result = subprocess.run(
+            ["gh", "release", "view", "--repo", repo,
+             "--json", "tagName,url,publishedAt,assets"],
+            capture_output=True, text=True, check=False,
+            env=dict(os.environ, GH_TOKEN=token))
+    except OSError:
+        return None
+    return parse_appimage_release(result.stdout)
+
+
+def parse_appimage_release(raw: str) -> dict | None:
+    """Pick the AppImage out of another repository's release, or None.
+
+    The PC build lives in its own repository and follows its own schedule,
+    so the monthly release only points at it. Anything unparseable, empty
+    or without an AppImage asset yields None: a side note must never be
+    able to fail the build.
+    """
+    try:
+        data = json.loads(raw)
+        assets = [a["name"] for a in data.get("assets", [])
+                  if a.get("name", "").endswith(".AppImage")]
+        if not assets:
+            return None
+        return {
+            "asset": assets[0],
+            "url": data["url"],
+            "published": str(data.get("publishedAt", ""))[:10],
+        }
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
 def render_notes(results: list[MachineArtifacts], tag: str,
                  package_diffs: dict[str, dict],
-                 failed: list[str] | None = None) -> str:
+                 failed: list[str] | None = None,
+                 appimage: dict | None = None) -> str:
     """Human-readable notes: what was built, from what, what changed."""
     failed = failed or []
     first = results[0].manifest if results else {}
@@ -86,6 +134,18 @@ def render_notes(results: list[MachineArtifacts], tag: str,
     if failed:
         lines += ["", "## Nicht gebaut", ""]
         lines += [f"- **{machine}** — Build fehlgeschlagen, siehe Log" for machine in failed]
+
+    if appimage:
+        # A separate build from a separate repository: linked, not copied,
+        # so nobody mistakes it for part of this month's box images.
+        lines += [
+            "", "## Neutrino fuer den PC", "",
+            f"Die AppImage-Variante laeuft auf dem Rechner statt auf der Box "
+            f"und wird eigenstaendig gebaut — **anderer Quellstand als die "
+            f"Images oben**, zuletzt am {appimage['published']}.",
+            "",
+            f"- [{appimage['asset']}]({appimage['url']})",
+        ]
 
     lines += ["", "## Pruefsummen", "",
               "`sha256sum -c SHA256SUMS` nach dem Herunterladen.", ""]

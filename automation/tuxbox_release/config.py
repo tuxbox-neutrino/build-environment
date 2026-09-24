@@ -25,6 +25,7 @@ class Config:
     mail_to: str
     token: str
     mirrors: tuple[str, ...] = ()
+    appimage_repo: str = ""
 
     @property
     def checkout(self) -> Path:
@@ -104,4 +105,5 @@ def load_config(path: Path, require_secrets: bool = True) -> Config:
         mail_to=values.get("TUXBOX_MAIL_TO", ""),
         token=values["GH_TOKEN"],
         mirrors=_parse_mirrors(values.get("TUXBOX_MIRRORS", "")),
+        appimage_repo=values.get("TUXBOX_APPIMAGE_REPO", ""),
     )

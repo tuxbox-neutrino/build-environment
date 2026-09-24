@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import shutil
+import signal
 import subprocess
 import traceback
 from datetime import date
@@ -43,6 +44,23 @@ def commit_is_published(checkout: Path, commit: str) -> bool:
                             cwd=checkout, capture_output=True, text=True,
                             check=False)
     return bool(result.stdout.strip())
+
+
+def install_signal_handlers() -> None:
+    """Turn SIGTERM and SIGINT into an ordinary exception.
+
+    Python's default for SIGTERM is to die on the spot: no finally, no
+    context manager exit, so acquire_lock never removes run.lock. The
+    stale file then blocks idle-poweroff-check forever, because it tests
+    for the file rather than for the lock. Raising instead lets the normal
+    teardown run and the phase be recorded as failed.
+    """
+    def raise_on_signal(signum, _frame):
+        raise RuntimeError(
+            f"{signal.Signals(signum).name} erhalten, Lauf abgebrochen")
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, raise_on_signal)
 
 
 def should_power_off(dry_run: bool, keep_draft: bool) -> bool:

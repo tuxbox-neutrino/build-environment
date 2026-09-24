@@ -1,9 +1,11 @@
 import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 
 from tuxbox_release.runner import (should_power_off, preflight, PHASES,
-                                   MIN_FREE_GB, commit_is_published, run)
+                                   MIN_FREE_GB, commit_is_published, run,
+                                   install_signal_handlers)
 from tuxbox_release.config import Config, Machine
 from tuxbox_release.state import last_state
 
@@ -184,3 +186,45 @@ def test_a_failing_phase_leaves_the_traceback_on_disk(tmp_path, monkeypatch):
     logs = list(cfg.runs_dir.glob("*/error.log"))
     assert logs, "no traceback was kept"
     assert "RuntimeError" in logs[0].read_text(encoding="utf-8")
+
+
+
+# --- SIGTERM must not leave the lock behind -------------------------------
+# These run in a child process on purpose: sending the signal to the test
+# process would take pytest down whenever the handler is missing - precisely
+# the case the suite has to survive and report on.
+
+SIGTERM_CHILD = """
+import os, signal, sys
+sys.path.insert(0, {automation!r})
+from tuxbox_release.runner import install_signal_handlers
+from tuxbox_release.state import acquire_lock
+
+install_signal_handlers()
+try:
+    with acquire_lock({state_dir!r}):
+        os.kill(os.getpid(), signal.SIGTERM)
+except RuntimeError as exc:
+    print("RAISED:" + str(exc))
+"""
+
+
+def _run_child(tmp_path: Path) -> subprocess.CompletedProcess:
+    automation = str(Path(__file__).resolve().parent.parent)
+    script = SIGTERM_CHILD.format(automation=automation, state_dir=str(tmp_path))
+    return subprocess.run([sys.executable, "-c", script],
+                          capture_output=True, text=True, timeout=30)
+
+
+def test_sigterm_is_turned_into_an_exception(tmp_path):
+    result = _run_child(tmp_path)
+    assert "RAISED:" in result.stdout and "SIGTERM" in result.stdout, \
+        f"signal killed the process instead of raising: {result!r}"
+
+
+def test_the_lock_is_released_when_sigterm_arrives(tmp_path):
+    # The point of the exercise: a run stopped with systemctl must not leave
+    # run.lock behind. It did on 2026-09-23, and idle-poweroff-check then
+    # refused to ever power the host off again.
+    _run_child(tmp_path)
+    assert not (tmp_path / "run.lock").exists(), "run.lock survived the signal"

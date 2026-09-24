@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tuxbox_release.config import load_config
 from tuxbox_release.notify import (deadman_message, mail_subject,
                                    send_mail)
-from tuxbox_release.runner import run
+from tuxbox_release.runner import install_signal_handlers, run
 from tuxbox_release.state import last_state
 
 
@@ -31,6 +31,7 @@ def main() -> int:
     cfg = load_config(Path(args.env), require_secrets=needs_secrets)
 
     if args.command == "run":
+        install_signal_handlers()
         return run(cfg, date.today(), dry_run=args.dry_run,
                    keep_draft=args.keep_draft)
 

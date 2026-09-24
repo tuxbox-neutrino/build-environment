@@ -39,6 +39,16 @@ def mirror_is_usable(path: Path) -> bool:
     return mounted_types(proc_mounts).get(str(path)) not in (None, "autofs")
 
 
+def container_name(machine: Machine) -> str:
+    """One predictable name per machine.
+
+    Without it docker invents a name and an abandoned container can only
+    be found by guessing - which is how a Yocto build kept running
+    unattended after a stopped run on 2026-09-24.
+    """
+    return f"tuxbox-build-{machine.machine}"
+
+
 def container_command(cfg: Config, machine: Machine) -> list[str]:
     """Assemble the docker invocation for one machine.
 
@@ -77,7 +87,7 @@ def container_command(cfg: Config, machine: Machine) -> list[str]:
         if mirror_is_usable(Path(mirror)):
             mounts.append(f"{mirror}:{mirror}:ro")
 
-    command = ["docker", "run", "--rm"]
+    command = ["docker", "run", "--rm", "--name", container_name(machine)]
     for mount in mounts:
         command += ["-v", mount]
     command += ["-w", "/work", cfg.image, "/bin/bash", "-lc", inner]
@@ -92,12 +102,25 @@ def build_machine(cfg: Config, machine: Machine, log_path: Path) -> int:
     # user, then cannot create builds/<machine>/conf next to the mount.
     (cfg.checkout / "builds" / machine.machine).mkdir(parents=True, exist_ok=True)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("wb") as log:
-        process = subprocess.run(
-            container_command(cfg, machine),
-            stdout=log, stderr=subprocess.STDOUT, check=False,
-        )
+    try:
+        with log_path.open("wb") as log:
+            process = subprocess.run(
+                container_command(cfg, machine),
+                stdout=log, stderr=subprocess.STDOUT, check=False,
+            )
+    except BaseException:
+        # The container belongs to the docker daemon, not to this process:
+        # abandoning it would leave a Yocto build running unattended,
+        # writing to the SSD that the next run wants to use.
+        remove_container(machine)
+        raise
     return process.returncode
+
+
+def remove_container(machine: Machine) -> None:
+    """Force-remove this machine's container; quiet if there is none."""
+    subprocess.run(["docker", "rm", "-f", container_name(machine)],
+                   capture_output=True, check=False)
 
 
 def cleanup_tmpdir(cfg: Config, machine: Machine) -> None:

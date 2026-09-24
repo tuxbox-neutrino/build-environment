@@ -169,3 +169,34 @@ def test_a_mount_stacked_on_its_trigger_counts_as_mounted():
     # is actually visible, so it has to win - otherwise a perfectly good
     # mirror would be dropped as "still just a trigger".
     assert mounted_types(PROC_MOUNTS_MOUNTED).get("/mnt/sstate-mirror") == "nfs4"
+
+
+def test_the_container_gets_a_predictable_name():
+    # Without a name docker invents one, and an abandoned container can
+    # only be found by guessing. The name is what makes cleanup possible.
+    cmd = container_command(make_config(), Machine("hd51", "mutant51"))
+    assert "--name" in cmd and "tuxbox-build-hd51" in cmd
+
+
+def test_an_aborted_build_takes_its_container_with_it(tmp_path, monkeypatch):
+    # The container belongs to the docker daemon, not to us: when the run
+    # was stopped on 2026-09-24 the runner exited and the Yocto build kept
+    # going, unattended. Stopping a run has to stop the build.
+    cfg = _local_config(tmp_path)
+    calls: list = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[:2] == ["docker", "run"]:
+            raise RuntimeError("SIGTERM erhalten, Lauf abgebrochen")
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr("tuxbox_release.build.subprocess.run", fake_run)
+    try:
+        build_machine(cfg, Machine("hd51", "mutant51"), tmp_path / "hd51.log")
+    except RuntimeError:
+        pass
+
+    removed = [c for c in calls if c[:3] == ["docker", "rm", "-f"]]
+    assert any("tuxbox-build-hd51" in c for c in removed), \
+        f"the container was left running: {calls}"

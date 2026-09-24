@@ -152,3 +152,18 @@ def test_a_real_nfs_mount_is_reported_with_its_type():
 
 def test_an_unlisted_path_is_absent():
     assert mounted_types(PROC_MOUNTS).get("/mnt/nowhere") is None
+
+
+# What /proc/mounts really looks like once the automount has fired: the
+# trigger stays listed and the actual mount is stacked on top of it.
+PROC_MOUNTS_MOUNTED = """\
+systemd-1 /mnt/sstate-mirror autofs rw,relatime,fd=57,timeout=600 0 0
+mirror-host:/srv/export/sstate-cache /mnt/sstate-mirror nfs4 ro,relatime,vers=4.2 0 0
+"""
+
+
+def test_a_mount_stacked_on_its_trigger_counts_as_mounted():
+    # Both lines name the same mount point. The later one is the one that
+    # is actually visible, so it has to win - otherwise a perfectly good
+    # mirror would be dropped as "still just a trigger".
+    assert mounted_types(PROC_MOUNTS_MOUNTED).get("/mnt/sstate-mirror") == "nfs4"

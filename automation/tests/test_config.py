@@ -59,3 +59,24 @@ def test_dry_run_may_start_without_a_real_token(tmp_path):
 def test_checkout_is_derived_from_work_root(tmp_path):
     cfg = load_config(write_env(tmp_path))
     assert cfg.checkout == Path("/mnt/C/tuxbox-build/build-environment")
+
+
+# --- mirrors belong in the environment file, not in the source ------------
+
+def test_mirrors_are_read_from_the_environment(tmp_path):
+    # Their paths name the host they come from, which has no business in a
+    # public repository - and they differ per installation anyway.
+    cfg = load_config(write_env(
+        tmp_path, TUXBOX_MIRRORS="/mnt/sstate-mirror,/mnt/downloads-mirror"))
+    assert cfg.mirrors == ("/mnt/sstate-mirror", "/mnt/downloads-mirror")
+
+
+def test_no_mirrors_configured_is_fine(tmp_path):
+    # An installation without a second host is the normal case; it just
+    # builds without the extra cache.
+    assert load_config(write_env(tmp_path)).mirrors == ()
+
+
+def test_blank_entries_in_the_mirror_list_are_dropped(tmp_path):
+    cfg = load_config(write_env(tmp_path, TUXBOX_MIRRORS="/mnt/a, ,/mnt/b,"))
+    assert cfg.mirrors == ("/mnt/a", "/mnt/b")

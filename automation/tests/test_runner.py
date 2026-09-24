@@ -109,7 +109,8 @@ def test_a_pushed_commit_counts_as_published(tmp_path):
 
 def test_a_local_only_commit_does_not_count_as_published(tmp_path):
     # This is exactly what killed the rehearsal: HEAD was 92f3866, which
-    # existed only on buildhost, and GitHub answered "No commit found for SHA".
+    # existed only on the build host, and GitHub answered
+    # "No commit found for SHA".
     work = _checkout_with_remote(tmp_path)
     (work / "a.txt").write_text("2")
     _git(work, "commit", "-am", "nur lokal")
@@ -169,7 +170,7 @@ def test_a_failing_phase_is_recorded_as_failed_and_mailed(tmp_path, monkeypatch)
 
 
 def test_a_failing_phase_leaves_the_traceback_on_disk(tmp_path, monkeypatch):
-    # /tmp is a tmpfs on buildhost, so a traceback that only goes to the console
+    # /tmp is a tmpfs here, so a traceback that only goes to the console
     # is gone after the next reboot - which is how the first evidence was lost.
     cfg = _prepared_config(tmp_path, monkeypatch)
     monkeypatch.setattr("tuxbox_release.runner.publish",

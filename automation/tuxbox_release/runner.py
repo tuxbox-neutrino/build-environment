@@ -13,7 +13,8 @@ from .collect import (archive_release, collect_machine, scan_build_log,
 from .config import Config
 from .notes import (package_diff, previous_package_list, read_package_list,
                     render_notes, write_package_list)
-from .notify import issue_fingerprint, open_issue, send_mail
+from .notify import (issue_fingerprint, mail_subject, open_issue,
+                     send_mail)
 from .publish import publish, release_tag
 from .state import BuildState, acquire_lock, new_build_id
 
@@ -96,7 +97,8 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
     problems = preflight(cfg)
     if problems:
         state.finish("preflight", "failed", problems=problems)
-        send_mail(cfg, "buildhost: Monatsbuild nicht gestartet", "\n".join(problems))
+        send_mail(cfg, mail_subject("Monatsbuild nicht gestartet"),
+                  "\n".join(problems))
         return 1
     state.finish("preflight", "ok")
 
@@ -109,7 +111,7 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
                    f"gh release create --target wuerde ihn ablehnen. "
                    f"Erst pushen, dann den Lauf wiederholen.")
         state.finish("update", "failed", commit=commit, problem=problem)
-        send_mail(cfg, "buildhost: Monatsbuild nicht gestartet", problem)
+        send_mail(cfg, mail_subject("Monatsbuild nicht gestartet"), problem)
         return 1
     state.finish("update", "ok", commit=commit)
 
@@ -175,7 +177,7 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
                  failed=[m.machine for m in failed],
                  dry_run=dry_run)
     if not built and not dry_run:
-        send_mail(cfg, "buildhost: Monatsbuild komplett fehlgeschlagen",
+        send_mail(cfg, mail_subject("Monatsbuild komplett fehlgeschlagen"),
                   f"Kein Image gebaut. Lauf {build_id}, Logs in {run_dir}.")
         return 1
 
@@ -202,7 +204,7 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
     summary = (f"Lauf {build_id}\nTag: {tag}\nRelease: {url}\n"
                f"Gebaut: {[m.machine for m in built]}\n"
                f"Fehlgeschlagen: {[m.machine for m in failed]}\n")
-    send_mail(cfg, f"buildhost: Monatsbuild {tag}", summary)
+    send_mail(cfg, mail_subject(f"Monatsbuild {tag}"), summary)
     if should_power_off(dry_run, keep_draft):
         SHUTDOWN_MARKER.touch()
     state.finish("finish", "ok")
@@ -224,11 +226,11 @@ def run(cfg: Config, today: date, dry_run: bool = False,
         except Exception as exc:
             # Without this the run just dies: the state file keeps claiming
             # "running", nobody is told, and the traceback goes wherever
-            # stdout happened to point - on buildhost that was a tmpfs.
+            # stdout happened to point, which was a tmpfs here.
             (run_dir / "error.log").write_text(traceback.format_exc(),
                                                encoding="utf-8")
             state.fail_running(str(exc))
-            send_mail(cfg, "buildhost: Monatsbuild abgebrochen",
+            send_mail(cfg, mail_subject("Monatsbuild abgebrochen"),
                       f"Lauf {build_id} brach ab:\n\n{exc}\n\n"
                       f"Vollstaendiger Traceback: {run_dir / 'error.log'}")
             return 1

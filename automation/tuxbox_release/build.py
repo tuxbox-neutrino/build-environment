@@ -7,12 +7,6 @@ from pathlib import Path
 
 from .config import Config, Machine
 
-#: Mirrors served from another host. They are referenced by absolute path
-#: from builds/conf/local.conf.user.inc, so the container must see them
-#: under the very same path.
-MIRRORS = ("/mnt/sstate-mirror", "/mnt/downloads-mirror")
-
-
 def mounted_types(proc_mounts: str) -> dict[str, str]:
     """Mount point -> filesystem type, as /proc/mounts spells it."""
     types = {}
@@ -77,7 +71,9 @@ def container_command(cfg: Config, machine: Machine) -> list[str]:
     # A mirror that is not mounted on the host is simply left out: a missing
     # mirror is a cache miss, but a bind mount of a missing path would make
     # docker refuse to start at all.
-    for mirror in MIRRORS:
+    # Mirrors are referenced by absolute path from the build configuration,
+    # so the container has to see them under the very same path.
+    for mirror in cfg.mirrors:
         if mirror_is_usable(Path(mirror)):
             mounts.append(f"{mirror}:{mirror}:ro")
 

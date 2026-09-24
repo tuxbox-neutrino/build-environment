@@ -1,5 +1,6 @@
 from datetime import date
-from tuxbox_release.notify import deadman_message, issue_fingerprint
+from tuxbox_release.notify import (deadman_message, issue_fingerprint,
+                                   mail_subject)
 
 
 def state(build_id, status="ok"):
@@ -41,3 +42,11 @@ def test_fingerprint_is_stable_for_the_same_failure():
 
 def test_fingerprint_differs_per_machine():
     assert issue_fingerprint("hd51", "x") != issue_fingerprint("hd60", "x")
+
+
+def test_the_mail_subject_names_the_host_at_runtime(monkeypatch):
+    # It used to be hard-coded, which put the machine's name into a public
+    # repository and made the code wrong on any other host.
+    monkeypatch.setattr("tuxbox_release.notify.socket.gethostname",
+                        lambda: "somehost")
+    assert mail_subject("Monatsbuild fehlt") == "somehost: Monatsbuild fehlt"

@@ -18,6 +18,7 @@ def make_config() -> Config:
         channel="release",
         mail_to="ops@example.org",
         token="secret",
+        mirrors=("/mnt/sstate-mirror", "/mnt/downloads-mirror"),
     )
 
 
@@ -63,8 +64,9 @@ def test_mirrors_are_mounted_at_the_same_path_as_outside(monkeypatch):
 
 def test_absent_mirrors_are_simply_left_out(monkeypatch):
     # h7 died on 2026-09-23 with "error mounting /mnt/downloads-mirror ... no
-    # such device", because red was off and the automount trigger was all
-    # that was left. A missing mirror must cost cache hits, not the build.
+    # such device", because the mirror host was off and its automount
+    # trigger was all that was left. A missing mirror must cost cache hits,
+    # not the build.
     monkeypatch.setattr("tuxbox_release.build.mirror_is_usable",
                         lambda path: False)
     joined = " ".join(container_command(make_config(), Machine("hd51", "mutant51")))

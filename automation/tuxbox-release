@@ -8,7 +8,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tuxbox_release.config import load_config
-from tuxbox_release.notify import deadman_message, send_mail
+from tuxbox_release.notify import (deadman_message, mail_subject,
+                                   send_mail)
 from tuxbox_release.runner import run
 from tuxbox_release.state import last_state
 
@@ -47,7 +48,7 @@ def main() -> int:
 
     message = deadman_message(last_state(cfg.state_dir), date.today())
     if message:
-        send_mail(cfg, "buildhost: Monatsbuild fehlt", message)
+        send_mail(cfg, mail_subject("Monatsbuild fehlt"), message)
         print(message)
         return 1
     print("Monatsbuild ist aktuell")

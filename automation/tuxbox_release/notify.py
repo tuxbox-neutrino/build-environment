@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import socket
 import subprocess
 from datetime import date
 
@@ -10,6 +11,16 @@ from .config import Config
 
 #: Day of month after which a missing run counts as a failure.
 GRACE_DAYS = 5
+
+
+def mail_subject(what: str) -> str:
+    """Prefix a subject with the host this runs on.
+
+    Which host that is belongs to the installation, not to the source: a
+    name baked in here would be wrong everywhere else - and would put a
+    private machine name into a public repository.
+    """
+    return f"{socket.gethostname()}: {what}"
 
 
 def send_mail(cfg: Config, subject: str, body: str) -> None:

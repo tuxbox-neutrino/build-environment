@@ -24,6 +24,7 @@ class Config:
     channel: str
     mail_to: str
     token: str
+    mirrors: tuple[str, ...] = ()
 
     @property
     def checkout(self) -> Path:
@@ -50,6 +51,16 @@ def _parse_machines(raw: str) -> tuple[Machine, ...]:
     if not machines:
         raise ValueError("TUXBOX_MACHINES is empty")
     return tuple(machines)
+
+
+def _parse_mirrors(raw: str) -> tuple[str, ...]:
+    """Absolute paths of caches served from elsewhere, comma separated.
+
+    They live in the environment file because they name the host they come
+    from and differ per installation. An installation without them simply
+    builds without the extra cache.
+    """
+    return tuple(entry.strip() for entry in raw.split(",") if entry.strip())
 
 
 def load_config(path: Path, require_secrets: bool = True) -> Config:
@@ -92,4 +103,5 @@ def load_config(path: Path, require_secrets: bool = True) -> Config:
         channel=values.get("TUXBOX_CHANNEL", "release"),
         mail_to=values.get("TUXBOX_MAIL_TO", ""),
         token=values["GH_TOKEN"],
+        mirrors=_parse_mirrors(values.get("TUXBOX_MIRRORS", "")),
     )

@@ -62,6 +62,24 @@ def _run(cmd: list[str], cfg: Config) -> str:
     return result.stdout.strip()
 
 
+def prune_assets(cfg: Config, tag: str, keep: set[str]) -> list[str]:
+    """Drop assets of an earlier attempt that this run does not replace.
+
+    Asset names carry the build timestamp, so --clobber never matches a
+    previous attempt's files and a rerun stacks a second set of images
+    beside the first. Whoever downloads the release then has to guess which
+    one is current, which is worse than either set on its own.
+    """
+    listing = _run(["gh", "release", "view", tag, "--repo", cfg.repo,
+                    "--json", "assets", "--jq", ".assets[].name"], cfg)
+    stale = [name for name in listing.splitlines()
+             if name.strip() and name not in keep]
+    for name in stale:
+        _run(["gh", "release", "delete-asset", tag, name,
+              "--repo", cfg.repo, "--yes"], cfg)
+    return stale
+
+
 def verify_uploads(cfg: Config, tag: str, assets: list[Path]) -> None:
     """Compare every uploaded asset's size against the local file.
 
@@ -103,6 +121,7 @@ def publish(cfg: Config, tag: str, notes: str, assets: list[Path],
         # more machines than the first attempt's did.
         _run(["gh", "release", "edit", tag, "--repo", cfg.repo,
               "--notes-file", str(notes_file)], cfg)
+        prune_assets(cfg, tag, {a.name for a in assets})
     else:
         _run(gh_create_draft_command(cfg.repo, tag, str(notes_file), commit), cfg)
     _run(gh_upload_command(cfg.repo, tag, [str(a) for a in assets]), cfg)

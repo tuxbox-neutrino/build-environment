@@ -159,3 +159,67 @@ def test_a_first_run_still_creates_the_release(tmp_path, monkeypatch):
 
     assert any(cmd[:3] == ["gh", "release", "create"] for cmd in calls), \
         f"no release was created: {calls}"
+
+
+
+def _rerun_run(calls: list, remote: list, asset: Path):
+    """Stand-in for _run that answers both asset queries plausibly."""
+    def fake_run(cmd, cfg):
+        calls.append(cmd)
+        joined = " ".join(cmd)
+        if "view" in cmd and ".assets[].name" in joined:
+            return "\n".join(remote)
+        if "view" in cmd and "assets" in joined:
+            return f"{asset.name} {asset.stat().st_size}"
+        return "https://github.invalid/releases/tag/v4.0.35.501-2026.10"
+    return fake_run
+
+
+def test_a_rerun_removes_the_previous_attempts_assets(tmp_path, monkeypatch):
+    # Asset names carry the build timestamp, so --clobber never matches an
+    # earlier attempt's files. After the 2026-09-24 rerun the release held
+    # hd51 ten times over, and nobody downloading could tell which was
+    # current.
+    asset = tmp_path / "image-20260924.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run",
+                        _rerun_run(calls, ["image-20260923.zip", asset.name], asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: True)
+
+    publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8", keep_draft=True)
+
+    deleted = [cmd for cmd in calls if "delete-asset" in cmd]
+    assert any("image-20260923.zip" in cmd for cmd in deleted), \
+        f"the stale asset survived: {calls}"
+
+
+def test_a_rerun_keeps_what_it_uploads_itself(tmp_path, monkeypatch):
+    asset = tmp_path / "image-20260924.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run",
+                        _rerun_run(calls, ["image-20260923.zip", asset.name], asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: True)
+
+    publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8", keep_draft=True)
+
+    deleted = [cmd for cmd in calls if "delete-asset" in cmd]
+    assert not any(asset.name in cmd for cmd in deleted), \
+        f"this run deleted its own asset: {deleted}"
+
+
+def test_a_first_run_deletes_nothing(tmp_path, monkeypatch):
+    asset = tmp_path / "image-20260924.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run", _rerun_run(calls, [], asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
+
+    publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8", keep_draft=True)
+
+    assert not any("delete-asset" in cmd for cmd in calls), \
+        f"a fresh release had assets deleted: {calls}"

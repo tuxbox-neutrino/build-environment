@@ -3,7 +3,7 @@ from pathlib import Path
 
 from tuxbox_release.build import (container_command, cleanup_tmpdir,
                                   build_machine, mirror_is_usable,
-                                  mounted_types)
+                                  mounted_types, mounted_type)
 from tuxbox_release.config import Config, Machine
 
 
@@ -200,3 +200,55 @@ def test_an_aborted_build_takes_its_container_with_it(tmp_path, monkeypatch):
     removed = [c for c in calls if c[:3] == ["docker", "rm", "-f"]]
     assert any("tuxbox-build-hd51" in c for c in removed), \
         f"the container was left running: {calls}"
+
+
+def test_an_idle_trigger_is_woken_before_giving_up(tmp_path, monkeypatch):
+    # After a reboot the automount is always just a trigger until someone
+    # touches it. Refusing the mirror at that point would drop it for the
+    # whole run - hours of rebuilding instead of minutes - even though the
+    # server is up.
+    touched = []
+    seen = iter(["autofs", "nfs4"])   # trigger first, mounted after the poke
+
+    monkeypatch.setattr("tuxbox_release.build.mounted_type",
+                        lambda path: next(seen))
+    monkeypatch.setattr("tuxbox_release.build.subprocess.run",
+                        lambda *a, **k: touched.append(a))
+
+    assert mirror_is_usable(Path("/mnt/mirror")) is True
+    assert touched, "the trigger was never poked"
+
+
+def test_a_dead_trigger_is_given_up_on(tmp_path, monkeypatch):
+    monkeypatch.setattr("tuxbox_release.build.mounted_type",
+                        lambda path: "autofs")
+    monkeypatch.setattr("tuxbox_release.build.subprocess.run",
+                        lambda *a, **k: None)
+    assert mirror_is_usable(Path("/mnt/mirror")) is False
+
+
+def test_a_mounted_mirror_is_not_poked(tmp_path, monkeypatch):
+    # No point waking what is already awake, and no reason to pay the
+    # syscall on every machine of a run.
+    touched = []
+    monkeypatch.setattr("tuxbox_release.build.mounted_type",
+                        lambda path: "nfs4")
+    monkeypatch.setattr("tuxbox_release.build.subprocess.run",
+                        lambda *a, **k: touched.append(a))
+    assert mirror_is_usable(Path("/mnt/mirror")) is True
+    assert touched == [], "an already mounted mirror was poked anyway"
+
+
+def test_the_poke_cannot_hang_forever(monkeypatch):
+    # A dead NFS server is exactly the case this must survive: the stat on
+    # its trigger blocks for as long as the mount attempt runs, which was
+    # minutes rather than the configured ten seconds.
+    calls = []
+    monkeypatch.setattr("tuxbox_release.build.mounted_type",
+                        lambda path: "autofs")
+    monkeypatch.setattr("tuxbox_release.build.subprocess.run",
+                        lambda *a, **k: calls.append((a, k)))
+    mirror_is_usable(Path("/mnt/mirror"))
+    args, kwargs = calls[0]
+    assert "timeout" in args[0][0] or kwargs.get("timeout"), \
+        f"the poke has no deadline: {calls[0]}"

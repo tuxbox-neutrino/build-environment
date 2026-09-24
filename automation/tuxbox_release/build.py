@@ -17,26 +17,43 @@ def mounted_types(proc_mounts: str) -> dict[str, str]:
     return types
 
 
-def mirror_is_usable(path: Path) -> bool:
-    """True only when the mirror is really mounted right now.
-
-    Two traps sit here, and h7 walked into both on 2026-09-23 while red was
-    switched off. The mirrors arrive over NFS with x-systemd.automount, so
-    the directory exists whether or not anything is mounted - Path.is_dir()
-    says yes either way, docker then refuses the bind mount with "no such
-    device" and takes the whole build with it. And an idle trigger whose
-    server is gone still appears in /proc/mounts, just with fstype autofs.
-
-    Reading /proc/mounts answers both without ever touching the directory.
-    That last part matters: any stat on a dead trigger blocks for as long
-    as the mount attempt runs, which was minutes, not the configured ten
-    seconds.
-    """
+def mounted_type(path: Path) -> str | None:
+    """Filesystem type mounted on this path right now, or None."""
     try:
         proc_mounts = Path("/proc/mounts").read_text(encoding="utf-8")
     except OSError:
+        return None
+    return mounted_types(proc_mounts).get(str(path))
+
+
+def mirror_is_usable(path: Path, deadline: int = 20) -> bool:
+    """True only when the mirror is really mounted - waking it if need be.
+
+    Two traps sit here, and h7 walked into the first on 2026-09-23 while
+    the mirror host was switched off. The mirrors arrive over NFS with
+    x-systemd.automount, so the directory exists whether or not anything
+    is mounted - Path.is_dir() says yes either way, docker then refuses
+    the bind mount with "no such device" and takes the build with it. And
+    an idle trigger still appears in /proc/mounts, just as autofs.
+
+    The second trap is the opposite mistake: after a reboot the mount is
+    *always* just a trigger until something touches it. Refusing it there
+    would silently drop the cache for the whole run - hours of rebuilding
+    instead of minutes - while the server sits there perfectly reachable.
+
+    So: read /proc/mounts first, and only when nothing but the trigger is
+    there, touch the directory once under a deadline. That way a server
+    that is up gets mounted, and one that is gone costs twenty seconds
+    rather than the minutes an unbounded stat can block for.
+    """
+    if mounted_type(path) not in (None, "autofs"):
+        return True
+    try:
+        subprocess.run(["timeout", "-k", "5", str(deadline), "ls", str(path)],
+                       capture_output=True, check=False, timeout=deadline + 10)
+    except (OSError, subprocess.SubprocessError):
         return False
-    return mounted_types(proc_mounts).get(str(path)) not in (None, "autofs")
+    return mounted_type(path) not in (None, "autofs")
 
 
 def container_name(machine: Machine) -> str:

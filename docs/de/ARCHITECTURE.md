@@ -139,7 +139,6 @@ tuxbox-image.bb
        +- neutrino-mp
        +- libstb-hal
        +- neutrino-plugins
-       +- neutrino-webif
        +- ... (Neutrino stack)
 
   +- conditionally:

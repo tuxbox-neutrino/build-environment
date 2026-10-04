@@ -162,7 +162,6 @@ tuxbox-image.bb
        ├─ Neutrino
        ├─ libstb-hal
        ├─ neutrino-plugins
-       ├─ neutrino-webif
        └─ ... (Neutrino stack)
 
   └─ conditionally:

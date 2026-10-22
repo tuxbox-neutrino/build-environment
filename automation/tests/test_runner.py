@@ -347,3 +347,12 @@ def test_the_notes_link_downloads_in_the_release_repo(tmp_path, monkeypatch):
     assert ("| Mut@nt HD51 | [multi.zip](https://github.com/tuxbox-neutrino/images/"
             "releases/download/v4.0.35.501-2026.10/tuxbox-image-hd51_multi.zip)"
             in published["notes"])
+
+
+def test_a_run_keeps_what_it_took_from_the_mirror(tmp_path, monkeypatch):
+    # Otherwise next month's run depends on the mirror host being switched on.
+    kept = []
+    monkeypatch.setattr("tuxbox_release.runner.keep_mirrored_objects",
+                        lambda cfg: kept.append(cfg) or (3, 0))
+    _publishing_run(tmp_path, monkeypatch)
+    assert len(kept) == 1

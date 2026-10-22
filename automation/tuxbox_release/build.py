@@ -1,6 +1,7 @@
 """Run one Yocto build per machine inside a throwaway container."""
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -155,3 +156,45 @@ def cleanup_tmpdir(cfg: Config, machine: Machine) -> None:
 def free_gb(path: Path) -> int:
     """Free space in GB, for the decision whether the next machine fits."""
     return shutil.disk_usage(path).free // (1024 ** 3)
+
+
+def keep_mirrored_objects(cfg: Config, usable=mirror_is_usable) -> tuple[int, int]:
+    """Turn links into a mirror into local copies; return (copied, skipped).
+
+    Bitbake does not copy what it takes from a file:// mirror, it links
+    it. The local cache then only works while the mirror host is up: on
+    2026-10-22 half of fuji's sstate cache, 7620 entries, pointed into the
+    mirror. Copying after each run keeps the mirror a speed-up instead of
+    a dependency. Only mirrors that answer under a deadline are followed,
+    because a switched-off NFS mirror can block every access; links into
+    any other mirror, and links whose target is gone, stay as they are.
+    """
+    mirrors = [Path(m) for m in cfg.mirrors]
+    if not mirrors:
+        return 0, 0
+    reachable = [m for m in mirrors if usable(m)]
+    copied = skipped = 0
+    for root in (cfg.work_root / "sstate-cache", cfg.work_root / "downloads"):
+        if not root.is_dir():
+            continue
+        for link in root.rglob("*"):
+            if not link.is_symlink():
+                continue
+            target = Path(os.readlink(link))
+            if not target.is_absolute():
+                target = link.parent / target
+            if not any(target.is_relative_to(m) for m in mirrors):
+                continue
+            if not any(target.is_relative_to(m) for m in reachable):
+                skipped += 1
+                continue
+            partial = link.with_name(f"{link.name}.keep.{os.getpid()}")
+            try:
+                shutil.copy2(target, partial)
+                os.replace(partial, link)
+            except OSError:
+                partial.unlink(missing_ok=True)
+                skipped += 1
+                continue
+            copied += 1
+    return copied, skipped

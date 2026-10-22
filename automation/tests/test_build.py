@@ -3,7 +3,8 @@ from pathlib import Path
 
 from tuxbox_release.build import (container_command, cleanup_tmpdir,
                                   build_machine, mirror_is_usable,
-                                  mounted_types, mounted_type)
+                                  mounted_types, mounted_type,
+                                  keep_mirrored_objects)
 from tuxbox_release.config import Config, Machine
 
 
@@ -252,3 +253,84 @@ def test_the_poke_cannot_hang_forever(monkeypatch):
     args, kwargs = calls[0]
     assert "timeout" in args[0][0] or kwargs.get("timeout"), \
         f"the poke has no deadline: {calls[0]}"
+
+
+# --- the local cache must not depend on the mirror host --------------------
+# Bitbake links objects it takes from a file:// mirror instead of copying
+# them. On 2026-10-22 half of fuji's sstate cache (7620 entries) pointed
+# into the mirror; with the mirror host off those were gone.
+
+def _cache_config(tmp_path: Path) -> Config:
+    mirror = tmp_path / "mirror"
+    mirror.mkdir()
+    return Config(
+        work_root=tmp_path / "work", tmp_root=tmp_path / "ssd",
+        archive_root=tmp_path / "archive", image="tuxbox-build:ci",
+        machines=(Machine("hd51", "mutant51"),),
+        repo="tuxbox-neutrino/build-environment", channel="release",
+        mail_to="ops@example.org", token="secret", mirrors=(str(mirror),))
+
+
+def test_objects_linked_from_the_mirror_become_local_copies(tmp_path):
+    cfg = _cache_config(tmp_path)
+    obj = Path(cfg.mirrors[0]) / "e2" / "ed" / "sstate:x.tar.zst"
+    obj.parent.mkdir(parents=True)
+    obj.write_bytes(b"payload")
+    link = cfg.work_root / "sstate-cache" / "e2" / "ed" / "sstate:x.tar.zst"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(obj)
+
+    assert keep_mirrored_objects(cfg, usable=lambda path: True) == (1, 0)
+    assert not link.is_symlink() and link.read_bytes() == b"payload"
+    assert obj.read_bytes() == b"payload", "the mirror itself must stay as it was"
+
+
+def test_downloads_linked_from_the_mirror_are_copied_too(tmp_path):
+    cfg = _cache_config(tmp_path)
+    src = Path(cfg.mirrors[0]) / "foo-1.0.tar.gz"
+    src.write_bytes(b"tarball")
+    link = cfg.work_root / "downloads" / "foo-1.0.tar.gz"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(src)
+    assert keep_mirrored_objects(cfg, usable=lambda path: True) == (1, 0)
+    assert not link.is_symlink()
+
+
+def test_links_elsewhere_and_plain_files_are_left_alone(tmp_path):
+    cfg = _cache_config(tmp_path)
+    cache = cfg.work_root / "sstate-cache"
+    cache.mkdir(parents=True)
+    (cache / "plain").write_bytes(b"x")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.write_bytes(b"y")
+    (cache / "foreign").symlink_to(elsewhere)
+    assert keep_mirrored_objects(cfg, usable=lambda path: True) == (0, 0)
+    assert (cache / "foreign").is_symlink()
+
+
+def test_a_link_into_a_switched_off_mirror_is_skipped(tmp_path):
+    cfg = _cache_config(tmp_path)
+    cache = cfg.work_root / "sstate-cache"
+    cache.mkdir(parents=True)
+    (cache / "gone").symlink_to(Path(cfg.mirrors[0]) / "gone")
+    assert keep_mirrored_objects(cfg, usable=lambda path: True) == (0, 1)
+    assert (cache / "gone").is_symlink()
+    assert not list(cache.glob("*.keep.*")), "a half-written copy was left behind"
+
+
+def test_no_mirrors_means_nothing_to_do(tmp_path):
+    cfg = Config(**{**_cache_config(tmp_path).__dict__, "mirrors": ()})
+    assert keep_mirrored_objects(cfg, usable=lambda path: True) == (0, 0)
+
+
+def test_a_mirror_that_is_not_mounted_is_not_touched(tmp_path):
+    # A switched-off NFS mirror can block every stat; only links into
+    # mirrors checked under a deadline are followed.
+    cfg = _cache_config(tmp_path)
+    cache = cfg.work_root / "sstate-cache"
+    cache.mkdir(parents=True)
+    obj = Path(cfg.mirrors[0]) / "obj"
+    obj.write_bytes(b"x")
+    (cache / "obj").symlink_to(obj)
+    assert keep_mirrored_objects(cfg, usable=lambda path: False) == (0, 1)
+    assert (cache / "obj").is_symlink()

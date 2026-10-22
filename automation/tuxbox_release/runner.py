@@ -8,7 +8,8 @@ import traceback
 from datetime import date
 from pathlib import Path
 
-from .build import build_machine, cleanup_tmpdir, free_gb
+from .build import (build_machine, cleanup_tmpdir, free_gb,
+                    keep_mirrored_objects)
 from .collect import (archive_release, collect_machine, scan_build_log,
                       write_sha256sums)
 from .config import Config
@@ -198,13 +199,18 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
                              criticals=criticals)
         cleanup_tmpdir(cfg, machine)
 
+    # Whatever came from a mirror is only linked; copy it, so next month
+    # builds just as fast with the mirror host switched off.
+    kept = keep_mirrored_objects(cfg) if not dry_run else (0, 0)
+
     # A dry run builds nothing on purpose, so an empty result is not a
     # failure - otherwise every rehearsal would look like a broken month
     # and the dead man's switch would alarm on it.
     state.finish("build", "ok" if (built or dry_run) else "failed",
                  built=[m.machine for m in built],
                  failed=[m.machine for m in failed],
-                 dry_run=dry_run)
+                 dry_run=dry_run,
+                 kept_from_mirror=kept[0], left_linked=kept[1])
     if not built and not dry_run:
         send_mail(cfg, mail_subject("Monatsbuild komplett fehlgeschlagen"),
                   f"Kein Image gebaut. Lauf {build_id}, Logs in {run_dir}.")

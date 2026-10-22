@@ -8,9 +8,15 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Machine:
-    """A build target: platform plus OEM variant."""
+    """A build target: platform plus OEM variant, and how people call it."""
     machine: str
     machinebuild: str
+    label: str = ""
+
+    @property
+    def display_name(self) -> str:
+        """The name a downloader recognises, e.g. "Mut@nt HD51"."""
+        return self.label or self.machine
 
 
 @dataclass(frozen=True)
@@ -57,10 +63,16 @@ class Config:
 
 
 def _parse_machines(raw: str) -> tuple[Machine, ...]:
+    """machine[:machinebuild[:label]] entries, comma separated.
+
+    The label is what the release notes show; adding a box is a line in the
+    environment file, not a code change.
+    """
     machines = []
     for entry in (e.strip() for e in raw.split(",") if e.strip()):
-        machine, _, machinebuild = entry.partition(":")
-        machines.append(Machine(machine, machinebuild or machine))
+        machine, _, rest = entry.partition(":")
+        machinebuild, _, label = rest.partition(":")
+        machines.append(Machine(machine, machinebuild or machine, label.strip()))
     if not machines:
         raise ValueError("TUXBOX_MACHINES is empty")
     return tuple(machines)

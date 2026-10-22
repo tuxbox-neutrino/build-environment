@@ -4,10 +4,11 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from datetime import datetime
 
 from pathlib import Path
 
-from .collect import MachineArtifacts
+from .collect import IMAGE_SUFFIXES, MachineArtifacts
 
 #: GitHub rejects release bodies beyond this many characters.
 MAX_BODY = 125000
@@ -156,78 +157,159 @@ def source_url(repo: str, commit: str) -> str:
     return f"https://github.com/{repo}/tree/{commit}"
 
 
+#: Columns of the download table: heading and the file suffixes it shows,
+#: the first one found wins.
+DOWNLOAD_COLUMNS = (
+    ("Image", IMAGE_SUFFIXES),
+    ("Recovery", ("_recovery_emmc.zip",)),
+    ("Root-Dateisystem", (".tuxbox.tar.bz2",)),
+)
+
+
+def _short_name(suffix: str) -> str:
+    """"_multi.zip" -> "multi.zip", ".tuxbox.tar.bz2" -> "tar.bz2"."""
+    return suffix.lstrip("_.").removeprefix("tuxbox.")
+
+
+def _megabytes(size: int) -> str:
+    megabytes = size / 1e6
+    return f"{megabytes:.1f} MB" if megabytes < 10 else f"{megabytes:.0f} MB"
+
+
+def _download_url(release_repo: str, tag: str, name: str) -> str:
+    return f"https://github.com/{release_repo}/releases/download/{tag}/{name}"
+
+
+def _download_cell(result: MachineArtifacts, suffixes: tuple[str, ...],
+                   release_repo: str, tag: str) -> str:
+    """Link and size of the first matching file, or a dash if the box has none."""
+    for suffix in suffixes:
+        asset = next((a for a in result.assets if a.name.endswith(suffix)), None)
+        if asset is None:
+            continue
+        cell = (f"[{_short_name(suffix)}]({_download_url(release_repo, tag, asset.name)})"
+                if release_repo else f"`{_short_name(suffix)}`")
+        if asset.exists():
+            cell += f" · {_megabytes(asset.stat().st_size)}"
+        return cell
+    return "–"
+
+
+def _build_time(stamp: str) -> datetime | None:
+    """Yocto's build_date (YYYYmmddHHMMSS, UTC) as a datetime, if it is one."""
+    try:
+        return datetime.strptime(str(stamp), "%Y%m%d%H%M%S")
+    except ValueError:
+        return None
+
+
+def _german_date(iso_day: str) -> str:
+    try:
+        return datetime.strptime(iso_day, "%Y-%m-%d").strftime("%d.%m.%Y")
+    except ValueError:
+        return iso_day
+
+
+def _changes_table(order: list[str], package_diffs: dict[str, dict],
+                   sections: dict[str, dict[str, str]],
+                   labels: dict[str, str]) -> list[str]:
+    """One row per box, so more boxes add rows and never columns."""
+    if not any(any(diff.values()) for diff in package_diffs.values()):
+        return ["Keine Paketänderungen gegenüber dem Vormonat."]
+    lines = ["| Box | Aktualisiert | Neu | Entfernt | nach Section |",
+             "|---|---:|---:|---:|---|"]
+    for machine in order:
+        diff = package_diffs.get(machine)
+        if diff is None:
+            continue
+        counts = section_counts(diff, sections.get(machine, {}))
+        ranked = sorted(counts.items(),
+                        key=lambda item: (-sum(item[1].values()), item[0]))
+        by_section = " · ".join(f"{name} {sum(count.values())}"
+                                for name, count in ranked) or "–"
+        lines.append(f"| {labels.get(machine, machine)} | {len(diff['changed'])} "
+                     f"| {len(diff['added'])} | {len(diff['removed'])} | {by_section} |")
+    return lines
+
+
 def render_notes(results: list[MachineArtifacts], tag: str,
                  package_diffs: dict[str, dict],
                  failed: list[str] | None = None,
                  appimage: dict | None = None,
                  source: str = "",
-                 sections: dict[str, dict[str, str]] | None = None) -> str:
-    """Human-readable notes: what was built, from what, what changed.
+                 sections: dict[str, dict[str, str]] | None = None,
+                 release_repo: str = "",
+                 labels: dict[str, str] | None = None) -> str:
+    """The release page: downloads first, then what changed, details last.
 
-    Package changes are counted per IPK section rather than listed: a month
-    can touch hundreds of packages, and a list of all of them buries the
-    rest of the page. The package lists stay in the run archive.
+    Written for whoever wants to flash a box. One row per box in every
+    table, so a new box adds a row and never a column. Package changes are
+    counted per IPK section rather than listed: a month can touch hundreds
+    of packages, and a list of all of them buries the rest of the page.
+    The package lists stay in the run archive.
     """
     failed = failed or []
     sections = sections or {}
+    labels = labels or {}
     first = results[0].manifest if results else {}
-    revision = f"`{first.get('git_hash', 'unbekannt')}`"
-    lines = [
-        f"# Tuxbox-OS {tag}",
-        "",
-        f"- Image-Version: `{results[0].image_version if results else 'unbekannt'}`",
-        f"- Quellstand: [{revision}]({source})" if source
-        else f"- Quellstand: {revision}",
-        f"- Kanal: `{first.get('channel', 'release')}`",
-        f"- Gebaut am: {first.get('build_date', 'unbekannt')}",
-        "",
-        "## Images",
-        "",
-    ]
-    for result in results:
-        names = ", ".join(f"`{a.name}`" for a in result.assets) or "-"
-        lines.append(f"- **{result.machine}** — {names}")
+    built = _build_time(first.get("build_date", ""))
+    lines = [f"Monatliches Neutrino-Image für Set-Top-Boxen, gebaut am {built:%d.%m.%Y}."
+             if built else "Monatliches Neutrino-Image für Set-Top-Boxen.",
+             "", "## Downloads", ""]
+
+    if results:
+        lines += ["| Box | " + " | ".join(head for head, _ in DOWNLOAD_COLUMNS) + " |",
+                  "|---" * (len(DOWNLOAD_COLUMNS) + 1) + "|"]
+        for result in results:
+            cells = [_download_cell(result, suffixes, release_repo, tag)
+                     for _, suffixes in DOWNLOAD_COLUMNS]
+            lines.append(f"| {labels.get(result.machine, result.machine)} | "
+                         + " | ".join(cells) + " |")
+    else:
+        lines.append("Keine Images gebaut.")
     if failed:
-        lines += ["", "## Nicht gebaut", ""]
-        lines += [f"- **{machine}** — Build fehlgeschlagen, siehe Log" for machine in failed]
+        names = ", ".join(labels.get(machine, machine) for machine in failed)
+        lines += ["", f"**Nicht gebaut:** {names} – Build fehlgeschlagen."]
+
+    hint = "**Image** ist der normale Download."
+    if any(a.name.endswith("_recovery_emmc.zip") for r in results for a in r.assets):
+        hint += (" Das **Recovery**-Paket wird nur gebraucht, wenn die Box ihr "
+                 "Multiboot-Menü nicht mehr erreicht oder sich die Partitionierung "
+                 "ändert – es kann den gesamten Flash löschen.")
+    sums = (f"[`SHA256SUMS`]({_download_url(release_repo, tag, 'SHA256SUMS')})"
+            if release_repo else "`SHA256SUMS`")
+    lines += ["", hint, "",
+              f"Prüfsummen: {sums} – im Download-Ordner `sha256sum -c SHA256SUMS` ausführen.",
+              "", "## Paketänderungen gegenüber dem Vormonat", ""]
+    order = [r.machine for r in results]
+    order += sorted(set(package_diffs) - set(order))
+    lines += _changes_table(order, package_diffs, sections, labels)
 
     if appimage:
         # A separate build from a separate repository: linked, not copied,
         # so nobody mistakes it for part of this month's box images.
-        lines += [
-            "", "## Neutrino fuer den PC", "",
-            f"Die AppImage-Variante laeuft auf dem Rechner statt auf der Box "
-            f"und wird eigenstaendig gebaut — **anderer Quellstand als die "
-            f"Images oben**, zuletzt am {appimage['published']}.",
-            "",
-            f"- [{appimage['asset']}]({appimage['url']})",
-        ]
+        lines += ["", "## Neutrino für den PC", "",
+                  "Die AppImage-Variante läuft auf dem Rechner statt auf der Box und "
+                  "wird getrennt aus einem eigenen Quellstand gebaut: "
+                  f"[{appimage['asset']}]({appimage['url']}) "
+                  f"(Stand {_german_date(appimage['published'])})."]
 
-    lines += ["", "## Pruefsummen", "",
-              "`sha256sum -c SHA256SUMS` nach dem Herunterladen.", ""]
-
-    for machine, diff in sorted(package_diffs.items()):
-        section = ["", f"## Paketaenderungen {machine}", ""]
-        if not any(diff.values()):
-            section.append("Keine Aenderungen gegenueber dem Vormonat.")
-            section.append("")
-            lines += section
-            continue
-        section += [f"{len(diff['changed'])} geaendert, {len(diff['added'])} neu, "
-                    f"{len(diff['removed'])} entfernt",
-                    "",
-                    "| Section | Geaendert | Neu | Entfernt |",
-                    "|---|---:|---:|---:|"]
-        counts = section_counts(diff, sections.get(machine, {}))
-        for name, count in sorted(counts.items(),
-                                  key=lambda item: (-sum(item[1].values()), item[0])):
-            section.append(f"| {name} | {count['changed']} | {count['added']} "
-                           f"| {count['removed']} |")
-        section.append("")
-        lines += section
+    revision = first.get("git_hash", "unbekannt")
+    if source:
+        repo_name = source.split("/tree/")[0].rsplit("/", 1)[-1]
+        source_cell = f"[`{repo_name}@{revision}`]({source})"
+    else:
+        source_cell = f"`{revision}`"
+    lines += ["", "## Build-Details", "", "| | |", "|---|---|",
+              f"| Image-Version | `{results[0].image_version if results else 'unbekannt'}` |",
+              f"| Quellstand | {source_cell} |",
+              f"| Kanal | `{first.get('channel', 'release')}` |",
+              f"| Gebaut | {built:%d.%m.%Y, %H:%M} UTC |" if built
+              else f"| Gebaut | {first.get('build_date', 'unbekannt')} |",
+              ""]
 
     body = "\n".join(lines)
     if len(body) > MAX_BODY:
         body = body[:MAX_BODY - 90].rstrip() + \
-            "\n\n… gekuerzt; die vollstaendige Paketliste liegt im Manifest bei.\n"
+            "\n\n… gekürzt; die vollständigen Paketlisten liegen im Archiv des Laufs.\n"
     return body

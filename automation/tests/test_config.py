@@ -98,3 +98,14 @@ def test_a_separate_release_repo_is_read(tmp_path):
     assert cfg.publish_repo == "tuxbox-neutrino/tuxbox-os-images"
     assert cfg.repo == "tuxbox-neutrino/build-environment", \
         "issues and the source link still belong to the build system"
+
+
+# --- boxes carry a display name for the release notes ---------------------
+
+def test_a_machine_may_carry_a_display_name(tmp_path):
+    # Adding a box is a line in the environment file, not a code change.
+    cfg = load_config(write_env(
+        tmp_path, TUXBOX_MACHINES="hd51:mutant51:Mut@nt HD51,h7:zgemmah7"))
+    assert cfg.machines[0] == Machine("hd51", "mutant51", "Mut@nt HD51")
+    assert cfg.machines[0].display_name == "Mut@nt HD51"
+    assert cfg.machines[1].display_name == "h7"

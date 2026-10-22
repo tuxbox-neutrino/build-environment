@@ -234,8 +234,12 @@ def test_the_lock_is_released_when_sigterm_arrives(tmp_path):
 
 def _publishing_run(tmp_path: Path, monkeypatch) -> dict:
     """A rehearsal through every phase with the outside world stubbed out."""
+    return _publishing_run_with(_prepared_config(tmp_path, monkeypatch),
+                                tmp_path, monkeypatch)
+
+
+def _publishing_run_with(cfg: Config, tmp_path: Path, monkeypatch) -> dict:
     from tuxbox_release.collect import MachineArtifacts
-    cfg = _prepared_config(tmp_path, monkeypatch)
     out = tmp_path / "out"
     out.mkdir()
     image = out / "tuxbox-image-hd51_multi.zip"
@@ -329,9 +333,17 @@ def test_the_notes_count_package_changes_per_section(tmp_path, monkeypatch):
 
     assert run(cfg, date(2026, 11, 1), keep_draft=True) == 0
     notes = published["notes"]
-    assert "1 geaendert, 1 neu, 1 entfernt" in notes
-    assert "| libs | 1 | 0 | 0 |" in notes
-    assert "| neutrino-plugin | 0 | 1 | 0 |" in notes
-    assert "| x11 | 0 | 0 | 1 |" in notes, "the removed package lost its section"
+    assert "| hd51 | 1 | 1 | 1 | libs 1 · neutrino-plugin 1 · x11 1 |" in notes, \
+        "the removed package lost its section"
     sections = next(cfg.artifacts_dir.glob("*/images/sections-hd51.txt"))
     assert "newbie\tneutrino-plugin" in sections.read_text(encoding="utf-8")
+
+
+def test_the_notes_link_downloads_in_the_release_repo(tmp_path, monkeypatch):
+    cfg = _prepared_config(tmp_path, monkeypatch)
+    cfg = Config(**{**cfg.__dict__, "release_repo": "tuxbox-neutrino/images",
+                    "machines": (Machine("hd51", "mutant51", "Mut@nt HD51"),)})
+    published = _publishing_run_with(cfg, tmp_path, monkeypatch)
+    assert ("| Mut@nt HD51 | [multi.zip](https://github.com/tuxbox-neutrino/images/"
+            "releases/download/v4.0.35.501-2026.10/tuxbox-image-hd51_multi.zip)"
+            in published["notes"])

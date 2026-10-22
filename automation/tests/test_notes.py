@@ -42,7 +42,7 @@ def test_identical_package_sets_produce_no_entries():
 def test_notes_name_every_machine_and_the_commit():
     notes = render_notes([artifacts("hd51"), artifacts("hd60")], "v4.0.35.501-2026.10", {})
     assert "hd51" in notes and "hd60" in notes
-    assert "277d6b8" in notes and "v4.0.35.501-2026.10" in notes
+    assert "277d6b8" in notes and "4.0.35.501" in notes
 
 
 def test_failed_machine_is_named_in_the_notes():
@@ -53,7 +53,7 @@ def test_failed_machine_is_named_in_the_notes():
 def test_first_run_without_previous_data_says_so():
     notes = render_notes([artifacts()], "v1-2026.10",
                          {"hd51": {"changed": {}, "added": {}, "removed": {}}})
-    assert "Keine Aenderungen" in notes
+    assert "Keine Paketänderungen" in notes
 
 
 def test_notes_stay_within_github_release_limit():
@@ -92,9 +92,7 @@ def test_the_notes_count_changes_without_naming_packages():
     notes = render_notes([artifacts()], "v1-2026.10", {"hd51": diff},
                          sections={"hd51": sections})
     assert "pkg1" not in notes and "newpkg" not in notes
-    assert "300 geaendert, 1 neu, 0 entfernt" in notes
-    assert "| libs | 150 | 0 | 0 |" in notes
-    assert "| neutrino-plugin | 0 | 1 | 0 |" in notes
+    assert "| hd51 | 300 | 1 | 0 | devel 150 · libs 150 · neutrino-plugin 1 |" in notes
     assert len(notes) < 2500
 
 
@@ -103,7 +101,7 @@ def test_the_busiest_section_comes_first():
             "added": {}, "removed": {}}
     notes = render_notes([artifacts()], "v1-2026.10", {"hd51": diff},
                          sections={"hd51": {"a": "x11", "b": "libs", "c": "libs"}})
-    assert notes.index("| libs |") < notes.index("| x11 |")
+    assert notes.index("libs 2") < notes.index("x11 1")
 
 
 def test_sections_survive_into_next_month(tmp_path):
@@ -169,7 +167,7 @@ def test_the_notes_link_the_appimage_and_say_it_is_a_separate_build():
     assert ref["url"] in body
     assert "PC" in body or "Rechner" in body, \
         "the notes do not say this is not a box image"
-    assert "2026-09-20" in body, "the reader cannot see it is a different build"
+    assert "20.09.2026" in body, "the reader cannot see it is a different build"
 
 
 def test_without_a_reference_there_is_no_empty_section():
@@ -221,3 +219,71 @@ def test_the_notes_link_the_built_source_state():
 def test_without_a_source_link_the_hash_stays_plain_text():
     notes = render_notes([artifacts()], "v4.0.35.501-2026.10", {})
     assert "`277d6b8`" in notes and "/tree/" not in notes
+
+
+# --- the page a downloader reads -------------------------------------------
+
+def _built(tmp_path, machine, *suffixes):
+    files = []
+    for suffix in suffixes:
+        f = tmp_path / f"tuxbox-image-{machine}-4.0.35.502-20261022095142{suffix}"
+        f.write_bytes(b"x" * 2_500_000)
+        files.append(f)
+    return MachineArtifacts(
+        machine=machine, image_version="4.0.35.502", assets=files,
+        manifest={"git_hash": "813230a", "build_date": "20261022095142",
+                  "channel": "release"})
+
+
+def test_downloads_are_linked_with_their_size(tmp_path):
+    result = _built(tmp_path, "hd51", "_multi.zip", "_recovery_emmc.zip", ".tuxbox.tar.bz2")
+    notes = render_notes([result], "v4.0.35.502-2026.10", {},
+                         release_repo="tuxbox-neutrino/images",
+                         labels={"hd51": "Mut@nt HD51"})
+    base = "https://github.com/tuxbox-neutrino/images/releases/download/v4.0.35.502-2026.10/"
+    assert (f"| Mut@nt HD51 | [multi.zip]({base}tuxbox-image-hd51-4.0.35.502-"
+            f"20261022095142_multi.zip) · 2.5 MB |") in notes
+    assert f"[`SHA256SUMS`]({base}SHA256SUMS)" in notes
+
+
+def test_a_missing_file_type_leaves_a_dash(tmp_path):
+    # A future box without a recovery package still gets its row.
+    result = _built(tmp_path, "vuduo4k", "_usb.zip")
+    notes = render_notes([result], "v1-2026.11", {}, release_repo="org/images")
+    row = next(line for line in notes.splitlines() if line.startswith("| vuduo4k |"))
+    assert "[usb.zip](" in row and row.endswith("| – | – |")
+
+
+def test_every_box_is_one_row_in_both_tables(tmp_path):
+    # More boxes mean more rows; the columns stay the same.
+    boxes = [f"box{i}" for i in range(8)]
+    results = [_built(tmp_path, m, "_multi.zip") for m in boxes]
+    diffs = {m: {"changed": {"neutrino": ("1", "2")}, "added": {}, "removed": {}} for m in boxes}
+    notes = render_notes(results, "v1-2026.11", diffs, release_repo="org/images",
+                         sections={m: {"neutrino": "libs"} for m in boxes})
+    header_lines = [l for l in notes.splitlines() if l.startswith("| Box |")]
+    assert len(header_lines) == 2
+    assert all(len(l.split("|")) <= 7 for l in header_lines)
+    assert sum(1 for l in notes.splitlines() if l.startswith("| box")) == 16
+
+
+def test_build_date_and_umlauts_are_written_for_people():
+    notes = render_notes([artifacts()], "v1-2026.10", {})
+    assert "Prüfsummen" in notes and "Pruefsummen" not in notes
+    assert "Paketänderungen" in notes
+
+
+def test_the_build_timestamp_is_readable(tmp_path):
+    notes = render_notes([_built(tmp_path, "hd51", "_multi.zip")], "v1-2026.10", {})
+    assert "gebaut am 22.10.2026" in notes
+    assert "22.10.2026, 09:51 UTC" in notes
+
+
+def test_a_failed_box_is_named_by_its_label(tmp_path):
+    notes = render_notes([_built(tmp_path, "hd51", "_multi.zip")], "v1-2026.10", {},
+                         failed=["hd60"], labels={"hd60": "AX HD60"})
+    assert "**Nicht gebaut:** AX HD60" in notes
+
+
+def test_a_dry_run_without_images_still_renders():
+    assert "Downloads" in render_notes([], "dry-2026.10", {})

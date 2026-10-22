@@ -225,7 +225,9 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
                          failed=[m.machine for m in failed],
                          appimage=fetch_appimage(cfg.appimage_repo, cfg.token),
                          source=source_url(cfg.repo, commit) if commit else "",
-                         sections=sections)
+                         sections=sections,
+                         release_repo=cfg.publish_repo,
+                         labels={m.machine: m.display_name for m in cfg.machines})
     url = publish(cfg, tag, notes, assets, commit, dry_run=dry_run,
                   keep_draft=keep_draft)
     if results and not dry_run:

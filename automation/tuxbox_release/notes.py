@@ -11,8 +11,8 @@ from .collect import MachineArtifacts
 
 #: GitHub rejects release bodies beyond this many characters.
 MAX_BODY = 125000
-#: Per section, so one huge diff cannot crowd out everything else.
-MAX_ENTRIES_PER_SECTION = 200
+#: Section of a package that no feed index and no archived run knows.
+UNKNOWN_SECTION = "unbekannt"
 
 
 def read_package_list(manifest: Path) -> dict[str, str]:
@@ -55,6 +55,32 @@ def previous_package_list(archive_root: Path, machine: str) -> dict[str, str]:
     return versions
 
 
+def write_package_sections(sections: dict[str, str], dest: Path, machine: str) -> Path:
+    """Keep this run's sections so next month can place removed packages.
+
+    A package dropped from the image is usually gone from the next feed as
+    well, so its section is only known from the month it was still built.
+    """
+    target = dest / f"sections-{machine}.txt"
+    target.write_text(
+        "".join(f"{name}\t{section}\n" for name, section in sorted(sections.items())),
+        encoding="utf-8")
+    return target
+
+
+def previous_package_sections(archive_root: Path, machine: str) -> dict[str, str]:
+    """Sections of the most recent archived run, empty if none was kept."""
+    candidates = sorted(Path(archive_root).glob(f"*/sections-{machine}.txt"))
+    if not candidates:
+        return {}
+    sections: dict[str, str] = {}
+    for line in candidates[-1].read_text(encoding="utf-8").splitlines():
+        name, _, section = line.partition("\t")
+        if name:
+            sections[name] = section
+    return sections
+
+
 def package_diff(previous: dict[str, str], current: dict[str, str]) -> dict:
     """What changed between two package sets."""
     changed = {
@@ -65,6 +91,17 @@ def package_diff(previous: dict[str, str], current: dict[str, str]) -> dict:
     added = {name: current[name] for name in sorted(set(current) - set(previous))}
     removed = {name: previous[name] for name in sorted(set(previous) - set(current))}
     return {"changed": changed, "added": added, "removed": removed}
+
+
+def section_counts(diff: dict, sections: dict[str, str]) -> dict[str, dict[str, int]]:
+    """How many packages changed, arrived or left, per IPK section."""
+    counts: dict[str, dict[str, int]] = {}
+    for kind in ("changed", "added", "removed"):
+        for name in diff[kind]:
+            section = sections.get(name) or UNKNOWN_SECTION
+            entry = counts.setdefault(section, {"changed": 0, "added": 0, "removed": 0})
+            entry[kind] += 1
+    return counts
 
 
 def fetch_appimage(repo: str, token: str) -> dict | None:
@@ -123,9 +160,16 @@ def render_notes(results: list[MachineArtifacts], tag: str,
                  package_diffs: dict[str, dict],
                  failed: list[str] | None = None,
                  appimage: dict | None = None,
-                 source: str = "") -> str:
-    """Human-readable notes: what was built, from what, what changed."""
+                 source: str = "",
+                 sections: dict[str, dict[str, str]] | None = None) -> str:
+    """Human-readable notes: what was built, from what, what changed.
+
+    Package changes are counted per IPK section rather than listed: a month
+    can touch hundreds of packages, and a list of all of them buries the
+    rest of the page. The package lists stay in the run archive.
+    """
     failed = failed or []
+    sections = sections or {}
     first = results[0].manifest if results else {}
     revision = f"`{first.get('git_hash', 'unbekannt')}`"
     lines = [
@@ -169,21 +213,17 @@ def render_notes(results: list[MachineArtifacts], tag: str,
             section.append("")
             lines += section
             continue
-        for title, entries in (("Geaendert", diff["changed"]),
-                               ("Neu", diff["added"]),
-                               ("Entfernt", diff["removed"])):
-            if not entries:
-                continue
-            section.append(f"**{title}** ({len(entries)})")
-            section.append("")
-            for name, value in list(entries.items())[:MAX_ENTRIES_PER_SECTION]:
-                if isinstance(value, tuple):
-                    section.append(f"- `{name}`: {value[0]} -> {value[1]}")
-                else:
-                    section.append(f"- `{name}`: {value}")
-            if len(entries) > MAX_ENTRIES_PER_SECTION:
-                section.append(f"- … und {len(entries) - MAX_ENTRIES_PER_SECTION} weitere")
-            section.append("")
+        section += [f"{len(diff['changed'])} geaendert, {len(diff['added'])} neu, "
+                    f"{len(diff['removed'])} entfernt",
+                    "",
+                    "| Section | Geaendert | Neu | Entfernt |",
+                    "|---|---:|---:|---:|"]
+        counts = section_counts(diff, sections.get(machine, {}))
+        for name, count in sorted(counts.items(),
+                                  key=lambda item: (-sum(item[1].values()), item[0])):
+            section.append(f"| {name} | {count['changed']} | {count['added']} "
+                           f"| {count['removed']} |")
+        section.append("")
         lines += section
 
     body = "\n".join(lines)

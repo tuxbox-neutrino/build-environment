@@ -23,6 +23,8 @@ class MachineArtifacts:
     manifest: dict = field(default_factory=dict)
     #: Yocto image manifest ("<image>.tuxbox.manifest") - the package list.
     package_manifest: Path | None = None
+    #: Package name -> IPK section, for every package in the feed.
+    package_sections: dict = field(default_factory=dict)
 
 
 def _to_host_path(cfg: Config, machine: Machine, container_path: str) -> Path:
@@ -77,6 +79,26 @@ def deploy_info(cfg: Config, machine: Machine) -> dict:
     return info
 
 
+def read_package_sections(deploy_ipk: Path) -> dict[str, str]:
+    """Package name -> IPK section, from the feed indexes of the build.
+
+    The image manifest names packages but not their section. The Packages
+    index that do_rootfs writes into every feed directory carries it, one
+    stanza per package. Read before cleanup_tmpdir removes the feed.
+    """
+    sections: dict[str, str] = {}
+    for index in sorted(Path(deploy_ipk).glob("*/Packages")):
+        package = None
+        for line in index.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("Package:"):
+                package = line.partition(":")[2].strip()
+            elif line.startswith("Section:") and package:
+                sections[package] = line.partition(":")[2].strip()
+            elif not line.strip():
+                package = None
+    return sections
+
+
 def select_assets(deploy_images: Path, manifest: dict) -> list[Path]:
     """Pick the three flash artefacts belonging to the built image.
 
@@ -127,12 +149,14 @@ def collect_machine(cfg: Config, machine: Machine, dest: Path) -> MachineArtifac
         package_manifest = dest / source.name
         shutil.copy2(source, package_manifest)
 
+    deploy_ipk = info.get("deploy_ipk")
     return MachineArtifacts(
         machine=machine.machine,
         image_version=manifest["image_version"],
         assets=copied,
         manifest=manifest,
         package_manifest=package_manifest,
+        package_sections=read_package_sections(Path(deploy_ipk)) if deploy_ipk else {},
     )
 
 

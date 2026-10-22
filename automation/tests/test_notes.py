@@ -1,6 +1,8 @@
 from pathlib import Path
 from tuxbox_release.notes import (parse_appimage_release, package_diff,
-                                  fetch_appimage, source_url,
+                                  fetch_appimage, source_url, section_counts,
+                                  write_package_sections,
+                                  previous_package_sections,
                                   render_notes, read_package_list,
                                   write_package_list, previous_package_list)
 from tuxbox_release.collect import MachineArtifacts
@@ -59,6 +61,63 @@ def test_notes_stay_within_github_release_limit():
             "added": {}, "removed": {}}
     notes = render_notes([artifacts()], "v1-2026.10", {"hd51": huge})
     assert len(notes) < 125000
+
+
+# --- package changes are counted per IPK section, not listed --------------
+
+def test_changes_are_counted_per_section():
+    diff = {"changed": {"neutrino": ("1", "2"), "tuxcal": ("1", "2")},
+            "added": {"satfind": "1"}, "removed": {"oldlib": "1"}}
+    sections = {"neutrino": "libs", "tuxcal": "neutrino-plugin",
+                "satfind": "neutrino-plugin", "oldlib": "libs"}
+    assert section_counts(diff, sections) == {
+        "libs": {"changed": 1, "added": 0, "removed": 1},
+        "neutrino-plugin": {"changed": 1, "added": 1, "removed": 0},
+    }
+
+
+def test_a_package_without_a_known_section_is_still_counted():
+    diff = {"changed": {"mystery": ("1", "2")}, "added": {}, "removed": {}}
+    assert section_counts(diff, {}) == {
+        "unbekannt": {"changed": 1, "added": 0, "removed": 0}}
+
+
+def test_the_notes_count_changes_without_naming_packages():
+    # Hundreds of names made the release page unreadable; the counts per
+    # section say what kind of change a month brought.
+    diff = {"changed": {f"pkg{i}": ("1.0", "1.1") for i in range(300)},
+            "added": {"newpkg": "1"}, "removed": {}}
+    sections = {f"pkg{i}": ("libs" if i % 2 else "devel") for i in range(300)}
+    sections["newpkg"] = "neutrino-plugin"
+    notes = render_notes([artifacts()], "v1-2026.10", {"hd51": diff},
+                         sections={"hd51": sections})
+    assert "pkg1" not in notes and "newpkg" not in notes
+    assert "300 geaendert, 1 neu, 0 entfernt" in notes
+    assert "| libs | 150 | 0 | 0 |" in notes
+    assert "| neutrino-plugin | 0 | 1 | 0 |" in notes
+    assert len(notes) < 2500
+
+
+def test_the_busiest_section_comes_first():
+    diff = {"changed": {"a": ("1", "2"), "b": ("1", "2"), "c": ("1", "2")},
+            "added": {}, "removed": {}}
+    notes = render_notes([artifacts()], "v1-2026.10", {"hd51": diff},
+                         sections={"hd51": {"a": "x11", "b": "libs", "c": "libs"}})
+    assert notes.index("| libs |") < notes.index("| x11 |")
+
+
+def test_sections_survive_into_next_month(tmp_path):
+    # A package removed next month is no longer in the feed; its section
+    # has to come from this month's archive.
+    run = tmp_path / "20261022T095021Z"
+    run.mkdir()
+    write_package_sections({"neutrino": "libs", "busybox": "base utils"}, run, "hd51")
+    assert previous_package_sections(tmp_path, "hd51") == {
+        "neutrino": "libs", "busybox": "base utils"}
+
+
+def test_previous_sections_are_empty_without_an_archive(tmp_path):
+    assert previous_package_sections(tmp_path, "hd51") == {}
 
 
 def test_previous_list_is_empty_on_the_first_run(tmp_path):

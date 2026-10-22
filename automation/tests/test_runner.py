@@ -290,3 +290,48 @@ def test_the_notes_link_the_commit_that_was_built(tmp_path, monkeypatch):
     published = _publishing_run(tmp_path, monkeypatch)
     assert ("https://github.com/tuxbox-neutrino/build-environment/tree/deadbeef"
             in published["notes"])
+
+
+def test_the_notes_count_package_changes_per_section(tmp_path, monkeypatch):
+    from tuxbox_release.collect import MachineArtifacts
+    from tuxbox_release.notes import write_package_list, write_package_sections
+    cfg = _prepared_config(tmp_path, monkeypatch)
+    previous = cfg.archive_root / "20261022T095021Z"
+    previous.mkdir(parents=True)
+    write_package_list({"neutrino": "1", "gone": "1"}, previous, "hd51")
+    write_package_sections({"gone": "x11"}, previous, "hd51")
+    manifest = tmp_path / "img.tuxbox.manifest"
+    manifest.write_text("neutrino cortexa15hf 2\nnewbie all 1\n")
+    image = tmp_path / "tuxbox-image-hd51_multi.zip"
+    image.write_bytes(b"image")
+
+    monkeypatch.setattr("tuxbox_release.runner.SHUTDOWN_MARKER", tmp_path / "shutdown")
+    monkeypatch.setattr("tuxbox_release.runner.commit_is_published", lambda c, h: True)
+    monkeypatch.setattr("tuxbox_release.runner.build_machine", lambda *a, **k: 0)
+    monkeypatch.setattr("tuxbox_release.runner.cleanup_tmpdir", lambda *a, **k: None)
+    monkeypatch.setattr("tuxbox_release.runner.scan_build_log",
+                        lambda cfg, machine, dest: (None, 0))
+    monkeypatch.setattr("tuxbox_release.runner.fetch_appimage", lambda r, t: None)
+    monkeypatch.setattr("tuxbox_release.runner.send_mail", lambda c, s, b: None)
+    monkeypatch.setattr("tuxbox_release.runner.archive_release", lambda *a: None)
+
+    def fake_collect(cfg, machine, dest):
+        dest.mkdir(parents=True, exist_ok=True)
+        return MachineArtifacts(
+            machine="hd51", image_version="4.0.35.501", assets=[image],
+            manifest={"git_hash": "deadbee"}, package_manifest=manifest,
+            package_sections={"neutrino": "libs", "newbie": "neutrino-plugin"})
+    monkeypatch.setattr("tuxbox_release.runner.collect_machine", fake_collect)
+    published = {}
+    monkeypatch.setattr("tuxbox_release.runner.publish",
+                        lambda cfg, tag, notes, assets, commit, **kw:
+                        published.update(notes=notes) or "https://github.invalid")
+
+    assert run(cfg, date(2026, 11, 1), keep_draft=True) == 0
+    notes = published["notes"]
+    assert "1 geaendert, 1 neu, 1 entfernt" in notes
+    assert "| libs | 1 | 0 | 0 |" in notes
+    assert "| neutrino-plugin | 0 | 1 | 0 |" in notes
+    assert "| x11 | 0 | 0 | 1 |" in notes, "the removed package lost its section"
+    sections = next(cfg.artifacts_dir.glob("*/images/sections-hd51.txt"))
+    assert "newbie\tneutrino-plugin" in sections.read_text(encoding="utf-8")

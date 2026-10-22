@@ -2,7 +2,7 @@ import json
 import pytest
 from pathlib import Path
 from tuxbox_release.collect import (select_assets, write_sha256sums, ASSET_SUFFIXES,
-                                    _to_host_path)
+                                    _to_host_path, read_package_sections)
 from tuxbox_release.config import Config, Machine
 
 MANIFEST = {
@@ -122,3 +122,36 @@ def test_the_log_scan_reads_the_cooker_log_on_the_ssd(tmp_path, monkeypatch):
     pattern = seen[0][seen[0].index("--glob") + 1]
     import glob
     assert glob.glob(pattern) == [str(log)], pattern
+
+
+# --- the feed index knows each package's section --------------------------
+
+PACKAGES_ARCH = """Package: neutrino
+Version: 1:2026.10.48-r34
+Section: libs
+Architecture: cortexa15hf-neon-vfpv4
+Filename: neutrino_2026.10.48-r34_cortexa15hf-neon-vfpv4.ipk
+
+Package: busybox
+Version: 1.35.0-r0
+Section: base utils
+Architecture: cortexa15hf-neon-vfpv4
+"""
+
+PACKAGES_ALL = """Package: tuxbox-feed-config
+Version: 1.0-r4
+Architecture: all
+Section: base
+"""
+
+
+def test_sections_are_read_from_every_feed_index(tmp_path):
+    for arch, text in (("cortexa15hf-neon-vfpv4", PACKAGES_ARCH), ("all", PACKAGES_ALL)):
+        (tmp_path / arch).mkdir()
+        (tmp_path / arch / "Packages").write_text(text)
+    assert read_package_sections(tmp_path) == {
+        "neutrino": "libs", "busybox": "base utils", "tuxbox-feed-config": "base"}
+
+
+def test_no_feed_means_no_sections(tmp_path):
+    assert read_package_sections(tmp_path / "nope") == {}

@@ -13,8 +13,9 @@ from .collect import (archive_release, collect_machine, scan_build_log,
                       write_sha256sums)
 from .config import Config
 from .notes import (fetch_appimage, package_diff, previous_package_list,
-                    read_package_list, render_notes, source_url,
-                    write_package_list)
+                    previous_package_sections, read_package_list,
+                    render_notes, source_url, write_package_list,
+                    write_package_sections)
 from .notify import (issue_fingerprint, mail_subject, open_issue,
                      send_mail)
 from .publish import publish, release_tag
@@ -140,6 +141,7 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
     state.start("build")
     artefact_dir = cfg.artifacts_dir / build_id / "images"
     built, failed, results, diffs = [], [], [], {}
+    sections: dict[str, dict[str, str]] = {}
 
     for machine in cfg.machines:
         if dry_run:
@@ -178,8 +180,16 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
             if result.package_manifest else {}
         if packages:
             write_package_list(packages, artefact_dir, machine.machine)
+            write_package_sections(
+                {name: result.package_sections[name] for name in packages
+                 if name in result.package_sections},
+                artefact_dir, machine.machine)
         diffs[machine.machine] = package_diff(
             previous_package_list(cfg.archive_root, machine.machine), packages)
+        # Removed packages are usually gone from this month's feed as well.
+        sections[machine.machine] = {
+            **previous_package_sections(cfg.archive_root, machine.machine),
+            **result.package_sections}
 
         built.append(machine)
         results.append(result)
@@ -214,7 +224,8 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
     notes = render_notes(results, tag, diffs,
                          failed=[m.machine for m in failed],
                          appimage=fetch_appimage(cfg.appimage_repo, cfg.token),
-                         source=source_url(cfg.repo, commit) if commit else "")
+                         source=source_url(cfg.repo, commit) if commit else "",
+                         sections=sections)
     url = publish(cfg, tag, notes, assets, commit, dry_run=dry_run,
                   keep_draft=keep_draft)
     if results and not dry_run:

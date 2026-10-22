@@ -163,14 +163,14 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
             continue
 
         result = collect_machine(cfg, machine, artefact_dir)
-        report, criticals = scan_build_log(cfg, machine, artefact_dir)
-        if report is not None:
-            result.assets.append(report)
+        # The report stays beside the artefacts and goes into the archive,
+        # but not into the release: nobody flashes a log scan.
+        _report, criticals = scan_build_log(cfg, machine, artefact_dir)
         if criticals:
             reason = f"{criticals} kritische Logfunde"
             open_issue(cfg, f"[build-log-critical] {machine.machine}",
-                       f"Lauf `{build_id}`: {reason}. Bericht liegt dem "
-                       f"Release bei.",
+                       f"Lauf `{build_id}`: {reason}. Der Bericht liegt "
+                       f"im Archiv des Laufs.",
                        issue_fingerprint(machine.machine, reason))
 
         packages = read_package_list(result.package_manifest) \

@@ -228,3 +228,59 @@ def test_the_lock_is_released_when_sigterm_arrives(tmp_path):
     # refused to ever power the host off again.
     _run_child(tmp_path)
     assert not (tmp_path / "run.lock").exists(), "run.lock survived the signal"
+
+
+# --- what a run puts into the release --------------------------------------
+
+def _publishing_run(tmp_path: Path, monkeypatch) -> dict:
+    """A rehearsal through every phase with the outside world stubbed out."""
+    from tuxbox_release.collect import MachineArtifacts
+    cfg = _prepared_config(tmp_path, monkeypatch)
+    out = tmp_path / "out"
+    out.mkdir()
+    image = out / "tuxbox-image-hd51_multi.zip"
+    image.write_bytes(b"image")
+    report = out / "build-log-scan-hd51.md"
+    report.write_text("# Build Log Scan\n")
+
+    monkeypatch.setattr("tuxbox_release.runner.SHUTDOWN_MARKER",
+                        tmp_path / "shutdown")
+    monkeypatch.setattr("tuxbox_release.runner.commit_is_published",
+                        lambda checkout, commit: True)
+    monkeypatch.setattr("tuxbox_release.runner.build_machine",
+                        lambda *a, **k: 0)
+    monkeypatch.setattr("tuxbox_release.runner.cleanup_tmpdir",
+                        lambda *a, **k: None)
+
+    def fake_collect(cfg, machine, dest):
+        dest.mkdir(parents=True, exist_ok=True)
+        return MachineArtifacts(machine="hd51", image_version="4.0.35.501",
+                                assets=[image], manifest={"git_hash": "deadbee"})
+    monkeypatch.setattr("tuxbox_release.runner.collect_machine", fake_collect)
+    monkeypatch.setattr("tuxbox_release.runner.scan_build_log",
+                        lambda cfg, machine, dest: (report, 0))
+    monkeypatch.setattr("tuxbox_release.runner.fetch_appimage",
+                        lambda repo, token: None)
+    monkeypatch.setattr("tuxbox_release.runner.send_mail",
+                        lambda cfg, subject, body: None)
+    published = {}
+
+    def fake_publish(cfg, tag, notes, assets, commit, **kw):
+        published.update(notes=notes, assets=assets, commit=commit)
+        return "https://github.invalid/release"
+    monkeypatch.setattr("tuxbox_release.runner.publish", fake_publish)
+
+    code = run(cfg, date(2026, 10, 1), keep_draft=True)
+    errors = [e.read_text() for e in cfg.runs_dir.glob("*/error.log")]
+    assert code == 0, errors
+    return published
+
+
+def test_the_log_scan_report_stays_off_the_release(tmp_path, monkeypatch):
+    # An internal diagnostic, not something to download next to an image.
+    published = _publishing_run(tmp_path, monkeypatch)
+    names = [a.name for a in published["assets"]]
+    assert not any(n.startswith("build-log-scan") for n in names), names
+    sums = next(a for a in published["assets"] if a.name == "SHA256SUMS")
+    assert "build-log-scan" not in sums.read_text(encoding="utf-8")
+    assert "build-log-scan" not in published["notes"]

@@ -96,3 +96,29 @@ def test_container_work_path_maps_back_to_the_checkout(tmp_path):
 def test_host_path_is_left_alone(tmp_path):
     cfg = make_config(tmp_path)
     assert _to_host_path(cfg, Machine("hd51", "mutant51"), "/mnt/elsewhere") == Path("/mnt/elsewhere")
+
+
+# --- the log scan has to look where the build actually logs ---------------
+
+def test_the_log_scan_reads_the_cooker_log_on_the_ssd(tmp_path, monkeypatch):
+    # TMPDIR is bind-mounted from the SSD. On the host, builds/<m>/tmp is
+    # only the empty mount point, so a scan there reported "no log found"
+    # for every build since the first one.
+    from tuxbox_release import collect as collect_mod
+    cfg = make_config(tmp_path)
+    script = cfg.checkout / "scripts" / "scan-build-log.sh"
+    script.parent.mkdir(parents=True)
+    script.write_text("#!/bin/sh\n")
+    log = cfg.tmp_root / "tmp-hd51" / "log" / "cooker" / "hd51" / "20261010.log"
+    log.parent.mkdir(parents=True)
+    log.write_text("NOTE: done\n")
+    (cfg.checkout / "builds" / "hd51" / "tmp").mkdir(parents=True)
+
+    seen = []
+    monkeypatch.setattr(collect_mod.subprocess, "run",
+                        lambda cmd, **kw: seen.append(cmd))
+    collect_mod.scan_build_log(cfg, Machine("hd51", "mutant51"), tmp_path / "out")
+
+    pattern = seen[0][seen[0].index("--glob") + 1]
+    import glob
+    assert glob.glob(pattern) == [str(log)], pattern

@@ -140,7 +140,10 @@ def scan_build_log(cfg: Config, machine: Machine, dest: Path) -> tuple[Path | No
     """Run the repo's log scanner; keep its report and the critical count.
 
     A build can succeed and still log something alarming. The scanner
-    already exists in the repo and is used by the GitHub workflow.
+    already exists in the repo and is used by the GitHub workflow. It has
+    to run before cleanup_tmpdir, and it has to look on the SSD: on the
+    host, builds/<machine>/tmp is only the empty bind-mount target.
+    The report is for whoever runs the host, not part of the release.
     """
     script = cfg.checkout / "scripts" / "scan-build-log.sh"
     if not script.exists():
@@ -149,7 +152,8 @@ def scan_build_log(cfg: Config, machine: Machine, dest: Path) -> tuple[Path | No
     metrics = dest / f"build-log-scan-{machine.machine}.env"
     subprocess.run(
         [str(script),
-         "--glob", f"builds/{machine.machine}/tmp/log/cooker/*/*.log",
+         "--glob", str(cfg.tmp_root / f"tmp-{machine.machine}"
+                       / "log" / "cooker" / "*" / "*.log"),
          "--report", str(report), "--metrics", str(metrics),
          "--allow-missing", "--no-fail-on-critical"],
         cwd=cfg.checkout, capture_output=True, text=True, check=False)

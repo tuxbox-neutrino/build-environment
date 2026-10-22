@@ -1,6 +1,6 @@
 from pathlib import Path
 from tuxbox_release.notes import (parse_appimage_release, package_diff,
-                                  fetch_appimage,
+                                  fetch_appimage, source_url,
                                   render_notes, read_package_list,
                                   write_package_list, previous_package_list)
 from tuxbox_release.collect import MachineArtifacts
@@ -143,3 +143,22 @@ def test_a_successful_lookup_is_parsed(monkeypatch):
                         lambda *a, **k: sp.CompletedProcess(a, 0, stdout=GH_ANSWER))
     ref = fetch_appimage("org/pc-build", "token")
     assert ref is not None and ref["asset"].endswith(".AppImage")
+
+
+# --- the built source state is linked, not attached ------------------------
+
+def test_the_source_link_points_at_the_tree_of_the_built_commit():
+    assert source_url("tuxbox-neutrino/build-environment", "275ce154f1") == \
+        "https://github.com/tuxbox-neutrino/build-environment/tree/275ce154f1"
+
+
+def test_the_notes_link_the_built_source_state():
+    url = "https://github.com/tuxbox-neutrino/build-environment/tree/275ce154f1"
+    notes = render_notes([artifacts()], "v4.0.35.501-2026.10", {}, source=url)
+    assert f"](" + url + ")" in notes
+    assert "277d6b8" in notes, "the short hash from the manifest stays readable"
+
+
+def test_without_a_source_link_the_hash_stays_plain_text():
+    notes = render_notes([artifacts()], "v4.0.35.501-2026.10", {})
+    assert "`277d6b8`" in notes and "/tree/" not in notes

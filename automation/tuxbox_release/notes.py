@@ -110,18 +110,30 @@ def parse_appimage_release(raw: str) -> dict | None:
         return None
 
 
+def source_url(repo: str, commit: str) -> str:
+    """The build system's tree at the commit that was built.
+
+    Linked instead of attached: whoever wants the source state can browse
+    or clone it there, and the release carries only what goes on a box.
+    """
+    return f"https://github.com/{repo}/tree/{commit}"
+
+
 def render_notes(results: list[MachineArtifacts], tag: str,
                  package_diffs: dict[str, dict],
                  failed: list[str] | None = None,
-                 appimage: dict | None = None) -> str:
+                 appimage: dict | None = None,
+                 source: str = "") -> str:
     """Human-readable notes: what was built, from what, what changed."""
     failed = failed or []
     first = results[0].manifest if results else {}
+    revision = f"`{first.get('git_hash', 'unbekannt')}`"
     lines = [
         f"# Tuxbox-OS {tag}",
         "",
         f"- Image-Version: `{results[0].image_version if results else 'unbekannt'}`",
-        f"- Quellstand: `{first.get('git_hash', 'unbekannt')}`",
+        f"- Quellstand: [{revision}]({source})" if source
+        else f"- Quellstand: {revision}",
         f"- Kanal: `{first.get('channel', 'release')}`",
         f"- Gebaut am: {first.get('build_date', 'unbekannt')}",
         "",

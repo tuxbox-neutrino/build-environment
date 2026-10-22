@@ -284,3 +284,9 @@ def test_the_log_scan_report_stays_off_the_release(tmp_path, monkeypatch):
     sums = next(a for a in published["assets"] if a.name == "SHA256SUMS")
     assert "build-log-scan" not in sums.read_text(encoding="utf-8")
     assert "build-log-scan" not in published["notes"]
+
+
+def test_the_notes_link_the_commit_that_was_built(tmp_path, monkeypatch):
+    published = _publishing_run(tmp_path, monkeypatch)
+    assert ("https://github.com/tuxbox-neutrino/build-environment/tree/deadbeef"
+            in published["notes"])

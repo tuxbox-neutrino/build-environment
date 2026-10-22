@@ -13,7 +13,8 @@ from .collect import (archive_release, collect_machine, scan_build_log,
                       write_sha256sums)
 from .config import Config
 from .notes import (fetch_appimage, package_diff, previous_package_list,
-                    read_package_list, render_notes, write_package_list)
+                    read_package_list, render_notes, source_url,
+                    write_package_list)
 from .notify import (issue_fingerprint, mail_subject, open_issue,
                      send_mail)
 from .publish import publish, release_tag
@@ -212,7 +213,8 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
     tag = release_tag(version, today) if results else f"dry-{today:%Y.%m}"
     notes = render_notes(results, tag, diffs,
                          failed=[m.machine for m in failed],
-                         appimage=fetch_appimage(cfg.appimage_repo, cfg.token))
+                         appimage=fetch_appimage(cfg.appimage_repo, cfg.token),
+                         source=source_url(cfg.repo, commit) if commit else "")
     url = publish(cfg, tag, notes, assets, commit, dry_run=dry_run,
                   keep_draft=keep_draft)
     if results and not dry_run:

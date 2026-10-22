@@ -10,9 +10,12 @@ from pathlib import Path
 
 from .config import Config, Machine
 
-#: The three files a user actually flashes. The raw .ext4 is ~580 MB and has
-#: no audience, so it stays out of the release.
-ASSET_SUFFIXES = ("_recovery_emmc.zip", "_multi.zip", ".tuxbox.tar.bz2")
+#: The image a user flashes, in order of preference: multiboot boxes ship a
+#: _multi.zip, others a _usb.zip. One of them has to exist.
+IMAGE_SUFFIXES = ("_multi.zip", "_usb.zip")
+#: Published when the box has them. The raw .ext4 is ~580 MB and has no
+#: audience, so it stays out of the release.
+EXTRA_SUFFIXES = ("_recovery_emmc.zip", ".tuxbox.tar.bz2")
 
 
 @dataclass
@@ -100,20 +103,24 @@ def read_package_sections(deploy_ipk: Path) -> dict[str, str]:
 
 
 def select_assets(deploy_images: Path, manifest: dict) -> list[Path]:
-    """Pick the three flash artefacts belonging to the built image.
+    """Pick the flash artefacts belonging to the built image.
 
     Identified through image_name from the manifest, so leftovers from an
-    earlier build in the same directory cannot slip into a release.
+    earlier build in the same directory cannot slip into a release. The
+    image itself is mandatory; recovery package and root file system
+    archive are taken when the box has them, so a new box type does not
+    stop the release.
     """
     image_name = manifest["image_name"]
-    assets = []
-    for suffix in ASSET_SUFFIXES:
-        candidate = deploy_images / f"{image_name}{suffix}"
-        if not candidate.exists():
-            raise FileNotFoundError(
-                f"expected artefact is missing: {candidate.name}")
-        assets.append(candidate)
-    return assets
+    image = next((deploy_images / f"{image_name}{suffix}"
+                  for suffix in IMAGE_SUFFIXES
+                  if (deploy_images / f"{image_name}{suffix}").exists()), None)
+    if image is None:
+        raise FileNotFoundError(
+            f"expected artefact is missing: {image_name}"
+            f"{' or '.join(IMAGE_SUFFIXES)}")
+    extras = [deploy_images / f"{image_name}{suffix}" for suffix in EXTRA_SUFFIXES]
+    return [image, *(extra for extra in extras if extra.exists())]
 
 
 def write_sha256sums(files: list[Path], dest: Path) -> Path:

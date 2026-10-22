@@ -1,8 +1,9 @@
 import json
 import pytest
 from pathlib import Path
-from tuxbox_release.collect import (select_assets, write_sha256sums, ASSET_SUFFIXES,
-                                    _to_host_path, read_package_sections)
+from tuxbox_release.collect import (select_assets, write_sha256sums, IMAGE_SUFFIXES,
+                                    EXTRA_SUFFIXES, _to_host_path,
+                                    read_package_sections)
 from tuxbox_release.config import Config, Machine
 
 MANIFEST = {
@@ -42,10 +43,29 @@ def make_deploy(tmp_path: Path) -> Path:
     return deploy
 
 
-def test_selects_exactly_the_three_flash_artefacts(tmp_path):
+def test_selects_the_image_and_every_extra_that_exists(tmp_path):
     assets = select_assets(make_deploy(tmp_path), MANIFEST)
-    assert len(assets) == len(ASSET_SUFFIXES)
-    assert {a.name.replace(MANIFEST["image_name"], "") for a in assets} == set(ASSET_SUFFIXES)
+    assert [a.name.replace(MANIFEST["image_name"], "") for a in assets] == \
+        ["_multi.zip", *EXTRA_SUFFIXES]
+
+
+def test_a_box_without_a_recovery_package_is_still_published(tmp_path):
+    # Not every box has a recovery or a plain root file system archive;
+    # only the image itself is indispensable.
+    deploy = make_deploy(tmp_path)
+    next(deploy.glob("*_recovery_emmc.zip")).unlink()
+    assets = select_assets(deploy, MANIFEST)
+    assert [a.name.replace(MANIFEST["image_name"], "") for a in assets] == \
+        ["_multi.zip", ".tuxbox.tar.bz2"]
+
+
+def test_a_usb_image_stands_in_for_a_missing_multi_image(tmp_path):
+    deploy = make_deploy(tmp_path)
+    next(deploy.glob("*_multi.zip")).unlink()
+    (deploy / f"{MANIFEST['image_name']}_usb.zip").write_bytes(b"x")
+    names = [a.name for a in select_assets(deploy, MANIFEST)]
+    assert names[0].endswith("_usb.zip")
+    assert IMAGE_SUFFIXES == ("_multi.zip", "_usb.zip")
 
 
 def test_raw_ext4_is_never_published(tmp_path):

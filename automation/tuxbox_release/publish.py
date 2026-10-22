@@ -24,9 +24,13 @@ def release_tag(image_version: str, when: date) -> str:
     return f"v{image_version}-{when.year}.{when.month:02d}"
 
 
-def gh_create_draft_command(repo: str, tag: str, notes_file: str, commit: str) -> list[str]:
+def gh_create_draft_command(repo: str, tag: str, notes_file: str,
+                            commit: str | None) -> list[str]:
+    # Without a commit the tag lands on the default branch - the only choice
+    # in a release repository that does not contain the built commit.
+    target = ["--target", commit] if commit else []
     return ["gh", "release", "create", tag,
-            "--repo", repo, "--target", commit,
+            "--repo", repo, *target,
             "--title", f"Tuxbox-OS {tag}",
             "--notes-file", notes_file, "--draft"]
 
@@ -45,7 +49,7 @@ def release_exists(cfg: Config, tag: str) -> bool:
     knows. Asking first turns the rerun into an ordinary upload.
     """
     env = dict(os.environ, GH_TOKEN=cfg.token)
-    result = subprocess.run(["gh", "release", "view", tag, "--repo", cfg.repo,
+    result = subprocess.run(["gh", "release", "view", tag, "--repo", cfg.publish_repo,
                              "--json", "id"],
                             capture_output=True, text=True, env=env,
                             check=False)
@@ -70,13 +74,13 @@ def prune_assets(cfg: Config, tag: str, keep: set[str]) -> list[str]:
     beside the first. Whoever downloads the release then has to guess which
     one is current, which is worse than either set on its own.
     """
-    listing = _run(["gh", "release", "view", tag, "--repo", cfg.repo,
+    listing = _run(["gh", "release", "view", tag, "--repo", cfg.publish_repo,
                     "--json", "assets", "--jq", ".assets[].name"], cfg)
     stale = [name for name in listing.splitlines()
              if name.strip() and name not in keep]
     for name in stale:
         _run(["gh", "release", "delete-asset", tag, name,
-              "--repo", cfg.repo, "--yes"], cfg)
+              "--repo", cfg.publish_repo, "--yes"], cfg)
     return stale
 
 
@@ -86,7 +90,7 @@ def verify_uploads(cfg: Config, tag: str, assets: list[Path]) -> None:
     A release whose assets are truncated is worse than no release: people
     download it and only notice when flashing fails.
     """
-    listing = _run(["gh", "release", "view", tag, "--repo", cfg.repo,
+    listing = _run(["gh", "release", "view", tag, "--repo", cfg.publish_repo,
                     "--json", "assets", "--jq",
                     '.assets[] | .name + " " + (.size|tostring)'], cfg)
     remote = dict(line.rsplit(" ", 1) for line in listing.splitlines() if " " in line)
@@ -119,15 +123,18 @@ def publish(cfg: Config, tag: str, notes: str, assets: list[Path],
     if release_exists(cfg, tag):
         # Rerun: keep the release, but refresh the notes - they now describe
         # more machines than the first attempt's did.
-        _run(["gh", "release", "edit", tag, "--repo", cfg.repo,
+        _run(["gh", "release", "edit", tag, "--repo", cfg.publish_repo,
               "--notes-file", str(notes_file)], cfg)
         prune_assets(cfg, tag, {a.name for a in assets})
     else:
-        _run(gh_create_draft_command(cfg.repo, tag, str(notes_file), commit), cfg)
-    _run(gh_upload_command(cfg.repo, tag, [str(a) for a in assets]), cfg)
+        # The built commit exists only in the build system's repository.
+        target = commit if cfg.publish_repo == cfg.repo else None
+        _run(gh_create_draft_command(cfg.publish_repo, tag, str(notes_file),
+                                     target), cfg)
+    _run(gh_upload_command(cfg.publish_repo, tag, [str(a) for a in assets]), cfg)
     verify_uploads(cfg, tag, assets)
     if keep_draft:
         return f"(draft) {tag} with {len(assets)} verified assets, not published"
-    _run(["gh", "release", "edit", tag, "--repo", cfg.repo, "--draft=false"], cfg)
-    return _run(["gh", "release", "view", tag, "--repo", cfg.repo,
+    _run(["gh", "release", "edit", tag, "--repo", cfg.publish_repo, "--draft=false"], cfg)
+    return _run(["gh", "release", "view", tag, "--repo", cfg.publish_repo,
                  "--json", "url", "--jq", ".url"], cfg)

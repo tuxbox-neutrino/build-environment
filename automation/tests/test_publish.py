@@ -223,3 +223,95 @@ def test_a_first_run_deletes_nothing(tmp_path, monkeypatch):
 
     assert not any("delete-asset" in cmd for cmd in calls), \
         f"a fresh release had assets deleted: {calls}"
+
+
+# --- a separate release repository ------------------------------------------
+
+def test_a_draft_without_a_commit_has_no_target():
+    cmd = gh_create_draft_command("tuxbox-neutrino/tuxbox-os-images",
+                                  "v4.0.35.501-2026.10", "notes.md", None)
+    assert "--target" not in cmd
+
+
+def _split_config(tmp_path: Path) -> Config:
+    cfg = make_config(tmp_path)
+    return Config(**{**cfg.__dict__,
+                     "release_repo": "tuxbox-neutrino/tuxbox-os-images"})
+
+
+def test_a_separate_release_repo_receives_every_release_call(tmp_path, monkeypatch):
+    asset = tmp_path / "image.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
+
+    publish(_split_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8")
+
+    repos = {cmd[cmd.index("--repo") + 1] for cmd in calls if "--repo" in cmd}
+    assert repos == {"tuxbox-neutrino/tuxbox-os-images"}, calls
+
+
+def test_a_separate_release_repo_is_not_pinned_to_a_foreign_commit(tmp_path, monkeypatch):
+    # The built commit exists only in the build system's repository;
+    # gh release create --target would answer "No commit found for SHA".
+    asset = tmp_path / "image.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
+
+    publish(_split_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8")
+
+    create = next(cmd for cmd in calls if cmd[:3] == ["gh", "release", "create"])
+    assert "--target" not in create and "277d6b8" not in create
+
+
+def test_the_build_system_repo_still_pins_the_built_commit(tmp_path, monkeypatch):
+    asset = tmp_path / "image.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    monkeypatch.setattr(publish_mod, "_run", _recording_run(calls, asset))
+    monkeypatch.setattr(publish_mod, "release_exists", lambda cfg, tag: False)
+
+    publish(make_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8")
+
+    create = next(cmd for cmd in calls if cmd[:3] == ["gh", "release", "create"])
+    assert create[create.index("--target") + 1] == "277d6b8"
+
+
+def test_a_rerun_stays_in_the_separate_release_repo(tmp_path, monkeypatch):
+    # The second attempt of a month asks, edits and prunes - all of it has
+    # to happen where the first attempt published, not in the source repo.
+    asset = tmp_path / "image.zip"
+    asset.write_bytes(b"payload")
+    calls: list = []
+    asked: list = []
+    monkeypatch.setattr(publish_mod, "_run",
+                        _rerun_run(calls, ["old.zip", asset.name], asset))
+
+    def exists(cfg, tag):
+        asked.append(cfg.publish_repo)
+        return True
+    monkeypatch.setattr(publish_mod, "release_exists", exists)
+
+    publish(_split_config(tmp_path), "v4.0.35.501-2026.10", "notes",
+            [asset], "277d6b8")
+
+    repos = {cmd[cmd.index("--repo") + 1] for cmd in calls if "--repo" in cmd}
+    assert repos == {"tuxbox-neutrino/tuxbox-os-images"}, calls
+    assert asked == ["tuxbox-neutrino/tuxbox-os-images"]
+    assert any(cmd[:3] == ["gh", "release", "delete-asset"] and "old.zip" in cmd
+               for cmd in calls), calls
+
+
+def test_release_exists_asks_the_release_repo(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(publish_mod.subprocess, "run",
+                        lambda cmd, **kw: seen.append(cmd) or
+                        type("R", (), {"returncode": 1})())
+    publish_mod.release_exists(_split_config(tmp_path), "v4.0.35.501-2026.10")
+    assert seen[0][seen[0].index("--repo") + 1] == "tuxbox-neutrino/tuxbox-os-images"

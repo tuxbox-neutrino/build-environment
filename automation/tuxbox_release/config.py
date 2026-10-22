@@ -26,6 +26,18 @@ class Config:
     token: str
     mirrors: tuple[str, ...] = ()
     appimage_repo: str = ""
+    release_repo: str = ""
+
+    @property
+    def publish_repo(self) -> str:
+        """Where the release goes: the build system's own repo unless set apart.
+
+        GitHub attaches "Source code" archives to every release tag. In the
+        build system's repository those are the build system, which is not
+        what anyone downloading an image is after. Issues and the link to
+        the built commit stay with repo either way.
+        """
+        return self.release_repo or self.repo
 
     @property
     def checkout(self) -> Path:
@@ -106,4 +118,5 @@ def load_config(path: Path, require_secrets: bool = True) -> Config:
         token=values["GH_TOKEN"],
         mirrors=_parse_mirrors(values.get("TUXBOX_MIRRORS", "")),
         appimage_repo=values.get("TUXBOX_APPIMAGE_REPO", ""),
+        release_repo=values.get("TUXBOX_RELEASE_REPO", ""),
     )

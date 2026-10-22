@@ -80,3 +80,21 @@ def test_no_mirrors_configured_is_fine(tmp_path):
 def test_blank_entries_in_the_mirror_list_are_dropped(tmp_path):
     cfg = load_config(write_env(tmp_path, TUXBOX_MIRRORS="/mnt/a, ,/mnt/b,"))
     assert cfg.mirrors == ("/mnt/a", "/mnt/b")
+
+
+# --- the release may live apart from the build system ----------------------
+
+def test_the_release_goes_to_the_source_repo_unless_told_otherwise(tmp_path):
+    cfg = load_config(write_env(tmp_path))
+    assert cfg.publish_repo == "tuxbox-neutrino/build-environment"
+
+
+def test_a_separate_release_repo_is_read(tmp_path):
+    # GitHub attaches "Source code" archives to every release tag. In the
+    # build system's own repository those are the build system, which is
+    # not what anyone downloading an image is looking for.
+    cfg = load_config(write_env(
+        tmp_path, TUXBOX_RELEASE_REPO="tuxbox-neutrino/tuxbox-os-images"))
+    assert cfg.publish_repo == "tuxbox-neutrino/tuxbox-os-images"
+    assert cfg.repo == "tuxbox-neutrino/build-environment", \
+        "issues and the source link still belong to the build system"

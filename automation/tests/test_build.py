@@ -334,3 +334,19 @@ def test_a_mirror_that_is_not_mounted_is_not_touched(tmp_path):
     (cache / "obj").symlink_to(obj)
     assert keep_mirrored_objects(cfg, usable=lambda path: False) == (0, 1)
     assert (cache / "obj").is_symlink()
+
+
+# --- the image learns where its packages will be ---------------------------
+# Without a value cli.py bakes its own address into the image; on the build
+# host that was the container's (http://172.17.0.3:33333/...).
+
+def test_the_feed_address_is_handed_to_the_build():
+    cmd = container_command(make_config(), Machine("hd51", "mutant51"),
+                            feed_url="http://feed.example.org/ipk/2026.11/hd51")
+    assert cmd[cmd.index("-e") + 1] == \
+        "LOCAL_FEED_BASE_URL=http://feed.example.org/ipk/2026.11/hd51"
+    assert cmd.index("-e") < cmd.index(make_config().image)
+
+
+def test_without_a_feed_no_address_is_set():
+    assert "-e" not in container_command(make_config(), Machine("hd51", "mutant51"))

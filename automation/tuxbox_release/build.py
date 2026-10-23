@@ -67,7 +67,7 @@ def container_name(machine: Machine) -> str:
     return f"tuxbox-build-{machine.machine}"
 
 
-def container_command(cfg: Config, machine: Machine) -> list[str]:
+def container_command(cfg: Config, machine: Machine, feed_url: str = "") -> list[str]:
     """Assemble the docker invocation for one machine.
 
     The build tree is mounted read-write; TMPDIR lives on the SSD while
@@ -79,6 +79,10 @@ def container_command(cfg: Config, machine: Machine) -> list[str]:
     TMPDIR="/work/builds/<machine>/tmp" for this build layout. Mounting
     anywhere else would leave the SSD unused and quietly put the heaviest
     I/O back onto a spinning disk.
+
+    feed_url is where the image's opkg will look for packages. Without it
+    cli.py bakes in its own address, which inside the container is the
+    container's.
     """
     tmpdir = cfg.tmp_root / f"tmp-{machine.machine}"
     distro_type = "release" if cfg.channel == "release" else "development"
@@ -108,11 +112,14 @@ def container_command(cfg: Config, machine: Machine) -> list[str]:
     command = ["docker", "run", "--rm", "--name", container_name(machine)]
     for mount in mounts:
         command += ["-v", mount]
+    if feed_url:
+        command += ["-e", f"LOCAL_FEED_BASE_URL={feed_url}"]
     command += ["-w", "/work", cfg.image, "/bin/bash", "-lc", inner]
     return command
 
 
-def build_machine(cfg: Config, machine: Machine, log_path: Path) -> int:
+def build_machine(cfg: Config, machine: Machine, log_path: Path,
+                  feed_url: str = "") -> int:
     """Build one machine, streaming everything into log_path."""
     (cfg.tmp_root / f"tmp-{machine.machine}").mkdir(parents=True, exist_ok=True)
     # Create the bind-mount target ourselves. Docker would create a missing
@@ -123,7 +130,7 @@ def build_machine(cfg: Config, machine: Machine, log_path: Path) -> int:
     try:
         with log_path.open("wb") as log:
             process = subprocess.run(
-                container_command(cfg, machine),
+                container_command(cfg, machine, feed_url),
                 stdout=log, stderr=subprocess.STDOUT, check=False,
             )
     except BaseException:

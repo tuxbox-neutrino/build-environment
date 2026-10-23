@@ -356,3 +356,101 @@ def test_a_run_keeps_what_it_took_from_the_mirror(tmp_path, monkeypatch):
                         lambda cfg: kept.append(cfg) or (3, 0))
     _publishing_run(tmp_path, monkeypatch)
     assert len(kept) == 1
+
+
+
+# --- the package feed --------------------------------------------------------
+
+def _feed_run(tmp_path, monkeypatch, upload_rc_error: bool = False):
+    """A rehearsal with a feed configured; returns what happened in order."""
+    from tuxbox_release.collect import MachineArtifacts
+    cfg = _prepared_config(tmp_path, monkeypatch)
+    cfg = Config(**{**cfg.__dict__, "feed_base_url": "http://feed.example.org/ipk",
+                    "feed_dest": "feed-host:"})
+    deploy = tmp_path / "deploy" / "ipk" / "all"
+    deploy.mkdir(parents=True)
+    (deploy / "a_1_all.ipk").write_bytes(b"x")
+    (deploy / "Packages").write_text("Package: a\n")
+    image = tmp_path / "tuxbox-image-hd51_multi.zip"
+    image.write_bytes(b"image")
+    events: list = []
+
+    monkeypatch.setattr("tuxbox_release.runner.SHUTDOWN_MARKER", tmp_path / "shutdown")
+    monkeypatch.setattr("tuxbox_release.runner.commit_is_published", lambda c, h: True)
+    monkeypatch.setattr("tuxbox_release.runner.build_machine",
+                        lambda cfg, machine, log, feed_url="": events.append(("build", feed_url)) or 0)
+    import shutil as _shutil
+
+    def fake_cleanup(*a, **k):
+        # Like the real one: the feed in TMPDIR is gone afterwards.
+        events.append(("cleanup",))
+        _shutil.rmtree(deploy.parent, ignore_errors=True)
+    monkeypatch.setattr("tuxbox_release.runner.cleanup_tmpdir", fake_cleanup)
+    monkeypatch.setattr("tuxbox_release.runner.scan_build_log", lambda c, m, d: (None, 0))
+    monkeypatch.setattr("tuxbox_release.runner.fetch_appimage", lambda r, t: None)
+    monkeypatch.setattr("tuxbox_release.runner.keep_mirrored_objects", lambda cfg: (0, 0))
+    mails: list = []
+    monkeypatch.setattr("tuxbox_release.runner.send_mail",
+                        lambda c, s, b: mails.append((s, b)))
+
+    def fake_collect(cfg, machine, dest):
+        dest.mkdir(parents=True, exist_ok=True)
+        return MachineArtifacts(machine="hd51", image_version="4.0.35.501",
+                                assets=[image], manifest={"git_hash": "deadbee"},
+                                deploy_ipk=deploy.parent)
+    monkeypatch.setattr("tuxbox_release.runner.collect_machine", fake_collect)
+
+    def fake_upload(cfg, release, machine, source):
+        events.append(("upload", release, machine, sorted(p.name for p in source.rglob("*"))))
+        if upload_rc_error:
+            raise RuntimeError(f"Feed-Upload {machine} fehlgeschlagen")
+    monkeypatch.setattr("tuxbox_release.runner.upload_feed", fake_upload)
+    published = {}
+
+    def fake_publish(cfg, tag, notes, assets, commit, **kw):
+        events.append(("publish",))
+        published.update(notes=notes)
+        return "https://github.invalid/release"
+    monkeypatch.setattr("tuxbox_release.runner.publish", fake_publish)
+
+    code = run(cfg, date(2026, 11, 1), keep_draft=True)
+    return code, events, mails, published, cfg
+
+
+def test_the_image_is_built_against_its_release_feed(tmp_path, monkeypatch):
+    _, events, *_ = _feed_run(tmp_path, monkeypatch)
+    assert ("build", "http://feed.example.org/ipk/2026.11/hd51") in events
+
+
+def test_the_feed_is_taken_before_the_tmpdir_goes(tmp_path, monkeypatch):
+    _, events, *_ = _feed_run(tmp_path, monkeypatch)
+    upload = next((e for e in events if e[0] == "upload"), None)
+    assert upload is not None, "nothing was left to upload"
+    assert upload[1:3] == ("2026.11", "hd51") and "a_1_all.ipk" in upload[3]
+
+
+def test_the_feed_is_online_before_the_release_points_at_it(tmp_path, monkeypatch):
+    _, events, _, published, _ = _feed_run(tmp_path, monkeypatch)
+    kinds = [e[0] for e in events]
+    assert kinds.index("upload") < kinds.index("publish")
+    assert "http://feed.example.org/ipk/2026.11/" in published["notes"]
+
+
+def test_a_failed_feed_upload_does_not_stop_the_release(tmp_path, monkeypatch):
+    code, events, mails, published, cfg = _feed_run(tmp_path, monkeypatch, upload_rc_error=True)
+    assert code == 0 and ("publish",) in events
+    assert any("Feed" in subject for subject, _ in mails)
+    assert "opkg" not in published["notes"], "the notes promise a feed that is not there"
+
+
+def test_the_staged_feed_is_removed_once_it_is_online(tmp_path, monkeypatch):
+    *_, cfg = _feed_run(tmp_path, monkeypatch)
+    assert not list(cfg.artifacts_dir.glob("*/feed"))
+
+
+def test_without_a_feed_nothing_is_uploaded(tmp_path, monkeypatch):
+    uploads = []
+    monkeypatch.setattr("tuxbox_release.runner.upload_feed",
+                        lambda *a: uploads.append(a))
+    _publishing_run(tmp_path, monkeypatch)
+    assert uploads == []

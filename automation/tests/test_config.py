@@ -109,3 +109,18 @@ def test_a_machine_may_carry_a_display_name(tmp_path):
     assert cfg.machines[0] == Machine("hd51", "mutant51", "Mut@nt HD51")
     assert cfg.machines[0].display_name == "Mut@nt HD51"
     assert cfg.machines[1].display_name == "h7"
+
+
+# --- the package feed is optional and lives apart from the release --------
+
+def test_without_feed_settings_there_is_no_feed(tmp_path):
+    cfg = load_config(write_env(tmp_path))
+    assert cfg.feed_base_url == "" and cfg.feed_dest == ""
+
+
+def test_feed_settings_are_read(tmp_path):
+    cfg = load_config(write_env(
+        tmp_path, TUXBOX_FEED_BASE_URL="http://feed.example.org/ipk",
+        TUXBOX_FEED_DEST="feed-host:"))
+    assert cfg.feed_base_url == "http://feed.example.org/ipk"
+    assert cfg.feed_dest == "feed-host:"

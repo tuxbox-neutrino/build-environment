@@ -30,6 +30,8 @@ class MachineArtifacts:
     package_manifest: Path | None = None
     #: Package name -> IPK section, for every package in the feed.
     package_sections: dict = field(default_factory=dict)
+    #: The build's feed on the host; gone once cleanup_tmpdir has run.
+    deploy_ipk: Path | None = None
 
 
 def _to_host_path(cfg: Config, machine: Machine, container_path: str) -> Path:
@@ -165,6 +167,7 @@ def collect_machine(cfg: Config, machine: Machine, dest: Path) -> MachineArtifac
         manifest=manifest,
         package_manifest=package_manifest,
         package_sections=read_package_sections(Path(deploy_ipk)) if deploy_ipk else {},
+        deploy_ipk=Path(deploy_ipk) if deploy_ipk else None,
     )
 
 

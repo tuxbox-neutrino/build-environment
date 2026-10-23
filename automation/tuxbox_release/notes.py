@@ -238,7 +238,8 @@ def render_notes(results: list[MachineArtifacts], tag: str,
                  source: str = "",
                  sections: dict[str, dict[str, str]] | None = None,
                  release_repo: str = "",
-                 labels: dict[str, str] | None = None) -> str:
+                 labels: dict[str, str] | None = None,
+                 feed: str = "") -> str:
     """The release page: downloads first, then what changed, details last.
 
     Written for whoever wants to flash a box. One row per box in every
@@ -278,8 +279,11 @@ def render_notes(results: list[MachineArtifacts], tag: str,
     sums = (f"[`SHA256SUMS`]({_download_url(release_repo, tag, 'SHA256SUMS')})"
             if release_repo else "`SHA256SUMS`")
     lines += ["", hint, "",
-              f"Prüfsummen: {sums} – im Download-Ordner `sha256sum -c SHA256SUMS` ausführen.",
-              "", "## Paketänderungen gegenüber dem Vormonat", ""]
+              f"Prüfsummen: {sums} – im Download-Ordner `sha256sum -c SHA256SUMS` ausführen."]
+    if feed:
+        lines += ["", f"Pakete für opkg: `{feed.rstrip('/')}/<box>/` – die Images sind "
+                      "darauf eingestellt, `opkg update` genügt."]
+    lines += ["", "## Paketänderungen gegenüber dem Vormonat", ""]
     order = [r.machine for r in results]
     order += sorted(set(package_diffs) - set(order))
     lines += _changes_table(order, package_diffs, sections, labels)

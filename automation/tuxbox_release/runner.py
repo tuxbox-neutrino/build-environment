@@ -13,6 +13,7 @@ from .build import (build_machine, cleanup_tmpdir, free_gb,
 from .collect import (archive_release, collect_machine, scan_build_log,
                       write_sha256sums)
 from .config import Config
+from .feed import collect_feed, image_feed_url, release_dir, upload_feed
 from .notes import (fetch_appimage, package_diff, previous_package_list,
                     previous_package_sections, read_package_list,
                     render_notes, source_url, write_package_list,
@@ -141,6 +142,9 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
     # safely copied - and the next machine only starts if space allows.
     state.start("build")
     artefact_dir = cfg.artifacts_dir / build_id / "images"
+    # The feed is staged beside the images and leaves once it is online.
+    feed_dir = cfg.artifacts_dir / build_id / "feed"
+    release = release_dir(today)
     built, failed, results, diffs = [], [], [], {}
     sections: dict[str, dict[str, str]] = {}
 
@@ -155,7 +159,9 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
             continue
 
         log_path = run_dir / f"{machine.machine}.log"
-        code = build_machine(cfg, machine, log_path)
+        feed_url = (image_feed_url(cfg, release, machine.machine)
+                    if cfg.feed_base_url else "")
+        code = build_machine(cfg, machine, log_path, feed_url=feed_url)
         if code != 0:
             failed.append(machine)
             state.machine_result(machine.machine, "failed", returncode=code)
@@ -167,6 +173,9 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
             continue
 
         result = collect_machine(cfg, machine, artefact_dir)
+        # The feed lives in TMPDIR, so it has to be taken now or never.
+        if cfg.feed_dest and result.deploy_ipk:
+            collect_feed(result.deploy_ipk, feed_dir / machine.machine)
         # The report stays beside the artefacts and goes into the archive,
         # but not into the release: nobody flashes a log scan.
         _report, criticals = scan_build_log(cfg, machine, artefact_dir)
@@ -225,6 +234,8 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
                  asset_count=len(assets))
 
     state.start("publish")
+    feed_status = _publish_feed(cfg, release, feed_dir, dry_run)
+    feed_online = bool(feed_status) and all(s == "ok" for s in feed_status.values())
     version = results[0].image_version if results else "0.0.0.0"
     tag = release_tag(version, today) if results else f"dry-{today:%Y.%m}"
     notes = render_notes(results, tag, diffs,
@@ -233,12 +244,14 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
                          source=source_url(cfg.repo, commit) if commit else "",
                          sections=sections,
                          release_repo=cfg.publish_repo,
-                         labels={m.machine: m.display_name for m in cfg.machines})
+                         labels={m.machine: m.display_name for m in cfg.machines},
+                         feed=f"{cfg.feed_base_url.rstrip('/')}/{release}/"
+                         if feed_online else "")
     url = publish(cfg, tag, notes, assets, commit, dry_run=dry_run,
                   keep_draft=keep_draft)
     if results and not dry_run:
         archive_release(cfg, build_id, artefact_dir)
-    state.finish("publish", "ok", tag=tag, url=url)
+    state.finish("publish", "ok", tag=tag, url=url, feed=feed_status)
 
     state.start("finish")
     summary = (f"Lauf {build_id}\nTag: {tag}\nRelease: {url}\n"
@@ -249,6 +262,34 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
         SHUTDOWN_MARKER.touch()
     state.finish("finish", "ok")
     return 0 if not failed else 2
+
+
+def _publish_feed(cfg: Config, release: str, feed_dir: Path,
+                  dry_run: bool) -> dict[str, str]:
+    """Upload each machine's staged feed; machine -> "ok" or the error.
+
+    Runs before the release is published, so the images never point at a
+    feed that is not there yet. A failed upload is reported, but it does not
+    hold the images back: they flash fine without it, and the staged feed
+    stays on disk for a second attempt.
+    """
+    if dry_run or not cfg.feed_dest or not feed_dir.is_dir():
+        return {}
+    status: dict[str, str] = {}
+    for source in sorted(p for p in feed_dir.iterdir() if p.is_dir()):
+        try:
+            upload_feed(cfg, release, source.name, source)
+            status[source.name] = "ok"
+        except RuntimeError as exc:
+            status[source.name] = str(exc)
+    problems = {m: s for m, s in status.items() if s != "ok"}
+    if problems:
+        send_mail(cfg, mail_subject("IPK-Feed nicht hochgeladen"),
+                  "\n".join(problems.values()) +
+                  f"\n\nDer Feed liegt weiter unter {feed_dir}.")
+    else:
+        shutil.rmtree(feed_dir, ignore_errors=True)
+    return status
 
 
 def run(cfg: Config, today: date, dry_run: bool = False,

@@ -294,3 +294,13 @@ def test_the_download_table_offers_image_and_recovery_only(tmp_path):
     notes = render_notes([_built(tmp_path, "hd51", "_multi.zip")], "v1-2026.11", {})
     assert "| Box | Image | Recovery |" in notes
     assert "Root-Dateisystem" not in notes
+
+
+def test_the_notes_name_the_package_feed_of_the_release():
+    notes = render_notes([artifacts()], "v1-2026.11", {},
+                         feed="http://feed.example.org/ipk/2026.11/")
+    assert "`http://feed.example.org/ipk/2026.11/<box>/`" in notes
+
+
+def test_without_a_feed_the_notes_do_not_mention_one():
+    assert "opkg" not in render_notes([artifacts()], "v1-2026.11", {})

@@ -33,6 +33,11 @@ class Config:
     mirrors: tuple[str, ...] = ()
     appimage_repo: str = ""
     release_repo: str = ""
+    #: Public base of the package feed as the boxes reach it (http: opkg on
+    #: the box has no TLS), and the rsync destination it is uploaded to.
+    #: Both empty: no feed, and the images keep cli.py's local default.
+    feed_base_url: str = ""
+    feed_dest: str = ""
 
     @property
     def publish_repo(self) -> str:
@@ -131,4 +136,6 @@ def load_config(path: Path, require_secrets: bool = True) -> Config:
         mirrors=_parse_mirrors(values.get("TUXBOX_MIRRORS", "")),
         appimage_repo=values.get("TUXBOX_APPIMAGE_REPO", ""),
         release_repo=values.get("TUXBOX_RELEASE_REPO", ""),
+        feed_base_url=values.get("TUXBOX_FEED_BASE_URL", ""),
+        feed_dest=values.get("TUXBOX_FEED_DEST", ""),
     )

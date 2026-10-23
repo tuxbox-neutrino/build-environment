@@ -236,7 +236,7 @@ def _built(tmp_path, machine, *suffixes):
 
 
 def test_downloads_are_linked_with_their_size(tmp_path):
-    result = _built(tmp_path, "hd51", "_multi.zip", "_recovery_emmc.zip", ".tuxbox.tar.bz2")
+    result = _built(tmp_path, "hd51", "_multi.zip", "_recovery_emmc.zip")
     notes = render_notes([result], "v4.0.35.502-2026.10", {},
                          release_repo="tuxbox-neutrino/images",
                          labels={"hd51": "Mut@nt HD51"})
@@ -251,7 +251,7 @@ def test_a_missing_file_type_leaves_a_dash(tmp_path):
     result = _built(tmp_path, "vuduo4k", "_usb.zip")
     notes = render_notes([result], "v1-2026.11", {}, release_repo="org/images")
     row = next(line for line in notes.splitlines() if line.startswith("| vuduo4k |"))
-    assert "[usb.zip](" in row and row.endswith("| – | – |")
+    assert "[usb.zip](" in row and row.endswith("| – |")
 
 
 def test_every_box_is_one_row_in_both_tables(tmp_path):
@@ -287,3 +287,10 @@ def test_a_failed_box_is_named_by_its_label(tmp_path):
 
 def test_a_dry_run_without_images_still_renders():
     assert "Downloads" in render_notes([], "dry-2026.10", {})
+
+
+
+def test_the_download_table_offers_image_and_recovery_only(tmp_path):
+    notes = render_notes([_built(tmp_path, "hd51", "_multi.zip")], "v1-2026.11", {})
+    assert "| Box | Image | Recovery |" in notes
+    assert "Root-Dateisystem" not in notes

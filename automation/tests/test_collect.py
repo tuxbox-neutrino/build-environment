@@ -50,13 +50,19 @@ def test_selects_the_image_and_every_extra_that_exists(tmp_path):
 
 
 def test_a_box_without_a_recovery_package_is_still_published(tmp_path):
-    # Not every box has a recovery or a plain root file system archive;
-    # only the image itself is indispensable.
+    # Not every box has a recovery package; only the image is indispensable.
     deploy = make_deploy(tmp_path)
     next(deploy.glob("*_recovery_emmc.zip")).unlink()
     assets = select_assets(deploy, MANIFEST)
-    assert [a.name.replace(MANIFEST["image_name"], "") for a in assets] == \
-        ["_multi.zip", ".tuxbox.tar.bz2"]
+    assert [a.name.replace(MANIFEST["image_name"], "") for a in assets] == ["_multi.zip"]
+
+
+def test_the_bare_root_file_system_archive_is_not_published(tmp_path):
+    # Without a kernel it cannot be flashed on its own, and nothing in the
+    # project reads it: the flash tool wants kernel and root file system
+    # together, as the images carry them.
+    assets = select_assets(make_deploy(tmp_path), MANIFEST)
+    assert not any(a.name.endswith(".tuxbox.tar.bz2") for a in assets)
 
 
 def test_a_usb_image_stands_in_for_a_missing_multi_image(tmp_path):

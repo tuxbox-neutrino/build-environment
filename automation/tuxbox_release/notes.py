@@ -162,13 +162,12 @@ def source_url(repo: str, commit: str) -> str:
 DOWNLOAD_COLUMNS = (
     ("Image", IMAGE_SUFFIXES),
     ("Recovery", ("_recovery_emmc.zip",)),
-    ("Root-Dateisystem", (".tuxbox.tar.bz2",)),
 )
 
 
 def _short_name(suffix: str) -> str:
-    """"_multi.zip" -> "multi.zip", ".tuxbox.tar.bz2" -> "tar.bz2"."""
-    return suffix.lstrip("_.").removeprefix("tuxbox.")
+    """"_multi.zip" -> "multi.zip", "_recovery_emmc.zip" -> "recovery_emmc.zip"."""
+    return suffix.lstrip("_")
 
 
 def _megabytes(size: int) -> str:

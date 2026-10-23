@@ -13,9 +13,11 @@ from .config import Config, Machine
 #: The image a user flashes, in order of preference: multiboot boxes ship a
 #: _multi.zip, others a _usb.zip. One of them has to exist.
 IMAGE_SUFFIXES = ("_multi.zip", "_usb.zip")
-#: Published when the box has them. The raw .ext4 is ~580 MB and has no
-#: audience, so it stays out of the release.
-EXTRA_SUFFIXES = ("_recovery_emmc.zip", ".tuxbox.tar.bz2")
+#: Published when the box has it. The raw .ext4 (~580 MB) and the bare
+#: root file system archive (.tuxbox.tar.bz2, no kernel) have no audience:
+#: neither can be flashed on its own, and the flash tool takes kernel and
+#: root file system from the image archive.
+EXTRA_SUFFIXES = ("_recovery_emmc.zip",)
 
 
 @dataclass
@@ -107,9 +109,8 @@ def select_assets(deploy_images: Path, manifest: dict) -> list[Path]:
 
     Identified through image_name from the manifest, so leftovers from an
     earlier build in the same directory cannot slip into a release. The
-    image itself is mandatory; recovery package and root file system
-    archive are taken when the box has them, so a new box type does not
-    stop the release.
+    image itself is mandatory; the recovery package is taken when the box
+    has one, so a new box type does not stop the release.
     """
     image_name = manifest["image_name"]
     image = next((deploy_images / f"{image_name}{suffix}"

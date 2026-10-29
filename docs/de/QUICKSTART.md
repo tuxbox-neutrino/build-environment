@@ -261,7 +261,7 @@ Für öffentliche Feeds überschreibst du die Feed-URL in
 `builds/conf/local.conf`:
 
 ```conf
-IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
+IPK_FEED_SERVER = "http://feeds.example.org/tuxbox/${MACHINE}/ipk"
 ```
 
 Bei Bedarf deaktivierst du den automatischen lokalen Feed-Default so:
@@ -269,6 +269,12 @@ Bei Bedarf deaktivierst du den automatischen lokalen Feed-Default so:
 ```bash
 make image MACHINE=hd60 LOCAL_FEED=0
 ```
+
+Für Monatsreleases müssen `TUXBOX_FEED_BASE_URL` und `TUXBOX_FEED_DEST`
+in der Release-Umgebung gesetzt sein. Der Runner trägt die öffentliche
+HTTP-URL ins Flash-Image ein und prüft den hochgeladenen Feed per HTTP,
+bevor er das Image veröffentlicht. Siehe das
+[Beispiel der Release-Umgebung](../../automation/tuxbox-release.env.example).
 
 ## 10. Lokaler Image-Server Für Online Flash
 

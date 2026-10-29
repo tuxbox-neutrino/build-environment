@@ -35,7 +35,8 @@ class Config:
     release_repo: str = ""
     #: Public base of the package feed as the boxes reach it (http: opkg on
     #: the box has no TLS), and the rsync destination it is uploaded to.
-    #: Both empty: no feed, and the images keep cli.py's local default.
+    #: Both are mandatory for a real release run; never bake cli.py's local
+    #: container address into a public image.
     feed_base_url: str = ""
     feed_dest: str = ""
 

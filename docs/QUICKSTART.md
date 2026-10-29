@@ -247,7 +247,7 @@ box should reach the feed from the LAN.
 Override the feed URL for public feeds in `builds/conf/local.conf`:
 
 ```conf
-IPK_FEED_SERVER = "https://feeds.example.org/tuxbox/${MACHINE}/ipk"
+IPK_FEED_SERVER = "http://feeds.example.org/tuxbox/${MACHINE}/ipk"
 ```
 
 Disable the automatic local feed default when needed:
@@ -255,6 +255,11 @@ Disable the automatic local feed default when needed:
 ```bash
 make image MACHINE=hd60 LOCAL_FEED=0
 ```
+
+For monthly releases, configure both `TUXBOX_FEED_BASE_URL` and
+`TUXBOX_FEED_DEST` in the release environment. The runner embeds the public
+HTTP URL in the flash image and verifies the uploaded feed over HTTP before
+publishing the image. See the [release environment example](../automation/tuxbox-release.env.example).
 
 ## 10. Local Image Server For Online Flash
 

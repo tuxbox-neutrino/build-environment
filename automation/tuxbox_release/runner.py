@@ -13,7 +13,9 @@ from .build import (build_machine, cleanup_tmpdir, free_gb,
 from .collect import (archive_release, collect_machine, scan_build_log,
                       write_sha256sums)
 from .config import Config
-from .feed import collect_feed, image_feed_url, release_dir, upload_feed
+from .feed import (collect_feed, feed_config_problem, image_feed_url,
+                   release_dir, upload_feed, verify_feed_online,
+                   verify_image_feed)
 from .notes import (fetch_appimage, package_diff, previous_package_list,
                     previous_package_sections, read_package_list,
                     render_notes, source_url, write_package_list,
@@ -76,7 +78,7 @@ def should_power_off(dry_run: bool, keep_draft: bool) -> bool:
     return not dry_run and not keep_draft
 
 
-def preflight(cfg: Config) -> list[str]:
+def preflight(cfg: Config, require_feed: bool = False) -> list[str]:
     """Everything that must hold before a run may start."""
     problems = []
     if not cfg.work_root.is_dir():
@@ -90,6 +92,10 @@ def preflight(cfg: Config) -> list[str]:
     for root in (cfg.tmp_root, cfg.work_root):
         if root.is_dir() and free_gb(root) < MIN_FREE_GB:
             problems.append(f"zu wenig Platz auf {root}: {free_gb(root)} GB frei")
+    if require_feed:
+        problem = feed_config_problem(cfg)
+        if problem:
+            problems.append(problem)
     return problems
 
 
@@ -116,7 +122,7 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
     reported failure.
     """
     state.start("preflight")
-    problems = preflight(cfg)
+    problems = preflight(cfg, require_feed=not dry_run)
     if problems:
         state.finish("preflight", "failed", problems=problems)
         send_mail(cfg, mail_subject("Monatsbuild nicht gestartet"),
@@ -159,8 +165,7 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
             continue
 
         log_path = run_dir / f"{machine.machine}.log"
-        feed_url = (image_feed_url(cfg, release, machine.machine)
-                    if cfg.feed_base_url else "")
+        feed_url = image_feed_url(cfg, release, machine.machine)
         code = build_machine(cfg, machine, log_path, feed_url=feed_url)
         if code != 0:
             failed.append(machine)
@@ -174,7 +179,7 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
 
         result = collect_machine(cfg, machine, artefact_dir)
         # The feed lives in TMPDIR, so it has to be taken now or never.
-        if cfg.feed_dest and result.deploy_ipk:
+        if result.deploy_ipk:
             collect_feed(result.deploy_ipk, feed_dir / machine.machine)
         # The report stays beside the artefacts and goes into the archive,
         # but not into the release: nobody flashes a log scan.
@@ -234,7 +239,9 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
                  asset_count=len(assets))
 
     state.start("publish")
-    feed_status = _publish_feed(cfg, release, feed_dir, dry_run)
+    feed_status = _publish_feed(cfg, release, feed_dir,
+                                {r.machine: r.assets[0] for r in results},
+                                dry_run)
     feed_online = bool(feed_status) and all(s == "ok" for s in feed_status.values())
     version = results[0].image_version if results else "0.0.0.0"
     tag = release_tag(version, today) if results else f"dry-{today:%Y.%m}"
@@ -265,30 +272,23 @@ def _run_phases(cfg: Config, today: date, state: BuildState,
 
 
 def _publish_feed(cfg: Config, release: str, feed_dir: Path,
-                  dry_run: bool) -> dict[str, str]:
-    """Upload each machine's staged feed; machine -> "ok" or the error.
-
-    Runs before the release is published, so the images never point at a
-    feed that is not there yet. A failed upload is reported, but it does not
-    hold the images back: they flash fine without it, and the staged feed
-    stays on disk for a second attempt.
-    """
-    if dry_run or not cfg.feed_dest or not feed_dir.is_dir():
+                  images: dict[str, Path], dry_run: bool) -> dict[str, str]:
+    """Publish and verify every built machine's feed before any image release."""
+    if dry_run:
         return {}
+    if not feed_dir.is_dir():
+        raise RuntimeError(f"Feed-Staging fehlt: {feed_dir}")
     status: dict[str, str] = {}
-    for source in sorted(p for p in feed_dir.iterdir() if p.is_dir()):
-        try:
-            upload_feed(cfg, release, source.name, source)
-            status[source.name] = "ok"
-        except RuntimeError as exc:
-            status[source.name] = str(exc)
-    problems = {m: s for m, s in status.items() if s != "ok"}
-    if problems:
-        send_mail(cfg, mail_subject("IPK-Feed nicht hochgeladen"),
-                  "\n".join(problems.values()) +
-                  f"\n\nDer Feed liegt weiter unter {feed_dir}.")
-    else:
-        shutil.rmtree(feed_dir, ignore_errors=True)
+    for machine, image in images.items():
+        source = feed_dir / machine
+        if not source.is_dir():
+            raise RuntimeError(f"Feed-Staging fuer {machine} fehlt: {source}")
+        verify_image_feed(image, image_feed_url(cfg, release, machine),
+                          {p.name for p in source.iterdir() if p.is_dir()})
+        upload_feed(cfg, release, machine, source)
+        verify_feed_online(cfg, release, machine, source)
+        status[machine] = "ok"
+    shutil.rmtree(feed_dir)
     return status
 
 
